@@ -1,0 +1,53 @@
+---
+title: 'Referência'
+description: 'Clientes para pré-preencher checkout e reutilizar em várias cobranças'
+icon: 'book-open-cover'
+---
+
+Use `/customers/create` para cadastrar um cliente antes de cobrar. O `customerId` retornado pode ser usado em várias cobranças e pré-preenche o checkout.
+
+<Info>
+  Só `email` é obrigatório. Recomendado: `name`, `cellphone` e `taxId` quando tiver.
+</Info>
+
+**Exemplo:**
+```json
+POST /customers/create
+{
+  "data": {
+    "email": "exemplo@4selet.com.br",
+    "taxId": "12345678900",
+    "name": "João Silva",
+    "cellphone": "+5511999999999",
+    "zipCode": "01310-100"
+  },
+  "metadata": {
+    "customField": "value"
+  }
+}
+```
+
+**Resposta:**
+```json
+{
+  "data": {
+    "id": "cust_abc123xyz",
+    "devMode": false,
+    "email": "exemplo@4selet.com.br",
+    "taxId": "12345678900",
+    "country": "BR",
+    "name": "João Silva",
+    "cellphone": "+5511999999999",
+    "zipCode": "01310-100",
+    "metadata": {
+      "customField": "value"
+    }
+  },
+  "success": true,
+  "error": null
+}
+```
+
+<Warning>
+  Cliente é único por CPF/CNPJ. Se já existir, a API devolve o existente em vez de criar outro. CPF/CNPJ inválido não é aceito.
+</Warning>

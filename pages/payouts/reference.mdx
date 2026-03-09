@@ -1,0 +1,50 @@
+---
+title: "Referência"
+description: "Realize saques e transferências da sua conta 4SeletPay"
+icon: "book-open-cover"
+---
+
+Saques permitem transferir o saldo da sua conta 4SeletPay para uma conta bancária externa via PIX.
+
+## Criar um saque
+
+Use `/payouts/create`.
+
+<Info>
+  Obrigatório: `amount` (valor em centavos) e os dados da conta de destino.
+</Info>
+
+**Exemplo:**
+```json
+POST /payouts/create
+{
+  "amount": 50000,
+  "pixKey": "exemplo@email.com",
+  "externalId": "saque-123"
+}
+```
+
+**Resposta:**
+```json
+{
+  "data": {
+    "id": "tran_abc123xyz",
+    "amount": 50000,
+    "status": "PENDING",
+    "method": "PIX",
+    "platformFee": 80,
+    "externalId": "saque-123",
+    "devMode": false,
+    "createdAt": "2024-11-04T18:38:28.573Z",
+    "updatedAt": "2024-11-04T18:38:28.573Z"
+  },
+  "success": true,
+  "error": null
+}
+```
+
+## Status do Saque
+
+- **PENDING**: Saque em processamento
+- **COMPLETE**: Saque concluído com sucesso
+- **FAILED**: Saque falhou

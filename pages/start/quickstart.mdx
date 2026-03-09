@@ -1,0 +1,123 @@
+---
+title: 'Primeira requisição'
+description: 'Comece a usar a API da 4SeletPay em minutos'
+icon: 'rocket'
+---
+
+<Info>
+  Este guia rápido te ajudará a fazer sua primeira requisição à API da
+  4SeletPay em poucos minutos.
+</Info>
+
+## Pré-requisitos
+
+Antes de começar, você precisa de:
+
+- Uma conta na 4SeletPay
+- Uma chave de API (criada no dashboard)
+- Conhecimento básico de HTTP e JSON
+
+<Tip>
+  Se você ainda não tem uma conta, acesse o <a href="https://app.4seletpay.com.br" target="_blank">dashboard</a> e crie sua conta gratuitamente.
+</Tip>
+
+## Passo 1: Obter sua Chave de API
+
+Primeiro, você precisa criar uma chave de API no dashboard da 4SeletPay:
+
+<Steps>
+  <Step title="Acesse o Dashboard">
+    Faça login no <a href="https://app.4seletpay.com.br" target="_blank">dashboard da 4SeletPay</a>
+  </Step>
+  <Step title="Crie uma chave de API">
+    Navegue até a seção de integração e clique em "Criar Chave"
+  </Step>
+  <Step title="Copie sua chave">
+    Copie a chave gerada e armazene-a em um local seguro
+  </Step>
+</Steps>
+
+<Warning>
+  **Importante**: Sua chave de API é uma credencial sensível. Nunca a
+  compartilhe publicamente ou a commite em repositórios de código.
+</Warning>
+
+<Note>
+  O modo da cobrança (dev ou produção) é determinado automaticamente pela **chave de API** utilizada na requisição:
+
+  - **Chave de API de Dev**: Transações simuladas, ideal para testes
+  - **Chave de API de Produção**: Transações reais, requer conta verificada
+
+  Observe que na resposta, o campo `devMode` indica se a cobrança foi criada em modo de desenvolvimento ou produção.
+</Note>
+
+Para mais detalhes sobre autenticação, consulte a [documentação de autenticação](/pages/authentication).
+
+## Passo 2: Fazer sua Primeira Requisição
+
+Agora vamos criar sua primeira cobrança de Checkout Transparente via API.
+
+### Exemplo com cURL
+
+```bash
+curl --request POST \
+  --url https://app.4seletpay.com.br/api/v1/transparents/create \
+  --header 'Authorization: Bearer {{API_KEY}}' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "amount": 1000,
+    "method": "PIX_QRCODE"
+  }'
+```
+
+### Resposta de Sucesso
+
+```json
+{
+  "error": null,
+  "data": {
+    "id": "pix_char_cY2F1nwmknGfg2jdRxrkgmgN",
+    "amount": 1000,
+    "status": "PENDING",
+    "devMode": true,
+    "method": "PIX_QRCODE",
+    "brCode": "0002010121126580014BR.GOV.BCB...",
+    "brCodeBase64": "data:image/png;base64...",
+    "platformFee": 80,
+    "createdAt": "2025-12-08T17:01:48.857Z",
+    "updatedAt": "2025-12-08T17:01:48.857Z",
+    "expiresAt": "2025-12-09T17:01:48.857Z"
+  }
+}
+```
+
+<Tip>
+  Após criar sua cobrança, você pode visualizá-la no dashboard da 4SeletPay. Acesse o{" "}
+  <a href="https://app.4seletpay.com.br" target="_blank">dashboard</a>{" "}
+  e navegue até a seção de **Cobranças** para ver todos os detalhes da cobrança criada, incluindo status, valores e histórico de pagamentos.
+</Tip>
+
+## Próximos Passos
+
+Agora que você fez sua primeira requisição, explore mais funcionalidades:
+
+<CardGroup cols={2}>
+  <Card title="Clientes" icon="users" href="/pages/client/reference">
+    Aprenda a criar e gerenciar clientes via API
+  </Card>
+  <Card title="Checkouts" icon="credit-card" href="/pages/payment/reference">
+    Veja todas as opções disponíveis para criar cobranças
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/pages/webhooks">
+    Receba notificações em tempo real sobre eventos
+  </Card>
+  <Card title="PIX QRCode" icon="qrcode" href="/pages/pix-qrcode/reference">
+    Gere cobranças PIX diretamente no seu sistema
+  </Card>
+</CardGroup>
+
+## Precisa de Ajuda?
+
+<Note>
+  Nossa equipe está sempre à disposição! Contate-nos: suporte@4selet.com.br
+</Note>

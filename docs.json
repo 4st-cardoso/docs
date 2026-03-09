@@ -1,122 +1,191 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "4SeletPay",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#007AFF",
+    "light": "#0A84FF",
+    "dark": "#0056B3"
   },
-  "favicon": "/favicon.svg",
+  "appearance": {
+    "default": "dark",
+    "strict": false
+  },
+  "favicon": "/favicon.ico",
+  "api": {
+    "mdx": {
+      "server": "https://app.4seletpay.com.br/api/v1",
+      "auth": {
+        "method": "bearer"
+      }
+    }
+  },
   "navigation": {
-    "tabs": [
+    "versions": [
       {
-        "tab": "Guides",
-        "groups": [
+        "version": "v1",
+        "tag": "Atual",
+        "tabs": [
           {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
+            "tab": "Comece aqui",
+            "groups": [
+              {
+                "group": "Introdução",
+                "pages": [
+                  "pages/start/introduction"
+                ]
+              },
+              {
+                "group": "Webhooks",
+                "pages": [
+                  "pages/webhooks"
+                ]
+              }
             ]
           },
           {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+            "tab": "Documentação",
+            "groups": [
+              {
+                "group": "Comece aqui",
+                "pages": [
+                  "pages/start/quickstart",
+                  "pages/devmode",
+                  "pages/authentication",
+                  "pages/glossario",
+                  "pages/production"
+                ]
+              },
+              {
+                "group": "Produtos",
+                "pages": [
+                  "pages/products/reference",
+                  "pages/products/create",
+                  "pages/products/list",
+                  "pages/products/get",
+                  "pages/products/delete"
+                ]
+              },
+              {
+                "group": "Clientes",
+                "pages": [
+                  "pages/client/reference",
+                  "pages/client/create",
+                  "pages/client/list",
+                  "pages/client/get",
+                  "pages/client/delete"
+                ]
+              },
+              {
+                "group": "Cupons",
+                "pages": [
+                  "pages/coupons/reference",
+                  "pages/coupons/create",
+                  "pages/coupons/list",
+                  "pages/coupons/get",
+                  "pages/coupons/delete",
+                  "pages/coupons/toggle"
+                ]
+              },
+              {
+                "group": "Checkouts",
+                "pages": [
+                  "pages/payment/reference",
+                  "pages/payment/create",
+                  "pages/payment/list",
+                  "pages/payment/one"
+                ]
+              },
+              {
+                "group": "Links de pagamento",
+                "pages": [
+                  "pages/payment-links/reference",
+                  "pages/payment-links/create",
+                  "pages/payment-links/list",
+                  "pages/payment-links/one"
+                ]
+              },
+              {
+                "group": "Checkout Transparente",
+                "pages": [
+                  "pages/pix-qrcode/reference",
+                  "pages/pix-qrcode/create",
+                  "pages/pix-qrcode/list",
+                  "pages/pix-qrcode/simulate-payment",
+                  "pages/pix-qrcode/check"
+                ]
+              },
+              {
+                "group": "Assinaturas",
+                "pages": [
+                  "pages/subscriptions/reference",
+                  "pages/subscriptions/create",
+                  "pages/subscriptions/list"
+                ]
+              },
+              {
+                "group": "Saques",
+                "pages": [
+                  "pages/payouts/reference",
+                  "pages/payouts/create",
+                  "pages/payouts/get",
+                  "pages/payouts/list"
+                ]
+              },
+              {
+                "group": "PIX",
+                "pages": [
+                  "pages/pix/reference",
+                  "pages/pix/create",
+                  "pages/pix/get",
+                  "pages/pix/list"
+                ]
+              },
+              {
+                "group": "Loja",
+                "pages": [
+                  "pages/store/reference",
+                  "pages/store/get"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
-        "groups": [
+        "version": "v2",
+        "tag": "Em breve",
+        "tabs": [
           {
-            "group": "API documentation",
+            "tab": "API v2",
             "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
-            "group": "Endpoint examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "pages/v2/coming-soon"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/logo.png",
+    "dark": "/logo/logo.png"
   },
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "Suporte",
+        "href": "mailto:suporte@4selet.com.br"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://app.4seletpay.com.br"
     }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "website": "https://4seletpay.com.br"
     }
   }
 }

@@ -1,0 +1,50 @@
+---
+title: "Referência"
+description: "Envie transferências PIX diretamente pela API"
+icon: "book-open-cover"
+---
+
+O módulo PIX permite que você envie transferências PIX diretamente pela API da 4SeletPay.
+
+## Criar transferência PIX
+
+Use `/pix/create`.
+
+<Info>
+  Obrigatório: `amount` (valor em centavos), `pixKey` (chave PIX do destinatário).
+</Info>
+
+**Exemplo:**
+```json
+POST /pix/create
+{
+  "amount": 10000,
+  "pixKey": "exemplo@email.com",
+  "externalId": "transfer-123"
+}
+```
+
+**Resposta:**
+```json
+{
+  "data": {
+    "id": "pix_abc123xyz",
+    "amount": 10000,
+    "status": "PENDING",
+    "method": "PIX",
+    "pixKey": "exemplo@email.com",
+    "externalId": "transfer-123",
+    "devMode": false,
+    "createdAt": "2024-11-04T18:38:28.573Z",
+    "updatedAt": "2024-11-04T18:38:28.573Z"
+  },
+  "success": true,
+  "error": null
+}
+```
+
+## Status
+
+- **PENDING**: Transferência em processamento
+- **COMPLETE**: Transferência concluída
+- **FAILED**: Transferência falhou

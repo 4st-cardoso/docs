@@ -1,0 +1,31 @@
+---
+title: "Referência"
+description: "Informações da sua loja na 4SeletPay"
+icon: "book-open-cover"
+---
+
+O recurso Loja permite que você consulte informações da sua loja na 4SeletPay, incluindo dados da conta, configurações e saldo.
+
+## Consultar loja
+
+Use `GET /store/get` para buscar informações da sua loja.
+
+**Resposta:**
+```json
+{
+  "data": {
+    "id": "store_abc123xyz",
+    "name": "Minha Loja",
+    "devMode": false,
+    "balance": 150000,
+    "createdAt": "2024-11-04T18:38:28.573Z",
+    "updatedAt": "2024-11-04T18:38:28.573Z"
+  },
+  "success": true,
+  "error": null
+}
+```
+
+<Info>
+  O campo `balance` retorna o saldo disponível em centavos.
+</Info>

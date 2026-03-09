@@ -1,0 +1,82 @@
+---
+title: 'Dev mode, o que é?'
+description: "Entenda o Dev mode e aprenda a usar este ambiente para testar sua integração com segurança."
+icon: 'code'
+---
+
+O **Dev mode** é o ambiente de testes da 4SeletPay.
+Ele permite que você experimente toda a plataforma sem risco, simulando pagamentos, cobranças e webhooks antes de ir para produção.
+
+## O que é o Dev mode?
+
+Ao criar sua conta, você já começa no Dev mode.
+Nesse ambiente:
+
+- Os pagamentos são **simulados**
+- Nada é cobrado de verdade
+- Você pode testar quantas vezes quiser
+- Seus testes não afetam os dados de produção
+
+É o lugar ideal para montar e validar toda sua integração.
+
+<CardGroup cols={2}>
+  <Card title="Teste com segurança" icon="shield-check">Teste sua integração sem riscos</Card>
+  <Card title="Simule pagamentos" icon="credit-card">Simule diferentes tipos de pagamento</Card>
+  <Card title="Configure webhooks" icon="webhook">Configure webhooks sem risco</Card>
+  <Card title="Valide sua aplicação" icon="check-circle">Valide o comportamento da sua aplicação</Card>
+</CardGroup>
+
+## Como usar o Dev mode
+
+Para começar:
+
+1. Crie sua chave de API de desenvolvimento
+2. Use essa chave em todas as requisições de teste
+3. Configure webhooks para receber notificações simuladas
+4. Teste o fluxo completo: criar cliente, gerar cobrança, pagar, receber webhook, etc.
+
+<AccordionGroup>
+  <Accordion title="Checklist de testes">
+    - Cubra todos os cenários (sucesso, erro e exceções)
+    - Valide mensagens de erro e retornos da API
+    - Confira se seus webhooks estão recebendo os eventos corretos
+    - Revise o comportamento da sua aplicação em cada etapa
+  </Accordion>
+</AccordionGroup>
+
+## Testando pagamentos com cartão
+
+No Dev mode, você pode simular pagamentos no cartão de crédito. As regras de cartões de teste são:
+
+### Cartão aceito
+
+Use o seguinte cartão para simular um pagamento **aprovado**:
+
+| Campo | Valor |
+| ----- | ----- |
+| **Número** | `4242 4242 4242 4242` |
+| **Validade** | Qualquer data futura (ex.: 12/30) |
+| **CVV** | Qualquer número com 3 ou 4 dígitos (ex.: 123 ou 1234) |
+
+### Cartões rejeitados
+
+Os números abaixo são sempre **rejeitados** no Dev mode, para você testar o fluxo de falha:
+
+- `4000000000000002`
+- `4000000000009995`
+- `4000000000000127`
+- `4000000000000069`
+- `4000000000000101`
+
+## Próximos Passos
+
+Quando sua integração estiver funcionando:
+
+1. Desative o Dev mode
+2. Finalize a verificação da conta
+3. Aguarde a aprovação para produção
+4. Comece a processar pagamentos reais
+
+<Note>
+  Estamos à disposição. Fale com a gente: suporte@4selet.com.br
+</Note>

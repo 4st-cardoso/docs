@@ -1,0 +1,26 @@
+button[class*="try-it"],
+button[aria-label*="Try it"],
+button:has-text("Try it") {
+  background-color: #007AFF !important;
+  color: #FFFFFF !important;
+}
+
+button[data-testid="try-it-button"],
+.mintlify-code-block button[class*="try"],
+pre button[class*="try"],
+.mintlify-code button {
+  background-color: #007AFF !important;
+  color: #FFFFFF !important;
+}
+
+button[class*="try-it"]:hover,
+button[aria-label*="Try it"]:hover {
+  background-color: #0056B3 !important;
+}
+
+[class*="TryIt"] button,
+[class*="try-it"] button,
+button:contains("Try it") {
+  background-color: #007AFF !important;
+  color: #FFFFFF !important;
+}
