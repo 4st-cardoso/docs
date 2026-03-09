@@ -1,55 +1,85 @@
-# Mintlify Starter Kit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo/dark.svg"></source>
+    <source media="(prefers-color-scheme: light)" srcset="logo/light.svg"></source>
+    <img alt="4SeletPay Logo" src="logo/light.svg" width="300"></img>
+  </picture>
+</p>
 
-Use the starter kit to get your docs deployed and ready to customize.
+# 4SeletPay Documentation
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+4SeletPay is a developer-friendly payment gateway designed to simplify payment processing. Built by developers for developers, it offers:
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
+- Simple, intention-based API endpoints
+- Idempotent operations for reliable transactions
+- Consistent JSON request/response formats
+- Easy dev mode integration
+- PIX payment support
+- Streamlined client and billing management
 
-## AI-assisted writing
+The documentation covers everything from getting started guides to detailed API references, helping you integrate payments into your application quickly and efficiently.
 
-Set up your AI coding tool to work with Mintlify:
+## 🚀 Quick Start
 
+This documentation is built with [Mintlify](https://mintlify.com)
+
+1. **Preview locally**
 ```bash
-npx skills add https://mintlify.com/docs
+# Install Mintlify CLI
+npm i -g mintlify
+
+# Start development server
+mintlify dev
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
+2. **Visit `http://localhost:3000` to see your documentation**
 
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+## 📚 Documentation Structure
 
 ```
-npm i -g mint
+.
+├── images/         # Store all documentation images and screenshots
+├── logo/           # Brand logos for light and dark themes
+├── pages/          # Main documentation content
+├── docs.json       # Mintlify configuration file for documentation settings
+├── favicon.ico     # Website favicon
+├── openapi.yaml    # OpenAPI/Swagger specification file
+└── README.md       # Project overview and setup instructions
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+## 🔧 Local Development
 
+1. **Install dependencies**
+```bash
+mintlify install
 ```
-mint dev
+
+2. **Start development server**
+```bash
+mintlify dev
 ```
 
-View your local preview at `http://localhost:3000`.
+### OR
 
-## Publishing changes
-
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
-
-## Need help?
+1. Run using docker
+```bash
+make start
+```
 
 ### Troubleshooting
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+- If Mintlify dev isn't running, try `mintlify install` to reinstall dependencies
+- For 404 errors, ensure you're in a directory with `docs.json`
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+## 🚀 Deployment
+
+Changes are automatically deployed when merged to the `main` branch, through the Mintlify GitHub integration.
+
+See [Mintlify GitHub App Documentation](https://mintlify.com/docs/settings/github) for more information.
+
+## 💪 Support
+
+- Contact support: [suporte@4selet.com.br](mailto:suporte@4selet.com.br)
+- Report issues on [GitHub](https://github.com/4seletpay/documentation/issues)
