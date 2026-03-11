@@ -1,12 +1,17 @@
 ---
 title: "Verificar Confirmação"
-openapi: "POST /v1/orders/{order_code}/confirmations/{confirmation_id}/verify"
+openapi: "openapi.yaml POST /v1/orders/{order_code}/confirmations/{confirmation_id}/verify"
 ---
 
 <Note>
-  Requer o header `account`. Submete o código OTP ou 3DS recebido pelo cliente para desbloquear o pedido.
+  Requer o header `account`. Submete o código OTP recebido pelo cliente para desbloquear o pedido e processar as cobranças pendentes.
 </Note>
 
 <Warning>
-  O código de verificação tem prazo de expiração. Se o prazo expirou, use a rota `/resend` para solicitar um novo código.
+  O código de verificação tem prazo de expiração (15 minutos). Se o prazo expirou, use a rota `/resend` para solicitar um novo código.
 </Warning>
+
+<Info>
+  Ao confirmar com sucesso, as cobranças pendentes/desafiadas do pedido são processadas automaticamente.
+  A resposta segue o mesmo formato da criação de cobrança (HTTP 201 com dados da cobrança no campo `data`).
+</Info>

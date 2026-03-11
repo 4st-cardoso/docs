@@ -6,32 +6,43 @@ icon: "file-lines"
 
 ## Visão Geral
 
-As **Faturas** são geradas automaticamente a cada ciclo de cobrança de uma assinatura. Quando uma fatura não é paga na data de vencimento, ela entra em estado de atraso e pode ser quitada manualmente.
+As **Faturas** são os pedidos (orders) gerados automaticamente a cada ciclo de cobrança de uma assinatura. Quando uma fatura não é paga, ela pode ser quitada manualmente via a rota de pagamento em atraso.
 
 ---
 
 ## Status de uma Fatura
 
-| Status      | Descrição                              |
-|-------------|----------------------------------------|
-| `Pending`   | Aguardando pagamento                   |
-| `Approved`  | Fatura paga com sucesso                |
-| `Declined`  | Tentativa de cobrança recusada         |
-| `Refunded`  | Valor estornado                        |
-| `Canceled`  | Fatura cancelada                       |
+As faturas utilizam o mesmo enum `StatusOrder` dos pedidos:
+
+| Status             | Descrição                              |
+|--------------------|----------------------------------------|
+| `Pending`          | Aguardando pagamento                   |
+| `Paid`             | Fatura paga com sucesso                |
+| `Fail`             | Falha na tentativa de cobrança         |
+| `Challenged`       | Aguardando confirmação do cliente      |
+| `Canceled`         | Fatura cancelada                       |
+| `ChargeBack`       | Estorno                                |
+| `Reversed`         | Revertida                              |
+| `PartialReversed`  | Parcialmente revertida                 |
+| `Reproved`         | Reprovada                              |
+| `New`              | Nova (recém-criada)                    |
+| `Unprocessed`      | Não processada                         |
 
 ---
 
 ## Pagamento de fatura em atraso
 
-Quando uma fatura está com status `Pending` (em atraso), o cliente pode quitá-la via `POST /v1/invoices/{invoice_code}/pay-overdue`.
+Faturas com status `Pending` ou `Fail` podem ser pagas via `POST /v1/invoices/{invoice_code}/pay-overdue`. A assinatura precisa estar ativa para permitir o pagamento.
 
 ### Métodos aceitos
 
-| Método       | Objeto `card` |
-|--------------|---------------|
-| `CreditCard` | Obrigatório   |
-| `PIX`        | Não necessário|
+| Método       | Objeto `card`  |
+|--------------|----------------|
+| `CreditCard` | Obrigatório    |
+| `DebitCard`  | Não necessário |
+| `PIX`        | Não necessário |
+| `Boleto`     | Não necessário |
+| `PayPal`     | Não necessário |
 
 ```json Pagar fatura em atraso com cartão
 {
@@ -54,4 +65,10 @@ Quando uma fatura está com status `Pending` (em atraso), o cliente pode quitá-
 
 <Info>
   O código da fatura (`invoice_code`) pode ser obtido via `GET /v1/subscriptions/{code}/invoices`.
+  Este código corresponde ao campo `code` do pedido (order) da assinatura.
 </Info>
+
+<Note>
+  A resposta de sucesso retorna diretamente os dados da cobrança criada, **sem** o envelope padrão `APIReturnUtil`.
+  Todos os valores monetários (`amount`) são retornados em **centavos**.
+</Note>

@@ -15,7 +15,7 @@ Os **Pedidos** (`Orders`) são gerados automaticamente quando uma cobrança é c
 | Status       | Descrição                                                    |
 |--------------|--------------------------------------------------------------|
 | `Pending`    | Aguardando processamento ou pagamento (ex: PIX pendente)     |
-| `Challenged` | Requer verificação adicional do cliente (OTP, 3D Secure)     |
+| `Challenged` | Requer verificação adicional do cliente (OTP)                |
 | `Approved`   | Pedido aprovado e pago com sucesso                           |
 | `Declined`   | Pedido recusado pela operadora/gateway                       |
 | `Refunded`   | Pagamento estornado para o cliente                           |
@@ -27,15 +27,15 @@ Os **Pedidos** (`Orders`) são gerados automaticamente quando uma cobrança é c
 
 Quando um pedido entra no status `Challenged`, o cliente precisa confirmar a identidade antes que o pagamento seja processado. Isso pode ocorrer por:
 
-- **3D Secure (3DS)** — verificação pelo banco emissor
 - **OTP** — código de verificação enviado por SMS ou e-mail
+- **Magic Link** — link de verificação enviado por e-mail
 
 ### Fluxo de confirmação
 
 ```
-1. POST /v1/charge → status: Challenged
+1. POST /v1/charge → status: Challenged (HTTP 202)
 2. GET  /v1/orders/{code}/confirmations → lista os desafios pendentes
-3. POST /v1/orders/{code}/confirmations/{id}/verify → submete o código
+3. POST /v1/orders/{code}/confirmations/{id}/verify → submete o código OTP
    OU
    POST /v1/orders/{code}/confirmations/{id}/resend → reenvia o código
 ```
@@ -44,14 +44,25 @@ Quando um pedido entra no status `Challenged`, o cliente precisa confirmar a ide
 
 ## Campos de uma Confirmação
 
-| Campo        | Tipo     | Descrição                               |
-|--------------|----------|-----------------------------------------|
-| `id`         | string   | Identificador da confirmação            |
-| `type`       | string   | Tipo: ThreeDS, OTP, Manual              |
-| `status`     | string   | Pending, Verified, Expired, Failed      |
-| `created_at` | datetime | Data de criação                         |
-| `expires_at` | datetime | Data de expiração do desafio            |
+| Campo        | Tipo     | Descrição                                              |
+|--------------|----------|--------------------------------------------------------|
+| `id`         | string   | UUID identificador da confirmação                      |
+| `type`       | string   | Tipo: `otp`, `magic_link`                              |
+| `status`     | string   | `pending`, `verified`, `expired`, `canceled`            |
+| `expires_at` | datetime | Data de expiração do desafio (nullable)                |
 
 <Info>
-  Confirmações têm prazo de expiração. Após expirar, use a rota `/resend` para gerar um novo código.
+  Confirmações têm prazo de expiração (15 minutos). Após expirar, use a rota `/resend` para gerar um novo código.
 </Info>
+
+---
+
+## Formato de resposta
+
+A rota de **listagem de confirmações** (`GET .../confirmations`) retorna diretamente `{"data": [...]}`, **sem** o envelope padrão `APIReturnUtil`.
+
+Já as rotas de **verificação** e **reenvio** utilizam o envelope padrão com os campos `mensagem`, `erro`, `mensagenserro`, `codigoretorno`, `id` e `data`.
+
+<Note>
+  A rota de **verificação** (`/verify`) processa as cobranças pendentes do pedido e retorna o mesmo formato da criação de cobrança (HTTP 201 com dados da cobrança no campo `data`).
+</Note>

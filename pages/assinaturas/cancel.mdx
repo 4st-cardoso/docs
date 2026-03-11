@@ -1,12 +1,13 @@
 ---
 title: "Cancelar Assinatura"
-openapi: "PUT /v1/subscriptions/cancel/{subscription_code}"
+openapi: "openapi.yaml PUT /v1/subscriptions/cancel/{subscription_code}"
 ---
 
 <Note>
-  Requer o header `account`. A assinatura não será renovada no próximo ciclo após o cancelamento.
+  Requer o header `account`. A assinatura precisa estar em status `Recurring` para ser cancelada.
+  Esta rota não aceita body — apenas o código da assinatura no path.
 </Note>
 
 <Warning>
-  O cancelamento é permanente e não pode ser revertido. Para reativar, crie uma nova assinatura.
+  O cancelamento é permanente (status `RecurringCanceled`) e não pode ser revertido. Para reativar, crie uma nova assinatura.
 </Warning>

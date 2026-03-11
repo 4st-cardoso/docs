@@ -1,8 +1,8 @@
 ---
 title: "Listar Cobranças"
-openapi: "GET /v1/charge"
+openapi: "openapi.yaml GET /v1/charge"
 ---
 
 <Note>
-  Requer o header `account` com o código da conta. Retorna lista paginada das cobranças.
+  Requer o header `account` com o código da conta. Retorna lista paginada das cobranças no formato padrão do paginador Laravel (diferente do envelope `APIReturnUtil` das demais rotas).
 </Note>

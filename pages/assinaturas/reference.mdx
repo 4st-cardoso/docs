@@ -15,7 +15,10 @@ As **Assinaturas** permitem criar cobranças recorrentes automáticas para seus 
 | Método       | Descrição                               |
 |--------------|-----------------------------------------|
 | `CreditCard` | Cobrança automática no cartão           |
+| `DebitCard`  | Cobrança no cartão de débito            |
 | `PIX`        | QR Code gerado a cada ciclo de cobrança |
+| `Boleto`     | Boleto bancário                         |
+| `PayPal`     | Pagamento via PayPal                    |
 
 ---
 
@@ -61,12 +64,15 @@ As **Assinaturas** permitem criar cobranças recorrentes automáticas para seus 
 
 ## Status de uma Assinatura
 
-| Status      | Descrição                                    |
-|-------------|----------------------------------------------|
-| `Active`    | Assinatura ativa, cobranças em andamento     |
-| `Canceled`  | Assinatura cancelada pelo usuário            |
-| `Suspended` | Temporariamente suspensa                     |
-| `Completed` | Todas as faturas foram geradas e pagas       |
+| Status              | Descrição                                    |
+|---------------------|----------------------------------------------|
+| `Recurring`         | Assinatura ativa, cobranças em andamento     |
+| `RecurringCanceled` | Assinatura cancelada                         |
+| `RecurringOverdue`  | Assinatura com fatura em atraso              |
+| `New`               | Assinatura recém-criada                      |
+| `InProgress`        | Assinatura em processamento                  |
+| `Canceled`          | Cancelada (compra avulsa)                    |
+| `Concluded`         | Concluída (compra avulsa)                    |
 
 ---
 

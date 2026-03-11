@@ -1,8 +1,14 @@
 ---
 title: "Listar Faturas"
-openapi: "GET /v1/subscriptions/{subscription_code}/invoices"
+openapi: "openapi.yaml GET /v1/subscriptions/{subscription_code}/invoices"
 ---
 
 <Note>
-  Requer o header `account`. Retorna todas as faturas geradas para a assinatura, com suporte a filtro por status e limite.
+  Requer o header `account`. Retorna as faturas (pedidos) geradas para a assinatura, com seus itens e cobranças.
+  A resposta retorna diretamente `{"data": [...]}`, sem o envelope padrão `APIReturnUtil`.
+  Todos os valores monetários (`amount`, `unitary_amount`) são retornados em **centavos**.
 </Note>
+
+<Tip>
+  Filtre por status usando os valores do enum `StatusOrder`: `New`, `Canceled`, `Paid`, `ChargeBack`, `Reversed`, `PartialReversed`, `Reproved`, `Pending`, `Fail`, `Challenged`, `Unprocessed`.
+</Tip>

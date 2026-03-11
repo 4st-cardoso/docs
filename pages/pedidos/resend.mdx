@@ -1,12 +1,14 @@
 ---
 title: "Reenviar Confirmação"
-openapi: "POST /v1/orders/{order_code}/confirmations/{confirmation_id}/resend"
+openapi: "openapi.yaml POST /v1/orders/{order_code}/confirmations/{confirmation_id}/resend"
 ---
 
 <Note>
   Requer o header `account`. Reenvia o código de verificação para o cliente (novo OTP por SMS/e-mail).
+  Esta rota não aceita body — apenas os parâmetros de path.
 </Note>
 
 <Tip>
   Use esta rota quando o cliente não recebeu o código original ou quando o código expirou.
+  Um novo código é gerado com validade de 15 minutos, e confirmações anteriores pendentes são invalidadas.
 </Tip>

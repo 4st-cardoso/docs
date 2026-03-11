@@ -1,8 +1,13 @@
 ---
 title: "Alterar Cartão"
-openapi: "PUT /v1/subscriptions/change-card/{subscription_code}"
+openapi: "openapi.yaml PUT /v1/subscriptions/change-card/{subscription_code}"
 ---
 
 <Note>
-  Requer o header `account`. Substitui o cartão vinculado à assinatura para as próximas cobranças.
+  Requer o header `account`. A assinatura precisa estar em status `Recurring` para alterar o cartão.
+  Um novo cartão é criado e vinculado à assinatura para as próximas cobranças.
 </Note>
+
+<Tip>
+  A resposta inclui o `card_id` do novo cartão criado no campo `data`.
+</Tip>

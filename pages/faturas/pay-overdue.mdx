@@ -4,5 +4,12 @@ openapi: "POST /v1/invoices/{invoice_code}/pay-overdue"
 ---
 
 <Note>
-  Requer o header `account`. Ao usar `CreditCard`, o objeto `card` com os dados do cartão é obrigatório.
+  Requer o header `account`. A fatura deve estar em status `Pending` ou `Fail`, e a assinatura precisa estar ativa.
+  Ao usar `CreditCard`, o objeto `card` com os dados do cartão é obrigatório.
+  Métodos aceitos: `DebitCard`, `CreditCard`, `PIX`, `Boleto`, `PayPal`.
 </Note>
+
+<Info>
+  A resposta de sucesso retorna diretamente os dados da cobrança (sem envelope `APIReturnUtil`), incluindo dados de pagamento (PIX com QR code, cartão com ID, etc.).
+  Cobranças pendentes anteriores da fatura são canceladas automaticamente antes de criar a nova.
+</Info>

@@ -78,7 +78,7 @@ paths:
         Autentica o usuário com email e senha e retorna um Bearer Token para uso nas demais rotas.
         O token tem prazo de expiração informado na resposta.
       operationId: login
-      security: null
+      security: []
       requestBody:
         required: true
         content:
@@ -124,6 +124,17 @@ paths:
         **CreditCard**, **PIX** e **PayPal**.
         Requer o header `account` com o código da conta.
         Passa por validações de fraude, bloqueio de clientes e rate limiting.
+
+
+        Possíveis cenários de resposta:
+
+        - **201** — Cobrança processada com sucesso (aprovada ou aguardando pagamento PIX/PayPal)
+
+        - **202** — Transação desafiada (requer confirmação adicional via OTP/3DS)
+
+        - **400** — Fraude detectada ou erro no processamento do gateway
+
+        - **422** — Erro de validação dos dados enviados
       operationId: createCharge
       security:
         - bearerAuth: []
@@ -178,8 +189,8 @@ paths:
                       description: "Camiseta Premium"
                       amount: 99.90
                       quantity: 2
-                  type: "Online"
-                  cycletype: "Unique"
+                  type: "PurchaseOrder"
+                  cycletype: "Only"
               pix:
                 summary: Pagamento com PIX
                 value:
@@ -202,15 +213,107 @@ paths:
                       description: "Curso Online"
                       amount: 297.00
                       quantity: 1
+              paypal:
+                summary: Pagamento com PayPal
+                value:
+                  international: false
+                  client:
+                    name: "Carlos Ferreira"
+                    email: "carlos@exemplo.com.br"
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "977776666"
+                  payment:
+                    type: PayPal
+                  items:
+                    - id: "produto_002"
+                      description: "Licença Software"
+                      amount: 149.90
+                      quantity: 1
+                  payment_source:
+                    paypal:
+                      experience_context:
+                        return_url: "https://meusite.com.br/pagamento/sucesso"
+                        cancel_url: "https://meusite.com.br/pagamento/cancelado"
       responses:
-        '200':
-          description: Cobrança criada com sucesso
+        '201':
+          description: Cobrança processada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChargeResponse'
+                $ref: '#/components/schemas/ChargeCreateResponse'
+              example:
+                mensagem: "Cobrança realizada com sucesso."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 201
+                id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                data:
+                  charge_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  charge_created_at: "11/03/2026 10:00:00"
+                  account_id: 1
+                  code: "pur_abc123xyz"
+                  value: 199.80
+                  charge_value: 199.80
+                  type: "PurchaseOrder"
+                  cycle_type: "Only"
+                  cycle: 1
+                  coin: "BRL"
+                  status: "Approved"
+                  client:
+                    code: "cli_abc123"
+                    name: "João Silva"
+                    email: "joao@exemplo.com.br"
+                  orders:
+                    - code: "ord_abc123xyz"
+                      status: "Approved"
+                      value: 199.80
+                      charges:
+                        - code: "chg_abc123"
+                          status: "Approved"
+                          value: 199.80
+                          installments: 1
+                          payment:
+                            payment_type: "CreditCard"
+                            installments: 1
+        '202':
+          description: Transação desafiada — requer confirmação adicional (OTP/3DS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeCreateResponse'
+              example:
+                mensagem: "A transação necessita de confirmação..."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 202
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  charge_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  status: "Challenged"
+                  orders:
+                    - code: "ord_abc123xyz"
+                      status: "Challenged"
+                      confirmation_codes:
+                        - id: "conf_xyz789"
+                          type: "OTP"
+                          status: "Pending"
+                          expires_at: "2026-03-11T10:15:00.000000Z"
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Fraude detectada ou erro no gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Não foi possível concluir sua transação."
+                erro: true
+                mensagenserro:
+                  - "Verifique as informações e tente novamente."
+                codigoretorno: 400
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '422':
@@ -223,6 +326,7 @@ paths:
       summary: Listar cobranças
       description: >
         Retorna a lista paginada de cobranças da conta informada no header `account`.
+        A resposta segue o formato padrão de paginação do Laravel (não é envelopada pelo formato APIReturnUtil).
       operationId: listCharges
       security:
         - bearerAuth: []
@@ -231,7 +335,7 @@ paths:
         - name: page
           in: query
           required: false
-          description: Número da página
+          description: Número da página (gerenciado automaticamente pelo paginador Laravel)
           schema:
             type: integer
             default: 1
@@ -239,35 +343,43 @@ paths:
         - name: per_page
           in: query
           required: false
-          description: Quantidade de itens por página (máximo 100)
+          description: Quantidade de itens por página
           schema:
             type: integer
-            default: 15
-            example: 15
-        - name: status
+            default: 10
+            example: 10
+        - name: search
           in: query
           required: false
-          description: Filtrar por status da cobrança
+          description: Texto para busca nos campos da listagem
           schema:
             type: string
-            enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
-            example: Approved
-        - name: start_date
+            example: "joao"
+        - name: id
           in: query
           required: false
-          description: Data inicial do filtro (formato Y-m-d)
+          description: Filtrar por ID específico da cobrança
           schema:
             type: string
-            format: date
-            example: "2026-01-01"
-        - name: end_date
+            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        - name: with_trashed
           in: query
           required: false
-          description: Data final do filtro (formato Y-m-d)
+          description: Incluir registros soft-deleted (1 = sim, 0 = não)
           schema:
-            type: string
-            format: date
-            example: "2026-03-31"
+            type: integer
+            enum: [0, 1]
+            default: 0
+            example: 0
+        - name: trashed_only
+          in: query
+          required: false
+          description: Retornar apenas registros soft-deleted (1 = sim, 0 = não)
+          schema:
+            type: integer
+            enum: [0, 1]
+            default: 0
+            example: 0
       responses:
         '200':
           description: Lista de cobranças retornada com sucesso
@@ -282,7 +394,9 @@ paths:
     get:
       tags: [Cobranças]
       summary: Consultar cobrança
-      description: Retorna os detalhes completos de uma cobrança específica pelo seu código.
+      description: >
+        Retorna os detalhes completos de uma cobrança específica pelo seu código.
+        Os dados são cacheados para melhor performance.
       operationId: getCharge
       security:
         - bearerAuth: []
@@ -294,14 +408,91 @@ paths:
           description: Código único da cobrança
           schema:
             type: string
-            example: "ord_abc123xyz"
+            example: "chg_abc123"
       responses:
         '200':
           description: Dados da cobrança retornados com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChargeDetailResponse'
+                $ref: '#/components/schemas/ChargeConsultResponse'
+              example:
+                mensagem: "Charge found"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  charge_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  charge_created_at: "11/03/2026 10:00:00"
+                  account_id: 1
+                  code: "pur_abc123xyz"
+                  value: 199.80
+                  charge_value: 199.80
+                  type: "PurchaseOrder"
+                  cycle_type: "Only"
+                  cycle: 1
+                  coin: "BRL"
+                  status: "Approved"
+                  client:
+                    code: "cli_abc123"
+                    name: "João Silva"
+                    email: "joao@exemplo.com.br"
+                    documents:
+                      - type: "CPF"
+                        number: "123.456.789-09"
+                        default: true
+                    phone:
+                      - ddi: "55"
+                        ddd: "11"
+                        number: "999999999"
+                        default: true
+                    addresss:
+                      - zipcode: "01310-100"
+                        street: "Avenida Paulista"
+                        number: "1000"
+                        neighborhood: "Bela Vista"
+                        city: "São Paulo"
+                        state: "SP"
+                  orders:
+                    - code: "ord_abc123xyz"
+                      status: "Approved"
+                      value: 199.80
+                      error_message: null
+                      items:
+                        - code: "produto_001"
+                          name: "Camiseta Premium"
+                          unitary_value: 99.90
+                          quantity: 2
+                      charges:
+                        - code: "chg_abc123"
+                          status: "Approved"
+                          value: 199.80
+                          canceled_amount: 0
+                          nsu: "123456789"
+                          installments: 1
+                          attempts: 1
+                          payment:
+                            code: null
+                            copy_paste: null
+                            expiration: null
+                            payment_type: "CreditCard"
+                            installments: 1
+                          last_transaction:
+                            transaction_id: "txn_abc123"
+                            type: "Authorization"
+                            status_code: "00"
+                            nsu: "123456789"
+                            event_date: "2026-03-11T10:00:00.000000Z"
+                            message_acquisition: "Transação autorizada"
+                          historics: []
+                          card:
+                            id: "card_abc123"
+                            name: "JOAO SILVA"
+                            type: "credit"
+                            number: "411111****1111"
+                            flag: "visa"
+                      confirmation_codes: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -311,7 +502,9 @@ paths:
     post:
       tags: [Cobranças]
       summary: Cancelar cobrança
-      description: Cancela uma cobrança existente que ainda não foi finalizada.
+      description: >
+        Cancela uma cobrança existente que ainda não foi finalizada.
+        Esta rota não aceita body — apenas o código da cobrança no path.
       operationId: cancelCharge
       security:
         - bearerAuth: []
@@ -323,7 +516,7 @@ paths:
           description: Código único da cobrança a ser cancelada
           schema:
             type: string
-            example: "ord_abc123xyz"
+            example: "chg_abc123"
       responses:
         '200':
           description: Cobrança cancelada com sucesso
@@ -332,10 +525,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
               example:
-                success: true
-                message: Cobrança cancelada com sucesso
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                mensagem: "Charge chg_abc123 successfully canceled"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -348,6 +543,7 @@ paths:
       description: >
         Realiza o estorno (reembolso) de uma cobrança aprovada.
         O campo `value` no body é opcional; se não informado, o estorno é total.
+        O valor deve ser enviado como inteiro (em centavos).
       operationId: refundCharge
       security:
         - bearerAuth: []
@@ -359,7 +555,7 @@ paths:
           description: Código único da cobrança a ser estornada
           schema:
             type: string
-            example: "ord_abc123xyz"
+            example: "chg_abc123"
       requestBody:
         required: false
         content:
@@ -368,12 +564,14 @@ paths:
               type: object
               properties:
                 value:
-                  type: number
-                  format: float
-                  description: Valor a ser estornado (opcional). Se omitido, o estorno é total.
-                  example: 50.00
+                  type: integer
+                  description: >
+                    Valor a ser estornado em centavos (opcional).
+                    Se omitido, o estorno é total.
+                    Ex: para estornar R$ 50,00, envie 5000.
+                  example: 5000
             example:
-              value: 50.00
+              value: 5000
       responses:
         '200':
           description: Estorno realizado com sucesso
@@ -381,8 +579,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
+              example:
+                mensagem: "Cobrança chg_abc123 estornada com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Erro no estorno (cobrança já estornada ou valor excede o disponível)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ja_estornada:
+                  summary: Cobrança já estornada por completo
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro: []
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                valor_excede:
+                  summary: Valor excede o disponível para estorno
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro: []
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -397,8 +625,10 @@ paths:
       tags: [Pedidos]
       summary: Listar confirmações do pedido
       description: >
-        Retorna a lista de confirmações (desafios de segurança) associadas a um pedido.
-        Usado quando um pedido entra no status **Challenged** e requer verificação adicional (ex: 3D Secure, OTP).
+        Retorna a lista de confirmações (desafios de segurança) associadas a um pedido,
+        ordenadas por data de criação (mais recente primeiro).
+        Usado quando um pedido entra no status **Challenged** e requer verificação adicional (ex: OTP).
+        Esta rota NÃO retorna o envelope padrão APIReturnUtil; retorna diretamente `{"data": [...]}`.
       operationId: getOrderConfirmations
       security:
         - bearerAuth: []
@@ -418,18 +648,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrderConfirmationsResponse'
+              example:
+                data:
+                  - id: "d5e6f7a8-b9c0-1234-5678-abcdef012345"
+                    type: "otp"
+                    status: "pending"
+                    expires_at: "2026-03-11T10:15:00.000000Z"
+        '400':
+          description: Pedido não encontrado ou não pertence à conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "Pedido não encontrado."
+                codigoretorno: 400
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
   /v1/orders/{order_code}/confirmations/{confirmation_id}/verify:
     post:
       tags: [Pedidos]
       summary: Verificar confirmação do pedido
       description: >
-        Verifica/valida uma confirmação de pedido desafiado.
-        O cliente deve submeter o código recebido (ex: OTP via SMS/email) para desbloquear o pedido.
+        Verifica/valida uma confirmação de pedido desafiado submetendo o código OTP recebido pelo cliente.
+        Ao confirmar com sucesso, as cobranças pendentes do pedido são processadas.
+        A resposta segue o mesmo formato da criação de cobrança (envelope APIReturnUtil com dados de consulta).
       operationId: verifyOrderConfirmation
       security:
         - bearerAuth: []
@@ -445,10 +694,11 @@ paths:
         - name: confirmation_id
           in: path
           required: true
-          description: ID da confirmação a ser verificada
+          description: ID (UUID) da confirmação a ser verificada
           schema:
             type: string
-            example: "conf_xyz789"
+            format: uuid
+            example: "d5e6f7a8-b9c0-1234-5678-abcdef012345"
       requestBody:
         required: true
         content:
@@ -459,29 +709,87 @@ paths:
               properties:
                 code:
                   type: string
-                  description: Código de verificação recebido pelo cliente (OTP, 3DS, etc.)
+                  description: Código de verificação OTP recebido pelo cliente
                   example: "123456"
             example:
               code: "123456"
       responses:
-        '200':
-          description: Confirmação verificada com sucesso
+        '201':
+          description: Cobrança processada com sucesso após confirmação
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                $ref: '#/components/schemas/ChargeCreateResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: >
+            Erro de validação, pedido não encontrado, confirmação inválida,
+            pedido não está em status Challenged, ou erro no processamento da cobrança.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Erro de validação (code ausente)
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "O campo code é obrigatório."
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                order_not_found:
+                  summary: Pedido não encontrado
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "Pedido não encontrado."
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                confirmation_not_found:
+                  summary: Confirmação não encontrada ou código inválido
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "Confirmação não encontrada."
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                not_challenged:
+                  summary: Pedido não está aguardando confirmação
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "O pedido não está aguardando confirmação."
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                no_pending_charges:
+                  summary: Nenhuma cobrança pendente
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "Nenhuma cobrança pendente foi encontrada para este pedido."
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
   /v1/orders/{order_code}/confirmations/{confirmation_id}/resend:
     post:
       tags: [Pedidos]
       summary: Reenviar confirmação do pedido
-      description: "Reenvia o código de confirmação para o cliente (ex: novo OTP por SMS/email)."
+      description: >
+        Reenvia o código de confirmação para o cliente (novo OTP por SMS/email).
+        Invalidar confirmações pendentes anteriores e gera um novo código com validade de 15 minutos.
+        Esta rota não aceita body.
       operationId: resendOrderConfirmation
       security:
         - bearerAuth: []
@@ -497,21 +805,54 @@ paths:
         - name: confirmation_id
           in: path
           required: true
-          description: ID da confirmação
+          description: ID (UUID) da confirmação
           schema:
             type: string
-            example: "conf_xyz789"
+            format: uuid
+            example: "d5e6f7a8-b9c0-1234-5678-abcdef012345"
       responses:
-        '200':
+        '201':
           description: Confirmação reenviada com sucesso
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
+              example:
+                mensagem: "Confirmação reenviada com sucesso."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 201
+                id: "d5e6f7a8-b9c0-1234-5678-abcdef012345"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Pedido ou confirmação não encontrados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                order_not_found:
+                  summary: Pedido não encontrado
+                  value:
+                    mensagem: "Um erro aconteceu."
+                    erro: true
+                    mensagenserro:
+                      - "Pedido não encontrado."
+                    codigoretorno: 404
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                confirmation_not_found:
+                  summary: Confirmação não encontrada
+                  value:
+                    mensagem: "Um erro aconteceu."
+                    erro: true
+                    mensagenserro:
+                      - "Confirmação não encontrada."
+                    codigoretorno: 404
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
 
   # ─────────────────────────────────────────────────────────────────
   # ASSINATURAS
@@ -607,7 +948,10 @@ paths:
     put:
       tags: [Assinaturas]
       summary: Cancelar assinatura
-      description: Cancela uma assinatura ativa. A assinatura não será renovada na próxima data de cobrança.
+      description: >
+        Cancela uma assinatura ativa (status `Recurring`).
+        A assinatura passa para o status `RecurringCanceled` e não será renovada.
+        Esta rota não aceita body.
       operationId: cancelSubscription
       security:
         - bearerAuth: []
@@ -627,16 +971,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
+              example:
+                mensagem: "Assinatura cancelada com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Assinatura não pertence à conta informada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "O código da assinatura não é válido"
+                codigoretorno: 403
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Assinatura não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro aconteceu."
+                erro: true
+                mensagenserro:
+                  - "Assinatura não encontrada"
+                codigoretorno: 404
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '422':
+          description: Assinatura não está ativa (não está em status Recurring)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro aconteceu."
+                erro: true
+                mensagenserro:
+                  - "A assinatura não está ativa"
+                codigoretorno: 422
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 
   /v1/subscriptions/change-card/{subscription_code}:
     put:
       tags: [Assinaturas]
       summary: Alterar cartão da assinatura
-      description: Substitui o cartão de crédito vinculado a uma assinatura existente.
+      description: >
+        Substitui o cartão de crédito vinculado a uma assinatura ativa (status `Recurring`).
+        O novo cartão é criado e vinculado à assinatura para as próximas cobranças.
       operationId: changeSubscriptionCard
       security:
         - bearerAuth: []
@@ -667,21 +1060,77 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          card_id:
+                            type: string
+                            format: uuid
+                            description: ID do novo cartão criado
+              example:
+                mensagem: "Cartão alterado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  card_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Assinatura não pertence à conta informada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "O código da assinatura não é válido"
+                codigoretorno: 403
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Assinatura não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro aconteceu."
+                erro: true
+                mensagenserro:
+                  - "Assinatura não encontrada"
+                codigoretorno: 404
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '422':
+          description: Assinatura não está ativa (não está em status Recurring)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro aconteceu."
+                erro: true
+                mensagenserro:
+                  - "A assinatura não está ativa"
+                codigoretorno: 422
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 
   /v1/subscriptions/change-payment-method/{subscription_code}:
     put:
       tags: [Assinaturas]
       summary: Alterar método de pagamento da assinatura
       description: >
-        Altera o método de pagamento de uma assinatura. Ao mudar para `CreditCard`,
-        os dados do novo cartão devem ser informados no objeto `card`.
+        Altera o método de pagamento de uma assinatura ativa (status `Recurring` ou `RecurringOverdue`).
+        Ao mudar para `CreditCard`, os dados do novo cartão devem ser informados no objeto `card`.
       operationId: changeSubscriptionPaymentMethod
       security:
         - bearerAuth: []
@@ -722,18 +1171,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              example:
+                mensagem: "Método de pagamento alterado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Assinatura não pertence à conta informada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "O código da assinatura não é válido"
+                codigoretorno: 403
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Assinatura não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro aconteceu."
+                erro: true
+                mensagenserro:
+                  - "Assinatura não encontrada"
+                codigoretorno: 404
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '422':
+          description: Assinatura não está ativa (não está em status Recurring ou RecurringOverdue)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro aconteceu."
+                erro: true
+                mensagenserro:
+                  - "A assinatura não está ativa"
+                codigoretorno: 422
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 
   /v1/subscriptions/{subscription_code}/invoices:
     get:
       tags: [Assinaturas]
       summary: Listar faturas da assinatura
-      description: Retorna as faturas geradas para uma assinatura, com suporte a filtro por status e limite de itens.
+      description: >
+        Retorna as faturas (pedidos) geradas para uma assinatura, com suporte a filtro por status e limite.
+        Cada fatura inclui seus itens e cobranças associadas.
+        Os valores monetários são retornados em centavos.
+        Esta rota NÃO retorna o envelope APIReturnUtil; retorna diretamente `{"data": [...]}`.
       operationId: listSubscriptionInvoices
       security:
         - bearerAuth: []
@@ -749,11 +1247,11 @@ paths:
         - name: status
           in: query
           required: false
-          description: Filtrar faturas por status
+          description: Filtrar faturas por status (StatusOrder)
           schema:
             type: string
-            enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
-            example: Pending
+            enum: [New, Canceled, Paid, ChargeBack, Reversed, PartialReversed, Reproved, Pending, Fail, Challenged, Unprocessed]
+            example: Paid
         - name: limit
           in: query
           required: false
@@ -770,16 +1268,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvoicesListResponse'
+              example:
+                data:
+                  - subscription_code: "sub_abc123"
+                    code: "ord_xyz456"
+                    status: "Paid"
+                    amount: 9990
+                    attempts: 1
+                    created_at: "2026-03-11T10:00:00.000000Z"
+                    items:
+                      - id: "item_abc123"
+                        unitary_amount: 9990
+                        quantity: 1
+                        code: "plano_premium"
+                        name: "Acesso Premium Mensal"
+                    charges:
+                      - code: "chg_abc123"
+                        status: "Paid"
+                        amount: 9990
+                        payment_type: "CreditCard"
+                        installments: 1
+                        account_client_card_id: "card_abc123"
+                        payment:
+                          type: "CreditCard"
+                          card:
+                            id: "card_abc123"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Assinatura não encontrada ou não pertence à conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "Assinatura não encontrada ou não pertence à conta informada."
+                codigoretorno: 404
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 
   /v1/subscriptions/{subscription_code}/items:
     get:
       tags: [Assinaturas]
       summary: Listar itens da assinatura
-      description: Retorna os itens (produtos/serviços) vinculados a uma assinatura.
+      description: >
+        Retorna os itens (produtos/serviços) vinculados a uma assinatura.
+        Os dados vêm do campo `subs_data.items` da assinatura.
+        Os valores monetários são retornados em centavos.
+        Esta rota NÃO retorna o envelope APIReturnUtil; retorna diretamente `{"data": [...]}`.
       operationId: listSubscriptionItems
       security:
         - bearerAuth: []
@@ -795,9 +1334,11 @@ paths:
         - name: code
           in: query
           required: false
-          description: Filtrar por código do item
+          description: Filtrar por código (id) do item (1-100 caracteres)
           schema:
             type: string
+            minLength: 1
+            maxLength: 100
             example: "plano_premium"
       responses:
         '200':
@@ -806,16 +1347,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscriptionItemsResponse'
+              example:
+                data:
+                  - code: "plano_premium"
+                    amount: 9990
+                    quantity: 1
+                    description: "Acesso Premium Mensal"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Assinatura não encontrada ou não pertence à conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "Assinatura não encontrada ou não pertence à conta informada."
+                codigoretorno: 404
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 
   /v1/subscriptions/{subscription_code}/items/{item_code}:
     put:
       tags: [Assinaturas]
       summary: Atualizar item da assinatura
-      description: Atualiza quantidade, valor ou descrição de um item vinculado a uma assinatura.
+      description: >
+        Atualiza quantidade, valor ou descrição de um item vinculado a uma assinatura.
+        Todos os campos do body são opcionais — informe apenas o que deseja alterar.
+        O campo `amount` deve ser enviado em centavos.
       operationId: updateSubscriptionItem
       security:
         - bearerAuth: []
@@ -831,10 +1393,10 @@ paths:
         - name: item_code
           in: path
           required: true
-          description: Código único do item
+          description: Código (id) do item no subs_data
           schema:
             type: string
-            example: "item_001"
+            example: "plano_premium"
       requestBody:
         required: true
         content:
@@ -852,12 +1414,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+              example:
+                mensagem: "Items atualizados com sucesso."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Assinatura ou item não encontrados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subscription_not_found:
+                  summary: Assinatura não encontrada
+                  value:
+                    mensagem: "Um erro aconteceu."
+                    erro: true
+                    mensagenserro:
+                      - "Assinatura não encontrada ou não pertence à conta informada."
+                    codigoretorno: 404
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                item_not_found:
+                  summary: Item não encontrado na assinatura
+                  value:
+                    mensagem: "Um erro aconteceu."
+                    erro: true
+                    mensagenserro:
+                      - "Item não encontrado na assinatura."
+                    codigoretorno: 404
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
 
   # ─────────────────────────────────────────────────────────────────
   # FATURAS
@@ -869,7 +1461,11 @@ paths:
       summary: Pagar fatura em atraso
       description: >
         Realiza o pagamento de uma fatura em atraso de uma assinatura.
-        Aceita Cartão de Crédito ou PIX como método de pagamento.
+        A fatura precisa estar em status `Pending` ou `Fail` e a assinatura precisa estar ativa.
+        Cancela todas as cobranças pendentes anteriores antes de criar uma nova.
+        Aceita qualquer método de pagamento: `DebitCard`, `CreditCard`, `PIX`, `Boleto`, `PayPal`.
+        Ao usar `CreditCard`, o objeto `card` com os dados do cartão é obrigatório.
+        Esta rota NÃO retorna o envelope APIReturnUtil no sucesso; retorna diretamente os dados da cobrança.
       operationId: payOverdueInvoice
       security:
         - bearerAuth: []
@@ -878,10 +1474,10 @@ paths:
         - name: invoice_code
           in: path
           required: true
-          description: Código único da fatura em atraso
+          description: Código único da fatura (pedido)
           schema:
             type: string
-            example: "inv_xyz456"
+            example: "ord_xyz456"
       requestBody:
         required: true
         content:
@@ -890,7 +1486,7 @@ paths:
               $ref: '#/components/schemas/PayOverdueInvoiceRequest'
             examples:
               cartao:
-                summary: Pagar com Cartão
+                summary: Pagar com Cartão de Crédito
                 value:
                   method: CreditCard
                   card:
@@ -905,17 +1501,97 @@ paths:
                   method: PIX
       responses:
         '200':
-          description: Fatura paga com sucesso
+          description: Cobrança criada e processada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: '#/components/schemas/PayOverdueInvoiceResponse'
+              examples:
+                credit_card:
+                  summary: Pagamento com cartão de crédito
+                  value:
+                    invoice_code: "ord_xyz456"
+                    code: "chg_abc123"
+                    status: "Paid"
+                    amount: 9990
+                    canceled_amount: 0
+                    installments: 1
+                    payment:
+                      type: "CreditCard"
+                      card:
+                        id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                pix:
+                  summary: Pagamento com PIX
+                  value:
+                    invoice_code: "ord_xyz456"
+                    code: "chg_abc123"
+                    status: "Pending"
+                    amount: 9990
+                    canceled_amount: 0
+                    installments: 1
+                    payment:
+                      type: "PIX"
+                      pix:
+                        qrcode_url: "https://api.example.com/pix/qrcode"
+                        copy_paste: "00020101021226..."
+                        expiration: "2026-03-11T10:30:00.000000Z"
+        '400':
+          description: Fatura não está pendente ou não pertence a uma assinatura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_pending:
+                  summary: Fatura não está pendente
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "Fatura não está pendente"
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
+                not_subscription:
+                  summary: Compra não é uma assinatura
+                  value:
+                    mensagem: "Um erro inesperado acabou de acontecer."
+                    erro: true
+                    mensagenserro:
+                      - "A compra não é uma assinatura válida"
+                    codigoretorno: 400
+                    id: "00000000-0000-0000-0000-000000000000"
+                    data: []
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Fatura não encontrada ou não pertence à conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "Fatura não encontrada"
+                codigoretorno: 404
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '422':
+          description: Assinatura não está ativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Um erro inesperado acabou de acontecer."
+                erro: true
+                mensagenserro:
+                  - "A assinatura não está ativa"
+                codigoretorno: 422
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 components:
 
   securitySchemes:
@@ -954,8 +1630,12 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            success: false
-            message: Unauthenticated.
+            mensagem: Unauthenticated.
+            erro: true
+            mensagenserro: []
+            codigoretorno: 401
+            id: "00000000-0000-0000-0000-000000000000"
+            data: []
     NotFound:
       description: Recurso não encontrado
       content:
@@ -963,8 +1643,12 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            success: false
-            message: Recurso não encontrado.
+            mensagem: "The charge code does not match any charge"
+            erro: true
+            mensagenserro: []
+            codigoretorno: 404
+            id: "00000000-0000-0000-0000-000000000000"
+            data: []
     BadRequest:
       description: Requisição inválida
       content:
@@ -972,8 +1656,13 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            success: false
-            message: Dados inválidos na requisição.
+            mensagem: "Um erro inesperado acabou de acontecer."
+            erro: true
+            mensagenserro:
+              - "Detalhe do erro ocorrido."
+            codigoretorno: 400
+            id: "00000000-0000-0000-0000-000000000000"
+            data: []
     ServerError:
       description: Erro interno do servidor
       content:
@@ -981,8 +1670,13 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            success: false
-            message: Erro interno. Tente novamente mais tarde.
+            mensagem: "Um erro aconteceu."
+            erro: true
+            mensagenserro:
+              - "Erro interno. Tente novamente mais tarde."
+            codigoretorno: 500
+            id: "00000000-0000-0000-0000-000000000000"
+            data: []
 
   schemas:
 
@@ -1097,7 +1791,7 @@ components:
         gender:
           type: string
           description: Gênero do cliente (opcional)
-          enum: [Male, Female, Other]
+          enum: [Male, Female, Other, Undefined]
           example: Male
         birthdate:
           type: string
@@ -1145,7 +1839,7 @@ components:
         type:
           type: string
           description: Tipo do documento (opcional para checkout, obrigatório para assinaturas)
-          enum: [CPF, CNPJ, RG, Passport]
+          enum: [CPF, CNPJ, passport, undefined]
           example: CPF
         number:
           type: string
@@ -1242,7 +1936,7 @@ components:
           example: CreditCard
         pix_expiration:
           type: integer
-          description: Tempo de expiração do PIX em segundos (obrigatório para type=PIX, mín. 1)
+          description: Tempo de expiração do PIX em segundos (opcional, mín. 1)
           minimum: 1
           example: 3600
         card:
@@ -1255,27 +1949,6 @@ components:
           type: number
           description: Valor fixo da taxa de conveniência (opcional)
           example: 0
-        payment_source:
-          type: object
-          nullable: true
-          description: Dados adicionais de origem do pagamento (usado para PayPal)
-          properties:
-            paypal:
-              type: object
-              properties:
-                experience_context:
-                  type: object
-                  properties:
-                    return_url:
-                      type: string
-                      format: uri
-                      description: URL de retorno após aprovação no PayPal
-                      example: "https://meusite.com.br/pagamento/sucesso"
-                    cancel_url:
-                      type: string
-                      format: uri
-                      description: URL de cancelamento no PayPal
-                      example: "https://meusite.com.br/pagamento/cancelado"
 
     ItemData:
       type: object
@@ -1327,13 +2000,34 @@ components:
         type:
           type: string
           description: Tipo da compra (opcional)
-          enum: [Online, InPerson, Recurrence]
-          example: Online
+          enum: [PurchaseOrder, PlannedPurchaseOrder, GeneralPurchaseOrder, ContractualPurchaseOrder]
+          example: PurchaseOrder
         cycletype:
           type: string
           description: Tipo de ciclo da compra (opcional)
-          enum: [Unique, Recurrent]
-          example: Unique
+          enum: [Only, MonthlyRecurring, QuarterlyRecurring, SemiannualRecurring, AnnualRecurring]
+          example: Only
+        payment_source:
+          type: object
+          nullable: true
+          description: Dados adicionais de origem do pagamento (usado para PayPal)
+          properties:
+            paypal:
+              type: object
+              properties:
+                experience_context:
+                  type: object
+                  properties:
+                    return_url:
+                      type: string
+                      format: uri
+                      description: URL de retorno após aprovação no PayPal
+                      example: "https://meusite.com.br/pagamento/sucesso"
+                    cancel_url:
+                      type: string
+                      format: uri
+                      description: URL de cancelamento no PayPal
+                      example: "https://meusite.com.br/pagamento/cancelado"
 
     # ── Assinaturas ───────────────────────────────────────────────
 
@@ -1630,6 +2324,68 @@ components:
               description: CVV
               example: "321"
 
+    PayOverdueInvoiceResponse:
+      type: object
+      description: >
+        Resposta do pagamento de fatura em atraso. Esta rota NÃO usa o envelope APIReturnUtil;
+        retorna diretamente os dados da cobrança criada.
+      properties:
+        invoice_code:
+          type: string
+          description: Código da fatura (pedido)
+          example: "ord_xyz456"
+        code:
+          type: string
+          description: Código da cobrança criada
+          example: "chg_abc123"
+        status:
+          type: string
+          description: Status da cobrança
+          example: "Pending"
+        amount:
+          type: integer
+          description: Valor da cobrança em centavos
+          example: 9990
+        canceled_amount:
+          type: number
+          description: Valor cancelado
+          example: 0
+        installments:
+          type: integer
+          description: Número de parcelas
+          example: 1
+        payment:
+          type: object
+          properties:
+            type:
+              type: string
+              description: Tipo de pagamento
+              example: "CreditCard"
+            pix:
+              type: object
+              nullable: true
+              description: Presente apenas quando type é PIX
+              properties:
+                qrcode_url:
+                  type: string
+                  example: "https://api.example.com/pix/qrcode"
+                copy_paste:
+                  type: string
+                  example: "00020101021226..."
+                expiration:
+                  type: string
+                  format: date-time
+                  example: "2026-03-11T10:30:00.000000Z"
+            card:
+              type: object
+              nullable: true
+              description: Presente apenas quando type é CreditCard
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
     # ── Clientes Bloqueados ───────────────────────────────────────
 
     BlockClientsRequest:
@@ -1752,129 +2508,554 @@ components:
 
     # ── Respostas de Cobranças ─────────────────────────────────────
 
-    ChargeResponse:
+    ChargeConsultData:
       type: object
+      description: Dados completos de uma cobrança retornados pelo ConsultCharge
       properties:
-        success:
-          type: boolean
-          example: true
-        message:
+        charge_id:
           type: string
-          example: "Cobrança criada com sucesso"
-        data:
-          type: object
-          properties:
-            order_code:
-              type: string
-              description: Código único do pedido criado
-              example: "ord_abc123xyz"
-            status:
-              type: string
-              description: Status do pedido
-              enum: [Pending, Challenged, Approved, Declined]
-              example: Approved
-            value:
-              type: number
-              format: float
-              description: Valor total da cobrança
-              example: 199.80
-            payment_type:
-              type: string
-              description: Método de pagamento utilizado
-              example: CreditCard
-            pix_qr_code:
-              type: string
-              nullable: true
-              description: QR Code do PIX em base64 (apenas para pagamentos PIX)
-              example: null
-            pix_copy_paste:
-              type: string
-              nullable: true
-              description: Código copia e cola do PIX (apenas para pagamentos PIX)
-              example: null
-            pix_expiration:
-              type: string
-              nullable: true
-              format: date-time
-              description: Data/hora de expiração do PIX
-              example: null
-            paypal_redirect_url:
-              type: string
-              nullable: true
-              description: URL de redirecionamento para o PayPal
-              example: null
-            created_at:
-              type: string
-              format: date-time
-              example: "2026-03-11T10:00:00.000000Z"
+          format: uuid
+          description: ID interno da cobrança
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        charge_created_at:
+          type: string
+          description: Data de criação da cobrança (formatada)
+          example: "11/03/2026 10:00:00"
+        account_id:
+          type: integer
+          description: ID interno da conta
+          example: 1
+        code:
+          type: string
+          description: Código da compra (purchase code)
+          example: "pur_abc123xyz"
+        value:
+          type: number
+          format: float
+          description: Valor total da compra
+          example: 199.80
+        charge_value:
+          type: number
+          format: float
+          description: Valor da cobrança
+          example: 199.80
+        type:
+          type: string
+          description: Tipo da compra
+          enum: [PurchaseOrder, PlannedPurchaseOrder, GeneralPurchaseOrder, ContractualPurchaseOrder]
+          example: PurchaseOrder
+        cycle_type:
+          type: string
+          description: Tipo de ciclo da compra
+          enum: [Only, MonthlyRecurring, QuarterlyRecurring, SemiannualRecurring, AnnualRecurring]
+          example: Only
+        cycle:
+          type: integer
+          description: Número do ciclo atual
+          example: 1
+        coin:
+          type: string
+          description: Moeda da transação
+          example: "BRL"
+        status:
+          type: string
+          description: Status da compra
+          enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
+          example: Approved
+        client:
+          $ref: '#/components/schemas/ChargeClientData'
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChargeOrderData'
 
-    ChargeDetailResponse:
+    ChargeClientData:
       type: object
+      description: Dados do cliente associado à cobrança
       properties:
-        success:
-          type: boolean
-          example: true
-        data:
+        code:
+          type: string
+          description: Código do cliente
+          example: "cli_abc123"
+        name:
+          type: string
+          description: Nome do cliente
+          example: "João Silva"
+        email:
+          type: string
+          format: email
+          description: E-mail do cliente
+          example: "joao@exemplo.com.br"
+        documents:
+          type: array
+          description: Documentos do cliente (filtrado pelo documento padrão)
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                example: "CPF"
+              number:
+                type: string
+                example: "123.456.789-09"
+              default:
+                type: boolean
+                example: true
+        phone:
+          type: array
+          description: Telefones do cliente (filtrado pelo telefone padrão)
+          items:
+            type: object
+            properties:
+              ddi:
+                type: string
+                example: "55"
+              ddd:
+                type: string
+                example: "11"
+              number:
+                type: string
+                example: "999999999"
+              default:
+                type: boolean
+                example: true
+        addresss:
+          type: array
+          description: Endereços do cliente (filtrado pelo endereço padrão)
+          items:
+            type: object
+            properties:
+              zipcode:
+                type: string
+                example: "01310-100"
+              street:
+                type: string
+                example: "Avenida Paulista"
+              number:
+                type: string
+                example: "1000"
+              neighborhood:
+                type: string
+                example: "Bela Vista"
+              city:
+                type: string
+                example: "São Paulo"
+              state:
+                type: string
+                example: "SP"
+
+    ChargeOrderData:
+      type: object
+      description: Dados do pedido associado à cobrança
+      properties:
+        code:
+          type: string
+          description: Código do pedido
+          example: "ord_abc123xyz"
+        status:
+          type: string
+          description: Status do pedido
+          enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
+          example: Approved
+        value:
+          type: number
+          format: float
+          description: Valor do pedido
+          example: 199.80
+        error_message:
+          type: string
+          nullable: true
+          description: Mensagem de erro do gateway (null se não houver)
+          example: null
+        items:
+          type: array
+          description: Itens do pedido
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: Código do item
+                example: "produto_001"
+              name:
+                type: string
+                description: Nome do item
+                example: "Camiseta Premium"
+              unitary_value:
+                type: number
+                format: float
+                description: Valor unitário do item
+                example: 99.90
+              quantity:
+                type: integer
+                description: Quantidade
+                example: 2
+        charges:
+          type: array
+          description: Cobranças associadas ao pedido
+          items:
+            $ref: '#/components/schemas/ChargeDetailData'
+        confirmation_codes:
+          type: array
+          description: Códigos de confirmação pendentes (para pedidos com status Challenged)
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "conf_xyz789"
+              type:
+                type: string
+                example: "OTP"
+              status:
+                type: string
+                example: "Pending"
+              expires_at:
+                type: string
+                format: date-time
+                example: "2026-03-11T10:15:00.000000Z"
+
+    ChargeDetailData:
+      type: object
+      description: Dados detalhados de uma cobrança dentro de um pedido
+      properties:
+        code:
+          type: string
+          description: Código da cobrança
+          example: "chg_abc123"
+        status:
+          type: string
+          description: Status da cobrança
+          enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
+          example: Approved
+        value:
+          type: number
+          format: float
+          description: Valor cobrado
+          example: 199.80
+        canceled_amount:
+          type: number
+          format: float
+          nullable: true
+          description: Valor já estornado
+          example: 0
+        nsu:
+          type: string
+          nullable: true
+          description: NSU (Número Sequencial Único) da transação
+          example: "123456789"
+        installments:
+          type: integer
+          description: Número de parcelas
+          example: 1
+        attempts:
+          type: integer
+          description: Número de tentativas de cobrança
+          example: 1
+        payment:
           type: object
+          description: Dados do pagamento
           properties:
             code:
               type: string
-              example: "ord_abc123xyz"
-            status:
+              nullable: true
+              description: Código do pagamento (ex. código PIX)
+              example: null
+            copy_paste:
               type: string
-              enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
-              example: Approved
-            value:
-              type: number
-              format: float
-              example: 199.80
+              nullable: true
+              description: Código copia e cola do PIX
+              example: null
+            expiration:
+              type: string
+              nullable: true
+              description: Data/hora de expiração do pagamento
+              example: null
             payment_type:
               type: string
+              description: Tipo de pagamento utilizado
+              enum: [CreditCard, PIX, PayPal]
               example: CreditCard
             installments:
               type: integer
+              description: Número de parcelas
               example: 1
-            client:
-              type: object
-              properties:
-                name:
-                  type: string
-                  example: "João Silva"
-                email:
-                  type: string
-                  example: "joao@exemplo.com.br"
-                document:
-                  type: string
-                  example: "123.456.789-09"
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/ItemData'
-            created_at:
+        last_transaction:
+          type: object
+          nullable: true
+          description: Dados da última transação no gateway
+          properties:
+            transaction_id:
+              type: string
+              example: "txn_abc123"
+            type:
+              type: string
+              example: "Authorization"
+            status_code:
+              type: string
+              example: "00"
+            nsu:
+              type: string
+              example: "123456789"
+            tid:
+              type: string
+              example: "tid_abc123"
+            event_date:
               type: string
               format: date-time
               example: "2026-03-11T10:00:00.000000Z"
-            updated_at:
+            order_code:
               type: string
-              format: date-time
-              example: "2026-03-11T10:01:00.000000Z"
+              example: "ord_abc123xyz"
+            message_acquisition:
+              type: string
+              example: "Transação autorizada"
+            return_code:
+              type: string
+              example: "00"
+            return_message:
+              type: string
+              example: "Sucesso"
+            amount:
+              type: number
+              nullable: true
+              example: 19980
+        historics:
+          type: array
+          description: Histórico de transações da cobrança
+          items:
+            type: object
+            properties:
+              transaction_id:
+                type: string
+              type:
+                type: string
+              status_code:
+                type: string
+              nsu:
+                type: string
+              tid:
+                type: string
+              event_date:
+                type: string
+                format: date-time
+              order_code:
+                type: string
+              message_acquisition:
+                type: string
+              return_code:
+                type: string
+              return_message:
+                type: string
+              operation_type:
+                type: string
+              amount:
+                type: number
+                nullable: true
+        card:
+          type: object
+          nullable: true
+          description: Dados do cartão utilizado (mascarado)
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "card_abc123"
+            name:
+              type: string
+              description: Nome no cartão
+              example: "JOAO SILVA"
+            type:
+              type: string
+              description: Tipo do cartão
+              example: "credit"
+            number:
+              type: string
+              description: Número mascarado do cartão
+              example: "411111****1111"
+            flag:
+              type: string
+              description: Bandeira do cartão
+              example: "visa"
+
+    ChargeCreateResponse:
+      type: object
+      description: Resposta da criação de cobrança (envelope APIReturnUtil + dados ConsultCharge)
+      properties:
+        mensagem:
+          type: string
+          example: "Cobrança realizada com sucesso."
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          example: []
+        codigoretorno:
+          type: integer
+          example: 201
+        id:
+          type: string
+          description: ID da cobrança criada
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        data:
+          $ref: '#/components/schemas/ChargeConsultData'
+
+    ChargeConsultResponse:
+      type: object
+      description: Resposta da consulta de cobrança (envelope APIReturnUtil + dados ConsultCharge)
+      properties:
+        mensagem:
+          type: string
+          example: "Charge found"
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          example: []
+        codigoretorno:
+          type: integer
+          example: 200
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          $ref: '#/components/schemas/ChargeConsultData'
+
+    ChargeListItem:
+      type: object
+      description: Item da listagem de cobranças (campos flat retornados pelo paginador)
+      properties:
+        code:
+          type: string
+          description: Código da cobrança
+          example: "chg_abc123"
+        status:
+          type: string
+          description: Status da cobrança
+          enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
+          example: Approved
+        value:
+          type: number
+          format: float
+          description: Valor da cobrança
+          example: 199.80
+        payment_type:
+          type: string
+          description: Tipo de pagamento
+          enum: [CreditCard, PIX, PayPal]
+          example: CreditCard
+        installments:
+          type: integer
+          description: Número de parcelas
+          example: 1
+        expiration:
+          type: string
+          nullable: true
+          description: Data/hora de expiração do pagamento (PIX/Boleto)
+          example: null
+        payment_code:
+          type: string
+          nullable: true
+          description: Código do pagamento no gateway
+          example: null
+        payment_copy_paste:
+          type: string
+          nullable: true
+          description: Código copia e cola do PIX
+          example: null
+        order_code:
+          type: string
+          description: Código do pedido associado
+          example: "ord_abc123xyz"
+        order_status:
+          type: string
+          description: Status do pedido
+          enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
+          example: Approved
+        type:
+          type: string
+          description: Tipo da compra
+          enum: [PurchaseOrder, PlannedPurchaseOrder, GeneralPurchaseOrder, ContractualPurchaseOrder]
+          example: PurchaseOrder
+        cycle_type:
+          type: string
+          description: Tipo de ciclo
+          enum: [Only, MonthlyRecurring, QuarterlyRecurring, SemiannualRecurring, AnnualRecurring]
+          example: Only
+        cycle:
+          type: integer
+          description: Número do ciclo
+          example: 1
+        coin:
+          type: string
+          description: Moeda
+          example: "BRL"
+        purchase_status:
+          type: string
+          description: Código da compra (purchase code)
+          example: "pur_abc123xyz"
 
     PaginatedChargesResponse:
       type: object
+      description: Resposta paginada de cobranças (formato padrão do paginador Laravel)
       properties:
+        current_page:
+          type: integer
+          example: 1
         data:
           type: array
           items:
-            $ref: '#/components/schemas/ChargeDetailResponse'
-        current_page:
+            $ref: '#/components/schemas/ChargeListItem'
+        first_page_url:
+          type: string
+          example: "https://app.4seletpay.com.br/api/v1/charge?page=1"
+        from:
           type: integer
+          nullable: true
           example: 1
         last_page:
           type: integer
           example: 5
+        last_page_url:
+          type: string
+          example: "https://app.4seletpay.com.br/api/v1/charge?page=5"
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                nullable: true
+              label:
+                type: string
+              active:
+                type: boolean
+        next_page_url:
+          type: string
+          nullable: true
+          example: "https://app.4seletpay.com.br/api/v1/charge?page=2"
+        path:
+          type: string
+          example: "https://app.4seletpay.com.br/api/v1/charge"
         per_page:
           type: integer
-          example: 15
+          example: 10
+        prev_page_url:
+          type: string
+          nullable: true
+          example: null
+        to:
+          type: integer
+          nullable: true
+          example: 10
         total:
           type: integer
           example: 72
@@ -1886,21 +3067,18 @@ components:
       properties:
         id:
           type: string
-          example: "conf_xyz789"
+          format: uuid
+          example: "d5e6f7a8-b9c0-1234-5678-abcdef012345"
         type:
           type: string
           description: Tipo de confirmação
-          enum: [ThreeDS, OTP, Manual]
-          example: OTP
+          enum: [otp, magic_link]
+          example: otp
         status:
           type: string
           description: Status da confirmação
-          enum: [Pending, Verified, Expired, Failed]
-          example: Pending
-        created_at:
-          type: string
-          format: date-time
-          example: "2026-03-11T10:00:00.000000Z"
+          enum: [pending, verified, expired, canceled]
+          example: pending
         expires_at:
           type: string
           format: date-time
@@ -1909,10 +3087,10 @@ components:
 
     OrderConfirmationsResponse:
       type: object
+      description: >
+        Resposta da listagem de confirmações. Esta rota NÃO usa o envelope APIReturnUtil;
+        retorna diretamente um objeto com a propriedade `data`.
       properties:
-        success:
-          type: boolean
-          example: true
         data:
           type: array
           items:
@@ -2035,40 +3213,130 @@ components:
               format: date-time
               example: "2026-03-11T10:00:00.000000Z"
 
-    InvoiceItem:
+    InvoiceItemCharge:
       type: object
       properties:
         code:
           type: string
-          example: "inv_xyz456"
+          description: Código da cobrança
+          example: "chg_abc123"
         status:
           type: string
-          enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
-          example: Approved
-        value:
-          type: number
-          format: float
-          example: 99.90
-        due_date:
+          description: Status da cobrança
+          example: "Paid"
+        amount:
+          type: integer
+          description: Valor em centavos
+          example: 9990
+        payment_type:
           type: string
-          format: date
-          example: "2026-04-01"
-        paid_at:
+          description: Método de pagamento
+          example: "CreditCard"
+        installments:
+          type: integer
+          example: 1
+        account_client_card_id:
           type: string
-          format: date-time
           nullable: true
-          example: "2026-04-01T09:00:00.000000Z"
+          description: ID do cartão do cliente (se cartão)
+          example: "card_abc123"
+        payment:
+          type: object
+          properties:
+            type:
+              type: string
+              description: Tipo de pagamento
+              example: "CreditCard"
+            pix:
+              type: object
+              nullable: true
+              description: Presente apenas quando payment_type é PIX
+              properties:
+                qrcode_url:
+                  type: string
+                  example: "https://api.example.com/pix/qrcode"
+                copy_paste:
+                  type: string
+                  example: "00020101021226..."
+                expiration:
+                  type: string
+                  format: date-time
+                  example: "2026-03-11T10:30:00.000000Z"
+            card:
+              type: object
+              nullable: true
+              description: Presente apenas quando payment_type é CreditCard
+              properties:
+                id:
+                  type: string
+                  example: "card_abc123"
+
+    InvoiceItemProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID do item (account_item_id)
+          example: "item_abc123"
+        unitary_amount:
+          type: integer
+          description: Valor unitário em centavos
+          example: 9990
+        quantity:
+          type: integer
+          example: 1
+        code:
+          type: string
+          description: Código do item
+          example: "plano_premium"
+        name:
+          type: string
+          description: Nome do item
+          example: "Acesso Premium Mensal"
+
+    InvoiceItem:
+      type: object
+      properties:
+        subscription_code:
+          type: string
+          description: Código da assinatura
+          example: "sub_abc123"
+        code:
+          type: string
+          description: Código do pedido (fatura)
+          example: "ord_xyz456"
+        status:
+          type: string
+          description: Status do pedido (StatusOrder)
+          enum: [New, Canceled, Paid, ChargeBack, Reversed, PartialReversed, Reproved, Pending, Fail, Challenged, Unprocessed]
+          example: Paid
+        amount:
+          type: integer
+          description: Valor total em centavos
+          example: 9990
+        attempts:
+          type: integer
+          description: Número de tentativas de cobrança
+          example: 1
         created_at:
           type: string
           format: date-time
-          example: "2026-03-11T00:00:00.000000Z"
+          example: "2026-03-11T10:00:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceItemProduct'
+        charges:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceItemCharge'
 
     InvoicesListResponse:
       type: object
+      description: >
+        Resposta da listagem de faturas. Esta rota NÃO usa o envelope APIReturnUtil;
+        retorna diretamente um objeto com a propriedade `data`.
       properties:
-        success:
-          type: boolean
-          example: true
         data:
           type: array
           items:
@@ -2079,13 +3347,8 @@ components:
       properties:
         code:
           type: string
-          example: "item_001"
-        id:
-          type: string
+          description: ID do item (vem de subs_data.items[].id)
           example: "plano_premium"
-        description:
-          type: string
-          example: "Acesso Premium Mensal"
         amount:
           type: integer
           description: Valor em centavos
@@ -2093,17 +3356,17 @@ components:
         quantity:
           type: integer
           example: 1
-        created_at:
+        description:
           type: string
-          format: date-time
-          example: "2026-03-11T10:00:00.000000Z"
+          nullable: true
+          example: "Acesso Premium Mensal"
 
     SubscriptionItemsResponse:
       type: object
+      description: >
+        Resposta da listagem de itens. Esta rota NÃO usa o envelope APIReturnUtil;
+        retorna diretamente um objeto com a propriedade `data`.
       properties:
-        success:
-          type: boolean
-          example: true
         data:
           type: array
           items:
@@ -2277,53 +3540,81 @@ components:
           type: integer
           example: 5
 
-    # ── Webhooks ─────────────────────────────────────────────────
+    # ── Respostas genéricas (formato APIReturnUtil) ─────────────────
 
-    WebhookPayload:
+    APIBaseResponse:
       type: object
-      description: Payload enviado pelo gateway de pagamento (estrutura varia por gateway)
+      description: >
+        Formato padrão de resposta da API. Todas as respostas (exceto listagens paginadas)
+        seguem este envelope.
       properties:
+        mensagem:
+          type: string
+          description: Mensagem descritiva da operação
+        erro:
+          type: boolean
+          description: Indica se houve erro (false = sucesso)
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          description: Lista de mensagens de erro detalhadas (vazia em caso de sucesso)
+        codigoretorno:
+          type: integer
+          description: Código HTTP de retorno
         id:
           type: string
-          description: Identificador do evento no gateway
-          example: "evt_xyz789"
-        type:
-          type: string
-          description: Tipo do evento
-          example: "charge.paid"
+          description: ID do recurso criado/afetado ou GUID vazio
         data:
-          type: object
-          description: Dados do evento (estrutura depende do gateway)
-          example:
-            id: "ch_abc123"
-            status: "paid"
-            amount: 19980
-
-    # ── Respostas genéricas ───────────────────────────────────────
+          description: Dados retornados pela operação (objeto, array ou vazio)
 
     SuccessResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          example: true
-        message:
+        mensagem:
           type: string
           example: "Operação realizada com sucesso"
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          example: []
+        codigoretorno:
+          type: integer
+          example: 200
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          type: array
+          example: []
 
     ErrorResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          example: false
-        message:
+        mensagem:
           type: string
-          example: "Ocorreu um erro"
-        errors:
+          example: "Um erro inesperado acabou de acontecer."
+        erro:
+          type: boolean
+          example: true
+        mensagenserro:
           type: array
           items:
             type: string
+          example:
+            - "Detalhe do erro ocorrido."
+        codigoretorno:
+          type: integer
+          example: 400
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          type: array
           example: []
 
     ValidationErrorResponse:

@@ -26,65 +26,101 @@ account: acc_abc123xyz
 
 ---
 
+## Formato de resposta padrão
+
+A maioria das rotas retorna respostas no formato padrão da API (exceto a listagem paginada):
+
+```json
+{
+  "mensagem": "Mensagem descritiva",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 200,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": { ... }
+}
+```
+
+| Campo          | Tipo    | Descrição                                               |
+|----------------|---------|---------------------------------------------------------|
+| `mensagem`     | string  | Mensagem descritiva da operação                         |
+| `erro`         | boolean | `false` em caso de sucesso, `true` em caso de erro      |
+| `mensagenserro`| array   | Lista de mensagens de erro (vazia em caso de sucesso)   |
+| `codigoretorno`| integer | Código HTTP de retorno                                  |
+| `id`           | string  | ID do recurso criado/afetado ou GUID vazio              |
+| `data`         | mixed   | Dados retornados (objeto, array ou vazio)               |
+
+---
+
 ## Fluxo de uma cobrança
 
 ```
-POST /v1/charge
+POST /v1/charge → HTTP 201
     │
-    ├─ Validação de dados
+    ├─ Validação de dados (422 se inválido)
     ├─ Verificação de fraude (bloqueio de IP/email/CPF/BIN)
     ├─ Rate limiting por cliente
     │
-    ├─ [PIX] → QR Code gerado → aguardar pagamento
-    ├─ [PayPal] → URL de redirecionamento gerada
+    ├─ [PIX] → QR Code gerado → aguardar pagamento (status: Pending)
+    ├─ [PayPal] → URL de redirecionamento gerada (status: Pending)
     └─ [CreditCard] → Autorização no gateway
               │
-              ├─ Approved → Pedido aprovado
-              ├─ Declined → Pedido recusado
-              └─ Challenged → Verificação adicional requerida (OTP/3DS)
+              ├─ Approved → Pedido aprovado (HTTP 201)
+              ├─ Declined → Pedido recusado (HTTP 400)
+              └─ Challenged → Verificação adicional requerida (HTTP 202)
 ```
 
 ---
 
 ## Campos do cliente
 
-| Campo                    | Tipo    | Req. | Descrição                          |
-|--------------------------|---------|------|------------------------------------|
-| `client.name`            | string  | Sim  | Nome completo do cliente           |
-| `client.email`           | string  | Sim  | E-mail do cliente                  |
-| `client.phone.ddi`       | string  | Sim  | Código do país (DDI)               |
-| `client.phone.ddd`       | string  | Sim  | Código de área (DDD)               |
-| `client.phone.number`    | string  | Sim  | Número do telefone                 |
-| `client.document.type`   | string  | Não  | Tipo do documento (CPF, CNPJ, etc.)|
-| `client.document.number` | string  | Não  | Número do documento                |
-| `client.gender`          | string  | Não  | Gênero: Male, Female, Other        |
-| `client.birthdate`       | date    | Não  | Data de nascimento (YYYY-MM-DD)    |
-| `client.address.*`       | object  | Não* | Endereço (* campos obrigatórios entre si)|
+| Campo                    | Tipo    | Req. | Descrição                                           |
+|--------------------------|---------|------|-----------------------------------------------------|
+| `client.name`            | string  | Sim  | Nome completo do cliente (máx. 255)                 |
+| `client.email`           | string  | Sim  | E-mail do cliente                                   |
+| `client.phone.ddi`       | string  | Sim  | Código do país (DDI)                                |
+| `client.phone.ddd`       | string  | Sim  | Código de área (DDD)                                |
+| `client.phone.number`    | string  | Sim  | Número do telefone                                  |
+| `client.document.type`   | string  | Não  | Tipo: `CPF`, `CNPJ`, `passport`, `undefined`        |
+| `client.document.number` | string  | Não  | Número do documento                                 |
+| `client.gender`          | string  | Não  | `Male`, `Female`, `Other`, `Undefined`              |
+| `client.birthdate`       | date    | Não  | Data de nascimento (YYYY-MM-DD)                     |
+| `client.address.*`       | object  | Não* | Endereço (* todos os campos obrigatórios entre si)  |
 
 ---
 
 ## Campos do pagamento
 
-| Campo                          | Tipo    | Req.      | Descrição                             |
-|-------------------------------|---------|-----------|---------------------------------------|
-| `payment.type`                | string  | Sim       | CreditCard, PIX ou PayPal             |
-| `payment.pix_expiration`      | integer | PIX       | Expiração em segundos (mín. 1)        |
-| `payment.card.number`         | string  | CreditCard| Número do cartão (mín. 13 dígitos)    |
-| `payment.card.name`           | string  | CreditCard| Nome no cartão                        |
-| `payment.card.month`          | string  | CreditCard| Mês de validade                       |
-| `payment.card.year`           | string  | CreditCard| Ano de validade                       |
-| `payment.card.security_code`  | string  | CreditCard| CVV                                   |
-| `payment.card.installments`   | integer | CreditCard| Número de parcelas                    |
-| `payment.card.card_id`        | string  | Não       | ID de cartão salvo (substitui número) |
-| `payment.card.soft_descriptor`| string  | Não       | Texto na fatura (3-50 chars)          |
-| `payment.conveniencefee`      | number  | Não       | Taxa de conveniência (%)              |
-| `payment.conveniencefeeamount`| number  | Não       | Taxa de conveniência (valor fixo)     |
+| Campo                          | Tipo    | Req.       | Descrição                             |
+|-------------------------------|---------|------------|---------------------------------------|
+| `payment.type`                | string  | Sim        | `CreditCard`, `PIX` ou `PayPal`      |
+| `payment.pix_expiration`      | integer | Não        | Expiração em segundos (mín. 1)        |
+| `payment.card.number`         | string  | CreditCard | Número do cartão (mín. 13 dígitos)    |
+| `payment.card.name`           | string  | CreditCard | Nome no cartão                        |
+| `payment.card.month`          | string  | CreditCard | Mês de validade (MM)                  |
+| `payment.card.year`           | string  | CreditCard | Ano de validade (YY)                  |
+| `payment.card.security_code`  | string  | CreditCard | CVV                                   |
+| `payment.card.installments`   | integer | CreditCard | Número de parcelas                    |
+| `payment.card.card_id`        | string  | Não        | ID de cartão salvo (substitui demais) |
+| `payment.card.soft_descriptor`| string  | Não        | Texto na fatura (3-50 chars)          |
+| `payment.conveniencefee`      | number  | Não        | Taxa de conveniência (%)              |
+| `payment.conveniencefeeamount`| number  | Não        | Taxa de conveniência (valor fixo)     |
+
+---
+
+## Campos adicionais
+
+| Campo            | Tipo    | Req. | Descrição                                                                        |
+|------------------|---------|------|----------------------------------------------------------------------------------|
+| `type`           | string  | Não  | `PurchaseOrder`, `PlannedPurchaseOrder`, `GeneralPurchaseOrder`, `ContractualPurchaseOrder` |
+| `cycletype`      | string  | Não  | `Only`, `MonthlyRecurring`, `QuarterlyRecurring`, `SemiannualRecurring`, `AnnualRecurring` |
+| `payment_source` | object  | Não  | Dados de origem do pagamento (usado para PayPal, no nível raiz do body)          |
 
 ---
 
 ## Exemplo: Pagamento PIX
 
-```json
+```json Request
 {
   "client": {
     "name": "Maria Santos",
@@ -101,15 +137,36 @@ POST /v1/charge
 }
 ```
 
-```json Resposta PIX
+```json Resposta PIX (HTTP 201)
 {
-  "success": true,
+  "mensagem": "Aguardando Pagamento",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 201,
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "data": {
-    "order_code": "ord_abc123xyz",
+    "charge_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "code": "pur_abc123xyz",
     "status": "Pending",
-    "pix_qr_code": "data:image/png;base64,...",
-    "pix_copy_paste": "00020126580014br.gov.bcb.pix...",
-    "pix_expiration": "2026-03-11T11:00:00.000000Z"
+    "value": 297.00,
+    "orders": [
+      {
+        "code": "ord_abc123xyz",
+        "status": "Pending",
+        "charges": [
+          {
+            "code": "chg_abc123",
+            "status": "Pending",
+            "payment": {
+              "code": "pix_code_123",
+              "copy_paste": "00020126580014br.gov.bcb.pix...",
+              "expiration": "2026-03-11T11:00:00.000000Z",
+              "payment_type": "PIX"
+            }
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -119,5 +176,21 @@ POST /v1/charge
 </Tip>
 
 <Warning>
-  A criação de cobranças passa por verificações de fraude. Clientes com IP, e-mail, CPF ou BIN do cartão bloqueados terão a cobrança rejeitada com status 403.
+  A criação de cobranças passa por verificações de fraude. Clientes com IP, e-mail, CPF ou BIN do cartão bloqueados terão a cobrança rejeitada com status 400.
+</Warning>
+
+---
+
+## Estorno de cobranças
+
+O endpoint de estorno aceita um campo `value` opcional do tipo **inteiro** (em centavos). Se omitido, o estorno é total.
+
+```json Estorno parcial de R$ 50,00
+{
+  "value": 5000
+}
+```
+
+<Warning>
+  O prazo e as condições para estorno dependem do gateway de pagamento utilizado. Cobranças já estornadas por completo não podem ser estornadas novamente.
 </Warning>

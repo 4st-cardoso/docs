@@ -1,8 +1,10 @@
 ---
 title: "Alterar Método de Pagamento"
-openapi: "PUT /v1/subscriptions/change-payment-method/{subscription_code}"
+openapi: "openapi.yaml PUT /v1/subscriptions/change-payment-method/{subscription_code}"
 ---
 
 <Note>
-  Requer o header `account`. Ao mudar para `CreditCard`, os dados do novo cartão são obrigatórios no objeto `card`.
+  Requer o header `account`. A assinatura precisa estar em status `Recurring` ou `RecurringOverdue`.
+  Ao mudar para `CreditCard`, os dados do novo cartão são obrigatórios no objeto `card`.
+  Métodos aceitos: `DebitCard`, `CreditCard`, `PIX`, `Boleto`, `PayPal`.
 </Note>

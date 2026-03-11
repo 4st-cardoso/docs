@@ -1,8 +1,10 @@
 ---
 title: "Listar Confirmações"
-openapi: "GET /v1/orders/{order_code}/confirmations"
+openapi: "openapi.yaml GET /v1/orders/{order_code}/confirmations"
 ---
 
 <Note>
   Requer o header `account`. Use esta rota após um pedido entrar em status `Challenged` para obter os desafios pendentes.
+  A resposta retorna diretamente `{"data": [...]}`, sem o envelope padrão `APIReturnUtil`.
+  Os campos retornados são: `id`, `type`, `status` e `expires_at`.
 </Note>

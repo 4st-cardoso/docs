@@ -1,6 +1,6 @@
 ---
 title: "Estornar Cobrança"
-openapi: "POST /v1/charge/refund/{code}"
+openapi: "openapi.yaml POST /v1/charge/refund/{code}"
 ---
 
 <Note>
@@ -8,7 +8,7 @@ openapi: "POST /v1/charge/refund/{code}"
 </Note>
 
 <Tip>
-  Para estorno parcial, informe o campo `value` no body com o valor a estornar.
+  Para estorno parcial, informe o campo `value` no body com o valor em **centavos** (inteiro). Ex: para estornar R$ 50,00, envie `"value": 5000`.
   Para estorno total, omita o campo `value` ou não envie body.
 </Tip>
 

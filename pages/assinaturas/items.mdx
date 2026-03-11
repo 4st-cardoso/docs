@@ -1,8 +1,11 @@
 ---
 title: "Listar Itens"
-openapi: "GET /v1/subscriptions/{subscription_code}/items"
+openapi: "openapi.yaml GET /v1/subscriptions/{subscription_code}/items"
 ---
 
 <Note>
   Requer o header `account`. Retorna os itens (produtos/serviços) vinculados à assinatura.
+  Os dados vêm do campo `subs_data.items` da assinatura.
+  A resposta retorna diretamente `{"data": [...]}`, sem o envelope padrão `APIReturnUtil`.
+  Os valores monetários (`amount`) são retornados em **centavos**.
 </Note>
