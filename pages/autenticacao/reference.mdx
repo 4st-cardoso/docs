@@ -1,7 +1,7 @@
 ---
 title: "Autenticação"
 description: "Como autenticar na API 4Selet Pay e gerenciar tokens de acesso."
-icon: "lock-closed"
+icon: "lock"
 ---
 
 ## Visão Geral
@@ -30,28 +30,6 @@ Faça uma requisição `POST /v1/login` com seu e-mail e senha. O token retornad
 <Tip>
   Armazene o `expires_at` para saber quando o token vai expirar e renovar antes do vencimento, evitando interrupções.
 </Tip>
-
----
-
-## Variante com dados do usuário
-
-Para aplicativos mobile que precisam dos dados do usuário logo após o login, utilize a rota `POST /v1/login/app`. A resposta incluirá o objeto `user` com perfil completo.
-
-```json Resposta com dados do usuário
-{
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
-  "token_type": "Bearer",
-  "expires_at": "2026-04-11T12:00:00.000000Z",
-  "user": {
-    "id": "usr_abc123",
-    "name": "João Silva",
-    "email": "joao@exemplo.com.br",
-    "path_avatar": "https://sua-api.com/storage/avatars/joao.jpg",
-    "preferences": {},
-    "app_preferences": {}
-  }
-}
-```
 
 ---
 

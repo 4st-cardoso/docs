@@ -51,7 +51,6 @@
                 "pages": [
                   "pages/autenticacao/reference",
                   "pages/autenticacao/login",
-                  "pages/autenticacao/login-app",
                   "pages/autenticacao/new-user"
                 ]
               },
@@ -93,74 +92,6 @@
                 "pages": [
                   "pages/faturas/reference",
                   "pages/faturas/pay-overdue"
-                ]
-              },
-              {
-                "group": "Clientes Bloqueados",
-                "pages": [
-                  "pages/clientes-bloqueados/reference",
-                  "pages/clientes-bloqueados/list",
-                  "pages/clientes-bloqueados/create",
-                  "pages/clientes-bloqueados/delete"
-                ]
-              },
-              {
-                "group": "Contas",
-                "pages": [
-                  "pages/contas/reference",
-                  "pages/contas/list",
-                  "pages/contas/create",
-                  "pages/contas/get",
-                  "pages/contas/update",
-                  "pages/contas/delete"
-                ]
-              },
-              {
-                "group": "Aplicativo",
-                "pages": [
-                  "pages/app/reference",
-                  "pages/app/dashboard",
-                  "pages/app/accounts",
-                  "pages/app/orders",
-                  "pages/app/order-detail",
-                  "pages/app/user-me",
-                  "pages/app/user-update",
-                  "pages/app/preferences-fetch",
-                  "pages/app/preferences-update"
-                ]
-              },
-              {
-                "group": "Notificações Push",
-                "pages": [
-                  "pages/push-notifications/reference",
-                  "pages/push-notifications/fetch",
-                  "pages/push-notifications/send",
-                  "pages/push-notifications/add-device",
-                  "pages/push-notifications/delete-device"
-                ]
-              },
-              {
-                "group": "Utilitários",
-                "pages": [
-                  "pages/utilitarios/reference",
-                  "pages/utilitarios/time-zones"
-                ]
-              },
-              {
-                "group": "Gestão",
-                "pages": [
-                  "pages/gestao/reference",
-                  "pages/gestao/sales-report"
-                ]
-              },
-              {
-                "group": "Webhooks",
-                "pages": [
-                  "pages/webhooks/reference",
-                  "pages/webhooks/pagarme",
-                  "pages/webhooks/erede",
-                  "pages/webhooks/paypal",
-                  "pages/webhooks/genial"
                 ]
               }
             ]
