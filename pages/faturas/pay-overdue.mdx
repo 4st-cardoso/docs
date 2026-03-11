@@ -1,0 +1,8 @@
+---
+title: "Pagar Fatura em Atraso"
+openapi: "POST /v1/invoices/{invoice_code}/pay-overdue"
+---
+
+<Note>
+  Requer o header `account`. Ao usar `CreditCard`, o objeto `card` com os dados do cartão é obrigatório.
+</Note>

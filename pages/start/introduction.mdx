@@ -1,48 +1,111 @@
 ---
-title: 'Introdução (API v1)'
-icon: 'credit-card'
-description: 'Visão geral rápida da API v1 da 4SeletPay e como ela se relaciona com a v2.'
+title: 'Introdução'
+icon: "book-open"
+description: 'Visão geral da API v1 da 4Selet Pay — como funciona, o que você pode fazer e por onde começar.'
 ---
 
-<Warning>
-  Esta página documenta a **API v1**. Para novos projetos, recomendamos usar a
-  **v2** – você pode alternar entre versões usando o seletor de versão no topo
-  da documentação.
-</Warning>
+<Info>
+  Esta é a **API v1**, versão atual e estável da 4Selet Pay. A **v2** está em desenvolvimento e aparecerá como "Em breve" no seletor de versão.
+</Info>
 
-## O que é a API v1?
+## O que é a 4Selet Pay API?
 
-A API v1 foi a primeira versão pública da 4SeletPay. Ela continua disponível
-para projetos legados, mas **toda a evolução da plataforma acontece na v2**.
+A API da 4Selet Pay permite que você integre processamento de pagamentos diretamente na sua aplicação. Com ela você pode:
 
-Em termos de conceito, a v1 já seguia as mesmas ideias centrais:
+- Criar e gerenciar **cobranças** via Cartão de Crédito, PIX e PayPal
+- Configurar **assinaturas** recorrentes com controle de ciclos, descontos e faturas
+- Consultar e reprocessar **pedidos** e seus desafios de confirmação (3DS, OTP)
+- Quitar **faturas em atraso** de assinaturas existentes
 
-- Cobranças baseadas em **intenção**
-- Checkout de pagamento via URL compartilhável
-- Suporte a **PIX** (e, em alguns casos, cartão)
-- Webhooks para manter seu sistema sincronizado com o que acontece na 4SeletPay
+---
 
-## Diferenças principais em relação à v2
+## Base URL
 
-De forma geral:
+Todos os endpoints da v1 estão sob o prefixo:
 
-- A v1 expõe os endpoints sob o prefixo `https://app.4seletpay.com.br/api/v1`
-- Alguns caminhos e payloads são diferentes da v2
-- Os webhooks podem ter **eventos e estruturas ligeiramente distintas**
+```
+https://sua-api.com/api/v1
+```
 
-Use esta seção de v1 quando estiver:
+---
 
-- Mantendo uma integração existente que ainda não migrou para a v2
-- Precisando consultar **webhooks legados** ou **rotas específicas da v1**
+## Autenticação
 
-## Estrutura da documentação v1
+A API usa **Bearer Token JWT** via [Laravel Passport](https://laravel.com/docs/passport). Obtenha seu token com `POST /v1/login` e inclua-o em todas as requisições autenticadas:
 
-Nesta versão da documentação você encontra:
+```http
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
+```
 
-- **Introdução (esta página)**: contexto e diferenças gerais
-- **Webhooks (v1)**: eventos, payloads e boas práticas específicas da v1
-- **API Reference (v1)**: lista das rotas disponíveis na v1, agrupadas por recurso
+<Tip>
+  Consulte a seção [Autenticação](/pages/autenticacao/reference) para detalhes sobre como obter e renovar tokens.
+</Tip>
 
-Para detalhes mais completos, consulte também a documentação principal da v2 –
-muitos conceitos (como autenticação, idempotência e estrutura `{data, error, success}`)
-são compartilhados entre as versões.
+---
+
+## Estrutura das respostas
+
+Todas as respostas seguem o padrão:
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": null
+}
+```
+
+Em caso de erro:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Descrição do erro"
+}
+```
+
+---
+
+## Recursos disponíveis
+
+| Recurso        | Descrição                                                       |
+|----------------|-----------------------------------------------------------------|
+| **Autenticação** | Login, criação de usuário e gerenciamento de tokens           |
+| **Cobranças**    | Pagamentos únicos via Cartão de Crédito, PIX ou PayPal        |
+| **Pedidos**      | Consulta de pedidos e fluxo de confirmação (3DS / OTP)        |
+| **Assinaturas**  | Cobranças recorrentes com ciclos, faturas e troca de cartão   |
+| **Faturas**      | Quitação de faturas de assinaturas em atraso                  |
+
+---
+
+## Códigos de status HTTP
+
+| Status | Significado                                      |
+|--------|--------------------------------------------------|
+| `200`  | Sucesso                                          |
+| `401`  | Não autenticado — token ausente ou inválido      |
+| `403`  | Acesso negado — permissão insuficiente           |
+| `404`  | Recurso não encontrado                           |
+| `422`  | Dados inválidos — verifique os campos obrigatórios |
+| `429`  | Rate limit atingido                              |
+| `500`  | Erro interno do servidor                         |
+
+---
+
+## Próximos passos
+
+<CardGroup cols={2}>
+  <Card title="Autenticação" icon="lock" href="/pages/autenticacao/reference">
+    Obtenha seu token de acesso para começar a usar a API.
+  </Card>
+  <Card title="Cobranças" icon="credit-card" href="/pages/cobrancas/reference">
+    Crie sua primeira cobrança com Cartão, PIX ou PayPal.
+  </Card>
+  <Card title="Assinaturas" icon="arrows-rotate" href="/pages/assinaturas/reference">
+    Configure cobranças recorrentes para seus clientes.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/pages/start/webhooks">
+    Receba notificações em tempo real dos gateways de pagamento.
+  </Card>
+</CardGroup>

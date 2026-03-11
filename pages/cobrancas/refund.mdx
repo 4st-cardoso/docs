@@ -1,0 +1,17 @@
+---
+title: "Estornar Cobrança"
+openapi: "POST /v1/charge/refund/{code}"
+---
+
+<Note>
+  Requer o header `account`. Apenas cobranças com status `Approved` podem ser estornadas.
+</Note>
+
+<Tip>
+  Para estorno parcial, informe o campo `value` no body com o valor a estornar.
+  Para estorno total, omita o campo `value` ou não envie body.
+</Tip>
+
+<Warning>
+  O prazo e as condições para estorno dependem do gateway de pagamento utilizado.
+</Warning>

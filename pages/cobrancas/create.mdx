@@ -1,0 +1,12 @@
+---
+title: "Criar Cobrança"
+openapi: "POST /v1/charge"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. Passa por validações de fraude, bloqueio de clientes e rate limiting por cliente.
+</Note>
+
+<Warning>
+  Clientes bloqueados por IP, e-mail, CPF ou BIN do cartão terão a cobrança rejeitada automaticamente.
+</Warning>

@@ -1,0 +1,57 @@
+---
+title: "Pedidos"
+description: "Consulta e gerenciamento de pedidos e seus desafios de confirmação."
+icon: "bag-shopping"
+---
+
+## Visão Geral
+
+Os **Pedidos** (`Orders`) são gerados automaticamente quando uma cobrança é criada. Um pedido pode conter múltiplas cobranças (charges).
+
+---
+
+## Status de um Pedido
+
+| Status       | Descrição                                                    |
+|--------------|--------------------------------------------------------------|
+| `Pending`    | Aguardando processamento ou pagamento (ex: PIX pendente)     |
+| `Challenged` | Requer verificação adicional do cliente (OTP, 3D Secure)     |
+| `Approved`   | Pedido aprovado e pago com sucesso                           |
+| `Declined`   | Pedido recusado pela operadora/gateway                       |
+| `Refunded`   | Pagamento estornado para o cliente                           |
+| `Canceled`   | Pedido cancelado                                             |
+
+---
+
+## Pedidos Desafiados (Challenged)
+
+Quando um pedido entra no status `Challenged`, o cliente precisa confirmar a identidade antes que o pagamento seja processado. Isso pode ocorrer por:
+
+- **3D Secure (3DS)** — verificação pelo banco emissor
+- **OTP** — código de verificação enviado por SMS ou e-mail
+
+### Fluxo de confirmação
+
+```
+1. POST /v1/charge → status: Challenged
+2. GET  /v1/orders/{code}/confirmations → lista os desafios pendentes
+3. POST /v1/orders/{code}/confirmations/{id}/verify → submete o código
+   OU
+   POST /v1/orders/{code}/confirmations/{id}/resend → reenvia o código
+```
+
+---
+
+## Campos de uma Confirmação
+
+| Campo        | Tipo     | Descrição                               |
+|--------------|----------|-----------------------------------------|
+| `id`         | string   | Identificador da confirmação            |
+| `type`       | string   | Tipo: ThreeDS, OTP, Manual              |
+| `status`     | string   | Pending, Verified, Expired, Failed      |
+| `created_at` | datetime | Data de criação                         |
+| `expires_at` | datetime | Data de expiração do desafio            |
+
+<Info>
+  Confirmações têm prazo de expiração. Após expirar, use a rota `/resend` para gerar um novo código.
+</Info>

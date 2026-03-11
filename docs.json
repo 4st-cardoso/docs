@@ -34,12 +34,6 @@
                 "pages": [
                   "pages/start/introduction"
                 ]
-              },
-              {
-                "group": "Webhooks",
-                "pages": [
-                  "pages/webhooks"
-                ]
               }
             ]
           },
@@ -47,105 +41,50 @@
             "tab": "Documentação",
             "groups": [
               {
-                "group": "Comece aqui",
+                "group": "Autenticação",
                 "pages": [
-                  "pages/start/quickstart",
-                  "pages/devmode",
-                  "pages/authentication",
-                  "pages/glossario",
-                  "pages/production"
+                  "pages/autenticacao/reference",
+                  "pages/autenticacao/login"
                 ]
               },
               {
-                "group": "Produtos",
+                "group": "Cobranças",
                 "pages": [
-                  "pages/products/reference",
-                  "pages/products/create",
-                  "pages/products/list",
-                  "pages/products/get",
-                  "pages/products/delete"
+                  "pages/cobrancas/reference",
+                  "pages/cobrancas/create",
+                  "pages/cobrancas/list",
+                  "pages/cobrancas/get",
+                  "pages/cobrancas/cancel",
+                  "pages/cobrancas/refund"
                 ]
               },
               {
-                "group": "Clientes",
+                "group": "Pedidos",
                 "pages": [
-                  "pages/client/reference",
-                  "pages/client/create",
-                  "pages/client/list",
-                  "pages/client/get",
-                  "pages/client/delete"
-                ]
-              },
-              {
-                "group": "Cupons",
-                "pages": [
-                  "pages/coupons/reference",
-                  "pages/coupons/create",
-                  "pages/coupons/list",
-                  "pages/coupons/get",
-                  "pages/coupons/delete",
-                  "pages/coupons/toggle"
-                ]
-              },
-              {
-                "group": "Checkouts",
-                "pages": [
-                  "pages/payment/reference",
-                  "pages/payment/create",
-                  "pages/payment/list",
-                  "pages/payment/one"
-                ]
-              },
-              {
-                "group": "Links de pagamento",
-                "pages": [
-                  "pages/payment-links/reference",
-                  "pages/payment-links/create",
-                  "pages/payment-links/list",
-                  "pages/payment-links/one"
-                ]
-              },
-              {
-                "group": "Checkout Transparente",
-                "pages": [
-                  "pages/pix-qrcode/reference",
-                  "pages/pix-qrcode/create",
-                  "pages/pix-qrcode/list",
-                  "pages/pix-qrcode/simulate-payment",
-                  "pages/pix-qrcode/check"
+                  "pages/pedidos/reference",
+                  "pages/pedidos/confirmations",
+                  "pages/pedidos/verify",
+                  "pages/pedidos/resend"
                 ]
               },
               {
                 "group": "Assinaturas",
                 "pages": [
-                  "pages/subscriptions/reference",
-                  "pages/subscriptions/create",
-                  "pages/subscriptions/list"
+                  "pages/assinaturas/reference",
+                  "pages/assinaturas/create",
+                  "pages/assinaturas/cancel",
+                  "pages/assinaturas/change-card",
+                  "pages/assinaturas/change-payment-method",
+                  "pages/assinaturas/invoices",
+                  "pages/assinaturas/items",
+                  "pages/assinaturas/update-item"
                 ]
               },
               {
-                "group": "Saques",
+                "group": "Faturas",
                 "pages": [
-                  "pages/payouts/reference",
-                  "pages/payouts/create",
-                  "pages/payouts/get",
-                  "pages/payouts/list"
-                ]
-              },
-              {
-                "group": "PIX",
-                "pages": [
-                  "pages/pix/reference",
-                  "pages/pix/create",
-                  "pages/pix/get",
-                  "pages/pix/list"
-                ]
-              },
-              {
-                "group": "Loja",
-                "pages": [
-                  "pages/store/reference",
-                  "pages/store/get"
+                  "pages/faturas/reference",
+                  "pages/faturas/pay-overdue"
                 ]
               }
             ]

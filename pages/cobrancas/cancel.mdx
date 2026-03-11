@@ -1,0 +1,12 @@
+---
+title: "Cancelar Cobrança"
+openapi: "POST /v1/charge/cancel/{code}"
+---
+
+<Note>
+  Requer o header `account`. Apenas cobranças que ainda não foram finalizadas podem ser canceladas.
+</Note>
+
+<Warning>
+  Esta ação é irreversível. Uma cobrança cancelada não pode ser reativada.
+</Warning>
