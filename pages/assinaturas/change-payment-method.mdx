@@ -1,0 +1,8 @@
+---
+title: "Alterar Método de Pagamento"
+openapi: "PUT /v1/subscriptions/change-payment-method/{subscription_code}"
+---
+
+<Note>
+  Requer o header `account`. Ao mudar para `CreditCard`, os dados do novo cartão são obrigatórios no objeto `card`.
+</Note>

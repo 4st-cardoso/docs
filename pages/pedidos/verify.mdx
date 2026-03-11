@@ -1,0 +1,12 @@
+---
+title: "Verificar Confirmação"
+openapi: "POST /v1/orders/{order_code}/confirmations/{confirmation_id}/verify"
+---
+
+<Note>
+  Requer o header `account`. Submete o código OTP ou 3DS recebido pelo cliente para desbloquear o pedido.
+</Note>
+
+<Warning>
+  O código de verificação tem prazo de expiração. Se o prazo expirou, use a rota `/resend` para solicitar um novo código.
+</Warning>

@@ -1,0 +1,30 @@
+---
+title: "Utilitários"
+description: "Endpoints auxiliares da plataforma 4Selet Pay."
+icon: "wrench-screwdriver"
+---
+
+## Visão Geral
+
+Os endpoints utilitários fornecem dados de suporte para a integração, como a lista de fusos horários disponíveis para configuração de contas.
+
+---
+
+## Fusos Horários
+
+O endpoint `GET /v1/utils/time-zones` retorna todos os fusos horários suportados pela plataforma, no formato:
+
+```json
+{
+  "data": [
+    { "value": "America/Sao_Paulo", "label": "America/Sao_Paulo (UTC-03:00)" },
+    { "value": "America/Manaus",    "label": "America/Manaus (UTC-04:00)" },
+    { "value": "America/Belem",     "label": "America/Belem (UTC-03:00)" },
+    { "value": "America/Fortaleza", "label": "America/Fortaleza (UTC-03:00)" }
+  ]
+}
+```
+
+<Tip>
+  Use o campo `value` ao criar ou atualizar contas no campo `timezone`.
+</Tip>

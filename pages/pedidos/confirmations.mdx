@@ -1,0 +1,8 @@
+---
+title: "Listar Confirmações"
+openapi: "GET /v1/orders/{order_code}/confirmations"
+---
+
+<Note>
+  Requer o header `account`. Use esta rota após um pedido entrar em status `Challenged` para obter os desafios pendentes.
+</Note>

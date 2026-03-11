@@ -1,0 +1,64 @@
+---
+title: "Aplicativo"
+description: "Endpoints do dashboard e gerenciamento de usuário para o aplicativo mobile."
+icon: "device-phone-mobile"
+---
+
+## Visão Geral
+
+O grupo **Aplicativo** contém endpoints otimizados para o uso via aplicativo mobile. Inclui dashboard com métricas, listagem de pedidos por conta, gerenciamento do perfil do usuário e preferências.
+
+---
+
+## Código da conta (`accountcode`)
+
+Os endpoints que recebem `{accountcode}` na URL aceitam também o valor omitido ou `null` — nesse caso, a primeira conta do usuário logado é utilizada automaticamente.
+
+---
+
+## Dashboard
+
+O endpoint `GET /v1/app/{accountcode}` retorna métricas consolidadas da conta:
+
+| Campo              | Descrição                                  |
+|--------------------|--------------------------------------------|
+| `total_revenue`    | Receita total no período filtrado          |
+| `total_orders`     | Total de pedidos no período                |
+| `statusCounts`     | Contagem de pedidos por status             |
+
+### Filtros disponíveis
+
+| Parâmetro    | Tipo | Descrição                          |
+|--------------|------|------------------------------------|
+| `start_date` | date | Data inicial (Y-m-d)               |
+| `end_date`   | date | Data final (Y-m-d)                 |
+
+---
+
+## Perfil do usuário
+
+| Endpoint                            | Método | Descrição                       |
+|-------------------------------------|--------|---------------------------------|
+| `GET /v1/app/user/me`               | GET    | Dados do usuário logado         |
+| `PUT /v1/app/user/update`           | PUT    | Atualizar perfil e endereço     |
+| `GET /v1/app/user/preferences/fetch`| GET    | Buscar preferências             |
+| `PUT /v1/app/user/preferences/update`| PUT   | Salvar preferências             |
+
+---
+
+## Preferências do usuário
+
+As preferências são armazenadas em formato livre (JSON). Exemplos de uso:
+
+```json
+{
+  "theme": "dark",
+  "language": "pt-BR",
+  "notifications_enabled": true,
+  "default_account": "acc_abc123"
+}
+```
+
+<Info>
+  As preferências são divididas em `preferences` (gerais) e `app_preferences` (específicas do app mobile). Ambas são retornadas no endpoint `GET /v1/app/user/me`.
+</Info>

@@ -1,0 +1,111 @@
+---
+title: "Assinaturas"
+description: "Gerenciamento de cobranças recorrentes e assinaturas na plataforma 4Selet Pay."
+icon: "arrow-path"
+---
+
+## Visão Geral
+
+As **Assinaturas** permitem criar cobranças recorrentes automáticas para seus clientes. A plataforma gerencia automaticamente a geração de faturas e as tentativas de cobrança.
+
+---
+
+## Métodos de Pagamento Suportados
+
+| Método       | Descrição                               |
+|--------------|-----------------------------------------|
+| `CreditCard` | Cobrança automática no cartão           |
+| `PIX`        | QR Code gerado a cada ciclo de cobrança |
+
+---
+
+## Parâmetros principais da assinatura
+
+| Campo                        | Tipo    | Req. | Descrição                                              |
+|------------------------------|---------|------|--------------------------------------------------------|
+| `subscription.interval`      | integer | Sim  | Ciclo de cobrança em dias (1–365)                      |
+| `subscription.code`          | string  | Não  | Código identificador (definido pelo integrador)        |
+| `subscription.description`   | string  | Não  | Descrição da assinatura                                |
+| `subscription.installments`  | integer | CC   | Parcelas por cobrança (1–12, obrigatório para cartão)  |
+| `subscription.max_invoices`  | integer | Não  | Máximo de faturas a gerar (sem limite se omitido)      |
+| `subscription.minimum_price` | integer | Não  | Preço mínimo em centavos                               |
+| `subscription.start_date`    | datetime| Não  | Início da cobrança (`Y-m-d H:i:s`, após amanhã)        |
+| `subscription.billing_type`  | string  | Não  | `prepaid`                                              |
+| `subscription.billing_day`   | integer | *    | Dia do mês para cobrança (1–31, obrigatório p/ exact_day)|
+| `subscription.discounts`     | object  | Não  | Desconto por ciclos (percentage ou flat)               |
+| `subscription.increments`    | object  | Não  | Acréscimo por ciclos (percentage ou flat)              |
+| `subscription.metadata`      | object  | Não  | Metadados em formato livre                             |
+
+---
+
+## Ciclos de desconto e acréscimo
+
+```json
+{
+  "subscription": {
+    "discounts": {
+      "cycles": 3,
+      "value": 15.0,
+      "type": "percentage"
+    },
+    "increments": {
+      "cycles": 1,
+      "value": 5.00,
+      "type": "flat"
+    }
+  }
+}
+```
+
+---
+
+## Status de uma Assinatura
+
+| Status      | Descrição                                    |
+|-------------|----------------------------------------------|
+| `Active`    | Assinatura ativa, cobranças em andamento     |
+| `Canceled`  | Assinatura cancelada pelo usuário            |
+| `Suspended` | Temporariamente suspensa                     |
+| `Completed` | Todas as faturas foram geradas e pagas       |
+
+---
+
+## Exemplo completo
+
+```json Criar assinatura mensal com cartão
+{
+  "client": {
+    "name": "Carlos Ferreira",
+    "email": "carlos@exemplo.com.br",
+    "phone": { "ddi": 55, "ddd": 11, "number": "977776666" },
+    "document": { "type": "CPF", "number": "111.222.333-44" }
+  },
+  "subscription": {
+    "interval": 30,
+    "description": "Plano Mensal Premium",
+    "installments": 1,
+    "max_invoices": 12
+  },
+  "payment": {
+    "type": "CreditCard",
+    "card": {
+      "number": "4111111111111111",
+      "name": "CARLOS FERREIRA",
+      "month": "08",
+      "year": "28",
+      "security_code": "456"
+    }
+  },
+  "items": [
+    { "id": "plano_premium", "description": "Acesso Premium", "amount": 99.90, "quantity": 1 }
+  ]
+}
+```
+
+<Tip>
+  O campo `subscription.code` é o identificador externo da assinatura. Use o código do plano do seu sistema para facilitar a reconciliação.
+</Tip>
+
+<Warning>
+  A criação de assinaturas também passa pelas verificações de fraude e bloqueio de clientes, assim como as cobranças avulsas.
+</Warning>

@@ -1,0 +1,12 @@
+---
+title: "Reenviar Confirmação"
+openapi: "POST /v1/orders/{order_code}/confirmations/{confirmation_id}/resend"
+---
+
+<Note>
+  Requer o header `account`. Reenvia o código de verificação para o cliente (novo OTP por SMS/e-mail).
+</Note>
+
+<Tip>
+  Use esta rota quando o cliente não recebeu o código original ou quando o código expirou.
+</Tip>

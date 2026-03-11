@@ -1,0 +1,123 @@
+---
+title: "Cobranças"
+description: "Criação e gerenciamento de cobranças (pagamentos únicos) na plataforma 4Selet Pay."
+icon: "credit-card"
+---
+
+## Visão Geral
+
+As **Cobranças** representam transações de pagamento únicas. São o núcleo do processamento de pagamentos da plataforma, suportando os métodos:
+
+| Método       | Descrição                                     |
+|--------------|-----------------------------------------------|
+| `CreditCard` | Cartão de crédito (parcelado ou à vista)      |
+| `PIX`        | Pagamento instantâneo via PIX                 |
+| `PayPal`     | Redirecionamento para checkout do PayPal      |
+
+---
+
+## Header obrigatório
+
+Todas as rotas de cobranças exigem o header `account` com o código da conta:
+
+```http
+account: acc_abc123xyz
+```
+
+---
+
+## Fluxo de uma cobrança
+
+```
+POST /v1/charge
+    │
+    ├─ Validação de dados
+    ├─ Verificação de fraude (bloqueio de IP/email/CPF/BIN)
+    ├─ Rate limiting por cliente
+    │
+    ├─ [PIX] → QR Code gerado → aguardar pagamento
+    ├─ [PayPal] → URL de redirecionamento gerada
+    └─ [CreditCard] → Autorização no gateway
+              │
+              ├─ Approved → Pedido aprovado
+              ├─ Declined → Pedido recusado
+              └─ Challenged → Verificação adicional requerida (OTP/3DS)
+```
+
+---
+
+## Campos do cliente
+
+| Campo                    | Tipo    | Req. | Descrição                          |
+|--------------------------|---------|------|------------------------------------|
+| `client.name`            | string  | Sim  | Nome completo do cliente           |
+| `client.email`           | string  | Sim  | E-mail do cliente                  |
+| `client.phone.ddi`       | string  | Sim  | Código do país (DDI)               |
+| `client.phone.ddd`       | string  | Sim  | Código de área (DDD)               |
+| `client.phone.number`    | string  | Sim  | Número do telefone                 |
+| `client.document.type`   | string  | Não  | Tipo do documento (CPF, CNPJ, etc.)|
+| `client.document.number` | string  | Não  | Número do documento                |
+| `client.gender`          | string  | Não  | Gênero: Male, Female, Other        |
+| `client.birthdate`       | date    | Não  | Data de nascimento (YYYY-MM-DD)    |
+| `client.address.*`       | object  | Não* | Endereço (* campos obrigatórios entre si)|
+
+---
+
+## Campos do pagamento
+
+| Campo                          | Tipo    | Req.      | Descrição                             |
+|-------------------------------|---------|-----------|---------------------------------------|
+| `payment.type`                | string  | Sim       | CreditCard, PIX ou PayPal             |
+| `payment.pix_expiration`      | integer | PIX       | Expiração em segundos (mín. 1)        |
+| `payment.card.number`         | string  | CreditCard| Número do cartão (mín. 13 dígitos)    |
+| `payment.card.name`           | string  | CreditCard| Nome no cartão                        |
+| `payment.card.month`          | string  | CreditCard| Mês de validade                       |
+| `payment.card.year`           | string  | CreditCard| Ano de validade                       |
+| `payment.card.security_code`  | string  | CreditCard| CVV                                   |
+| `payment.card.installments`   | integer | CreditCard| Número de parcelas                    |
+| `payment.card.card_id`        | string  | Não       | ID de cartão salvo (substitui número) |
+| `payment.card.soft_descriptor`| string  | Não       | Texto na fatura (3-50 chars)          |
+| `payment.conveniencefee`      | number  | Não       | Taxa de conveniência (%)              |
+| `payment.conveniencefeeamount`| number  | Não       | Taxa de conveniência (valor fixo)     |
+
+---
+
+## Exemplo: Pagamento PIX
+
+```json
+{
+  "client": {
+    "name": "Maria Santos",
+    "email": "maria@exemplo.com.br",
+    "phone": { "ddi": "55", "ddd": "21", "number": "988887777" }
+  },
+  "payment": {
+    "type": "PIX",
+    "pix_expiration": 3600
+  },
+  "items": [
+    { "id": "curso_001", "description": "Curso Online", "amount": 297.00, "quantity": 1 }
+  ]
+}
+```
+
+```json Resposta PIX
+{
+  "success": true,
+  "data": {
+    "order_code": "ord_abc123xyz",
+    "status": "Pending",
+    "pix_qr_code": "data:image/png;base64,...",
+    "pix_copy_paste": "00020126580014br.gov.bcb.pix...",
+    "pix_expiration": "2026-03-11T11:00:00.000000Z"
+  }
+}
+```
+
+<Tip>
+  Para pagamentos PIX, o status inicial será `Pending`. Use webhooks para ser notificado quando o pagamento for confirmado.
+</Tip>
+
+<Warning>
+  A criação de cobranças passa por verificações de fraude. Clientes com IP, e-mail, CPF ou BIN do cartão bloqueados terão a cobrança rejeitada com status 403.
+</Warning>

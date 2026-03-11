@@ -1,0 +1,77 @@
+---
+title: "Autenticação"
+description: "Como autenticar na API 4Selet Pay e gerenciar tokens de acesso."
+icon: "lock-closed"
+---
+
+## Visão Geral
+
+A API 4Selet Pay utiliza autenticação baseada em **Bearer Token JWT** via [Laravel Passport](https://laravel.com/docs/passport).
+Todo acesso a rotas protegidas deve incluir o token no header `Authorization`.
+
+```http
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
+```
+
+---
+
+## Como obter o token
+
+Faça uma requisição `POST /v1/login` com seu e-mail e senha. O token retornado deve ser armazenado e enviado em todas as requisições autenticadas.
+
+```json Exemplo de resposta de login
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+  "token_type": "Bearer",
+  "expires_at": "2026-04-11T12:00:00.000000Z"
+}
+```
+
+<Tip>
+  Armazene o `expires_at` para saber quando o token vai expirar e renovar antes do vencimento, evitando interrupções.
+</Tip>
+
+---
+
+## Variante com dados do usuário
+
+Para aplicativos mobile que precisam dos dados do usuário logo após o login, utilize a rota `POST /v1/login/app`. A resposta incluirá o objeto `user` com perfil completo.
+
+```json Resposta com dados do usuário
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+  "token_type": "Bearer",
+  "expires_at": "2026-04-11T12:00:00.000000Z",
+  "user": {
+    "id": "usr_abc123",
+    "name": "João Silva",
+    "email": "joao@exemplo.com.br",
+    "path_avatar": "https://sua-api.com/storage/avatars/joao.jpg",
+    "preferences": {},
+    "app_preferences": {}
+  }
+}
+```
+
+---
+
+## Campos de autenticação
+
+| Campo    | Tipo   | Obrigatório | Descrição                     |
+|----------|--------|-------------|-------------------------------|
+| email    | string | Sim         | E-mail cadastrado na plataforma|
+| password | string | Sim         | Senha do usuário              |
+
+---
+
+## Erros comuns
+
+| Status | Descrição                                              |
+|--------|--------------------------------------------------------|
+| 401    | Credenciais inválidas (e-mail ou senha incorretos)     |
+| 422    | Dados de entrada inválidos (email/password ausentes)   |
+
+<Info>
+  O token JWT tem prazo de expiração definido nas configurações do servidor.
+  Após a expiração, realize um novo login para obter um token válido.
+</Info>

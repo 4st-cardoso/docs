@@ -1,0 +1,60 @@
+---
+title: "Notificações Push"
+description: "Envio e gerenciamento de notificações push para dispositivos mobile cadastrados."
+icon: "bell"
+---
+
+## Visão Geral
+
+As **Notificações Push** permitem enviar alertas em tempo real para os dispositivos mobile dos usuários da conta. Suporta iOS e Android via Expo Push Notifications.
+
+---
+
+## Fluxo de uso
+
+```
+1. Registrar dispositivo   → POST /v1/app/{accountcode}/push-notifications/add-device
+2. Enviar notificação      → POST /v1/app/{accountcode}/push-notifications/send
+3. Buscar notificações     → GET  /v1/app/{accountcode}/push-notifications
+4. Remover dispositivo     → DELETE /v1/app/{accountcode}/push-notifications/delete-device/{token}
+```
+
+---
+
+## Formato do token de dispositivo
+
+A plataforma suporta tokens no formato Expo:
+
+```
+ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+```
+
+---
+
+## Campos da notificação
+
+| Campo   | Tipo   | Req. | Descrição                              |
+|---------|--------|------|----------------------------------------|
+| `title` | string | Sim  | Título da notificação                  |
+| `body`  | string | Sim  | Corpo/mensagem da notificação          |
+| `data`  | object | Não  | Dados adicionais em formato livre      |
+
+---
+
+## Exemplo de envio
+
+```json
+{
+  "title": "Novo pedido recebido! 🛍",
+  "body": "Você recebeu um pedido no valor de R$ 199,90",
+  "data": {
+    "order_code": "ord_abc123xyz",
+    "type": "new_order",
+    "amount": 199.90
+  }
+}
+```
+
+<Info>
+  O campo `data` é enviado junto com a notificação e pode ser lido pelo aplicativo para realizar ações específicas (ex: navegar para a tela do pedido).
+</Info>

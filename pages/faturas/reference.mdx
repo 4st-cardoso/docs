@@ -1,0 +1,57 @@
+---
+title: "Faturas"
+description: "Gerenciamento de faturas de assinaturas, incluindo pagamento de faturas em atraso."
+icon: "document-text"
+---
+
+## Visão Geral
+
+As **Faturas** são geradas automaticamente a cada ciclo de cobrança de uma assinatura. Quando uma fatura não é paga na data de vencimento, ela entra em estado de atraso e pode ser quitada manualmente.
+
+---
+
+## Status de uma Fatura
+
+| Status      | Descrição                              |
+|-------------|----------------------------------------|
+| `Pending`   | Aguardando pagamento                   |
+| `Approved`  | Fatura paga com sucesso                |
+| `Declined`  | Tentativa de cobrança recusada         |
+| `Refunded`  | Valor estornado                        |
+| `Canceled`  | Fatura cancelada                       |
+
+---
+
+## Pagamento de fatura em atraso
+
+Quando uma fatura está com status `Pending` (em atraso), o cliente pode quitá-la via `POST /v1/invoices/{invoice_code}/pay-overdue`.
+
+### Métodos aceitos
+
+| Método       | Objeto `card` |
+|--------------|---------------|
+| `CreditCard` | Obrigatório   |
+| `PIX`        | Não necessário|
+
+```json Pagar fatura em atraso com cartão
+{
+  "method": "CreditCard",
+  "card": {
+    "name": "CARLOS FERREIRA",
+    "number": "4111111111111111",
+    "month": "12",
+    "year": "28",
+    "security_code": "321"
+  }
+}
+```
+
+```json Pagar fatura em atraso com PIX
+{
+  "method": "PIX"
+}
+```
+
+<Info>
+  O código da fatura (`invoice_code`) pode ser obtido via `GET /v1/subscriptions/{code}/invoices`.
+</Info>
