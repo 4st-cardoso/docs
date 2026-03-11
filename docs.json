@@ -34,12 +34,6 @@
                 "pages": [
                   "pages/start/introduction"
                 ]
-              },
-              {
-                "group": "Webhooks",
-                "pages": [
-                  "pages/start/webhooks"
-                ]
               }
             ]
           },
