@@ -37,7 +37,6 @@
           },
           {
             "tab": "Documentação",
-            "openapi": "openapi.yaml",
             "groups": [
               {
                 "group": "Autenticação",

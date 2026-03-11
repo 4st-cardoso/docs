@@ -3589,8 +3589,8 @@ components:
           type: string
           example: "00000000-0000-0000-0000-000000000000"
         data:
-          type: array
-          example: []
+          description: Dados retornados pela operação (objeto, array ou vazio)
+          nullable: true
 
     ErrorResponse:
       type: object
