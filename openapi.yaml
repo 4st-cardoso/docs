@@ -11,7 +11,7 @@ info:
     email: suporte@4selet.com.br
 
 servers:
-  - url: https://hml.4selet-pay.com.br/api
+  - url: https://hml.4seletpay.com.br/api
     description: Servidor de Produção
 
 security:
@@ -566,7 +566,7 @@ paths:
     post:
       tags: [Pedidos]
       summary: Reenviar confirmação do pedido
-      description: Reenvia o código de confirmação para o cliente (ex: novo OTP por SMS/email).
+      description: "Reenvia o código de confirmação para o cliente (ex: novo OTP por SMS/email)."
       operationId: resendOrderConfirmation
       security:
         - bearerAuth: []
@@ -1887,7 +1887,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Token JWT obtido via `POST /v1/login`. Envie no header `Authorization: Bearer <token>`.
+      description: "Token JWT obtido via `POST /v1/login`. Envie no header `Authorization: Bearer <token>`."
 
   parameters:
     AccountHeader:
@@ -2342,7 +2342,7 @@ components:
         start_date:
           type: string
           nullable: true
-          description: Data de início da cobrança (opcional, formato `Y-m-d H:i:s`, deve ser após amanhã)
+          description: "Data de início da cobrança (opcional, formato `Y-m-d H:i:s`, deve ser após amanhã)"
           example: "2026-04-01 00:00:00"
         billing_type:
           type: string

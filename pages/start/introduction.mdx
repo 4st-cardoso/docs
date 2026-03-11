@@ -1,0 +1,52 @@
+---
+title: 'Introdução (API v1)'
+icon: 'credit-card'
+description: 'Visão geral rápida da API v1 da 4SeletPay e como começar a integrar.'
+---
+
+<Warning>
+  Esta página documenta a **API v1**, que é a **versão atual e estável** da API
+  pública da 4SeletPay. A **v2** está em desenvolvimento e aparecerá como
+  “Em breve” no seletor de versão do topo da documentação.
+</Warning>
+
+## O que é a API v1?
+
+A API v1 é a versão oficial da API pública da 4SeletPay hoje. Ela concentra
+a maior parte das integrações em produção e é onde você vai começar se estiver
+integrando a 4SeletPay pela primeira vez.
+
+Em termos de conceito, a v1 implementa as ideias centrais da plataforma:
+
+- Cobranças baseadas em **intenção**
+- Checkout de pagamento via URL compartilhável
+- Suporte a **PIX** (e, em alguns casos, cartão)
+- Webhooks para manter seu sistema sincronizado com o que acontece na 4SeletPay
+
+## Diferenças principais em relação à v2
+
+Em alto nível:
+
+- A v1 expõe os endpoints sob o prefixo `https://app.4seletpay.com.br/api/v1`
+- A futura v2 terá **rotas, payloads e webhooks otimizados**, mantendo os mesmos
+  conceitos base (autenticação, idempotência, estrutura `{data, error, success}`)
+- Quando a v2 estiver disponível, você poderá alternar entre as versões pelo
+  seletor de versão desta documentação
+
+Enquanto isso, use esta seção da v1 quando estiver:
+
+- Começando uma nova integração com a 4SeletPay
+- Mantendo uma integração existente baseada em `/api/v1`
+- Precisando consultar **webhooks** ou **rotas específicas da v1**
+
+## Estrutura da documentação v1
+
+Nesta versão da documentação você encontra:
+
+- **Introdução (esta página)**: contexto e diferenças gerais
+- **Webhooks (v1)**: eventos, payloads e boas práticas específicas da v1
+- **API Reference (v1)**: lista das rotas disponíveis na v1, agrupadas por recurso
+
+Quando a v2 estiver disponível, você verá uma nova versão no seletor de versão,
+com documentação dedicada. Até lá, considere esta API v1 como a referência
+principal para qualquer integração com a 4SeletPay.
