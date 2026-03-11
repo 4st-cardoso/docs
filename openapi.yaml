@@ -3,7 +3,7 @@ info:
   title: 4Selet Pay API
   description: >
     API de processamento de pagamentos da plataforma 4Selet Pay.
-    Suporta cobranças únicas, assinaturas recorrentes, PIX, Cartão de Crédito e PayPal.
+    Suporta cobranças únicas, assinaturas recorrentes, PIX, Cartão de Crédito.
     Todas as rotas autenticadas requerem um Bearer Token obtido via `/v1/login`.
   version: 1.0.0
   contact:
@@ -121,16 +121,16 @@ paths:
       summary: Criar cobrança
       description: >
         Cria uma nova cobrança (pedido de pagamento). Suporta os métodos de pagamento:
-        **CreditCard**, **PIX** e **PayPal**.
+        **CreditCard**, **PIX**.
         Requer o header `account` com o código da conta.
         Passa por validações de fraude, bloqueio de clientes e rate limiting.
 
 
         Possíveis cenários de resposta:
 
-        - **201** — Cobrança processada com sucesso (aprovada ou aguardando pagamento PIX/PayPal)
+        - **201** — Cobrança processada com sucesso (aprovada ou aguardando pagamento PIX)
 
-        - **202** — Transação desafiada (requer confirmação adicional via OTP/3DS)
+        - **202** — Transação desafiada (requer confirmação adicional via OTP)
 
         - **400** — Fraude detectada ou erro no processamento do gateway
 
@@ -182,15 +182,11 @@ paths:
                       security_code: "123"
                       installments: 1
                       soft_descriptor: "MINHA LOJA"
-                    conveniencefee: 0
-                    conveniencefeeamount: 0
                   items:
                     - id: "produto_001"
                       description: "Camiseta Premium"
                       amount: 99.90
                       quantity: 2
-                  type: "PurchaseOrder"
-                  cycletype: "Only"
               pix:
                 summary: Pagamento com PIX
                 value:
@@ -213,29 +209,6 @@ paths:
                       description: "Curso Online"
                       amount: 297.00
                       quantity: 1
-              paypal:
-                summary: Pagamento com PayPal
-                value:
-                  international: false
-                  client:
-                    name: "Carlos Ferreira"
-                    email: "carlos@exemplo.com.br"
-                    phone:
-                      ddi: "55"
-                      ddd: "11"
-                      number: "977776666"
-                  payment:
-                    type: PayPal
-                  items:
-                    - id: "produto_002"
-                      description: "Licença Software"
-                      amount: 149.90
-                      quantity: 1
-                  payment_source:
-                    paypal:
-                      experience_context:
-                        return_url: "https://meusite.com.br/pagamento/sucesso"
-                        cancel_url: "https://meusite.com.br/pagamento/cancelado"
       responses:
         '201':
           description: Cobrança processada com sucesso
@@ -256,9 +229,6 @@ paths:
                   code: "pur_abc123xyz"
                   value: 199.80
                   charge_value: 199.80
-                  type: "PurchaseOrder"
-                  cycle_type: "Only"
-                  cycle: 1
                   coin: "BRL"
                   status: "Approved"
                   client:
@@ -278,7 +248,7 @@ paths:
                             payment_type: "CreditCard"
                             installments: 1
         '202':
-          description: Transação desafiada — requer confirmação adicional (OTP/3DS)
+          description: Transação desafiada — requer confirmação adicional (OTP)
           content:
             application/json:
               schema:
@@ -429,9 +399,6 @@ paths:
                   code: "pur_abc123xyz"
                   value: 199.80
                   charge_value: 199.80
-                  type: "PurchaseOrder"
-                  cycle_type: "Only"
-                  cycle: 1
                   coin: "BRL"
                   status: "Approved"
                   client:
@@ -543,7 +510,7 @@ paths:
       description: >
         Realiza o estorno (reembolso) de uma cobrança aprovada.
         O campo `value` no body é opcional; se não informado, o estorno é total.
-        O valor deve ser enviado como inteiro (em centavos).
+        O valor deve ser enviado em **centavos**.
       operationId: refundCharge
       security:
         - bearerAuth: []
@@ -1463,7 +1430,7 @@ paths:
         Realiza o pagamento de uma fatura em atraso de uma assinatura.
         A fatura precisa estar em status `Pending` ou `Fail` e a assinatura precisa estar ativa.
         Cancela todas as cobranças pendentes anteriores antes de criar uma nova.
-        Aceita qualquer método de pagamento: `DebitCard`, `CreditCard`, `PIX`, `Boleto`, `PayPal`.
+        Aceita qualquer método de pagamento: `CreditCard`, `PIX`.
         Ao usar `CreditCard`, o objeto `card` com os dados do cartão é obrigatório.
         Esta rota NÃO retorna o envelope APIReturnUtil no sucesso; retorna diretamente os dados da cobrança.
       operationId: payOverdueInvoice
@@ -1887,34 +1854,29 @@ components:
     CardData:
       type: object
       properties:
-        card_id:
-          type: string
-          nullable: true
-          description: ID de um cartão já salvo na plataforma (opcional, substitui os demais campos)
-          example: null
         number:
           type: string
-          description: Número do cartão (obrigatório se card_id não informado, mín. 13 dígitos)
+          description: Número do cartão (obrigatório, mín. 13 dígitos)
           example: "4111111111111111"
         name:
           type: string
-          description: Nome impresso no cartão (obrigatório se card_id não informado)
+          description: Nome impresso no cartão (obrigatório)
           example: "JOAO SILVA"
         month:
           type: string
-          description: Mês de validade MM (obrigatório se card_id não informado)
+          description: Mês de validade MM (obrigatório)
           example: "12"
         year:
           type: string
-          description: Ano de validade YY (obrigatório se card_id não informado)
+          description: Ano de validade YY (obrigatório)
           example: "27"
         security_code:
           type: string
-          description: Código de segurança CVV (obrigatório se card_id não informado)
+          description: Código de segurança CVV (obrigatório)
           example: "123"
         installments:
           type: integer
-          description: Número de parcelas (obrigatório se card_id não informado, mín. 1)
+          description: Número de parcelas (obrigatório, mín. 1)
           minimum: 1
           example: 1
         soft_descriptor:
@@ -1932,7 +1894,7 @@ components:
         type:
           type: string
           description: Método de pagamento (obrigatório)
-          enum: [CreditCard, PIX, PayPal]
+          enum: [CreditCard, PIX]
           example: CreditCard
         pix_expiration:
           type: integer
@@ -1941,14 +1903,6 @@ components:
           example: 3600
         card:
           $ref: '#/components/schemas/CardData'
-        conveniencefee:
-          type: number
-          description: Taxa de conveniência em percentual (opcional)
-          example: 0
-        conveniencefeeamount:
-          type: number
-          description: Valor fixo da taxa de conveniência (opcional)
-          example: 0
 
     ItemData:
       type: object
@@ -1956,7 +1910,7 @@ components:
       properties:
         id:
           type: string
-          description: Código/identificador do item (obrigatório)
+          description: Referência externa do item (obrigatório)
           example: "produto_001"
         description:
           type: string
@@ -1966,7 +1920,7 @@ components:
         amount:
           type: number
           format: float
-          description: Valor unitário do item (obrigatório)
+          description: Valor unitário do item (obrigatório). Para testes em PIX, valores acima de R$ 300,00 pode resultar em erro.
           example: 99.90
         quantity:
           type: integer
@@ -1997,37 +1951,6 @@ components:
               description: "Camiseta Premium"
               amount: 99.90
               quantity: 2
-        type:
-          type: string
-          description: Tipo da compra (opcional)
-          enum: [PurchaseOrder, PlannedPurchaseOrder, GeneralPurchaseOrder, ContractualPurchaseOrder]
-          example: PurchaseOrder
-        cycletype:
-          type: string
-          description: Tipo de ciclo da compra (opcional)
-          enum: [Only, MonthlyRecurring, QuarterlyRecurring, SemiannualRecurring, AnnualRecurring]
-          example: Only
-        payment_source:
-          type: object
-          nullable: true
-          description: Dados adicionais de origem do pagamento (usado para PayPal)
-          properties:
-            paypal:
-              type: object
-              properties:
-                experience_context:
-                  type: object
-                  properties:
-                    return_url:
-                      type: string
-                      format: uri
-                      description: URL de retorno após aprovação no PayPal
-                      example: "https://meusite.com.br/pagamento/sucesso"
-                    cancel_url:
-                      type: string
-                      format: uri
-                      description: URL de cancelamento no PayPal
-                      example: "https://meusite.com.br/pagamento/cancelado"
 
     # ── Assinaturas ───────────────────────────────────────────────
 
@@ -2142,21 +2065,11 @@ components:
           nullable: true
           description: Expiração do PIX em segundos (obrigatório se type=PIX)
           example: 3600
-        boleto_due_days:
-          type: string
-          nullable: true
-          description: Dias de vencimento do boleto (obrigatório se type=Boleto, máx. 255)
-          example: "5"
         card:
           type: object
           nullable: true
-          description: Dados do cartão (obrigatório se type=CreditCard e card_id não informado)
+          description: Dados do cartão (obrigatório)
           properties:
-            card_id:
-              type: string
-              nullable: true
-              description: ID de cartão salvo (opcional)
-              example: null
             number:
               type: string
               description: Número do cartão (mín. 13 dígitos)
@@ -2236,7 +2149,7 @@ components:
         method:
           type: string
           description: Novo método de pagamento (obrigatório)
-          enum: [DebitCard, CreditCard, PIX, Boleto, PayPal]
+          enum: [CreditCard, PIX]
           example: PIX
         card:
           type: object
@@ -2296,7 +2209,7 @@ components:
         method:
           type: string
           description: Método de pagamento para quitação (obrigatório)
-          enum: [DebitCard, CreditCard, PIX, Boleto, PayPal]
+          enum: [CreditCard, PIX]
           example: CreditCard
         card:
           type: object
@@ -2539,20 +2452,6 @@ components:
           format: float
           description: Valor da cobrança
           example: 199.80
-        type:
-          type: string
-          description: Tipo da compra
-          enum: [PurchaseOrder, PlannedPurchaseOrder, GeneralPurchaseOrder, ContractualPurchaseOrder]
-          example: PurchaseOrder
-        cycle_type:
-          type: string
-          description: Tipo de ciclo da compra
-          enum: [Only, MonthlyRecurring, QuarterlyRecurring, SemiannualRecurring, AnnualRecurring]
-          example: Only
-        cycle:
-          type: integer
-          description: Número do ciclo atual
-          example: 1
         coin:
           type: string
           description: Moeda da transação
@@ -2775,7 +2674,7 @@ components:
             payment_type:
               type: string
               description: Tipo de pagamento utilizado
-              enum: [CreditCard, PIX, PayPal]
+              enum: [CreditCard, PIX]
               example: CreditCard
             installments:
               type: integer
@@ -2949,7 +2848,7 @@ components:
         payment_type:
           type: string
           description: Tipo de pagamento
-          enum: [CreditCard, PIX, PayPal]
+          enum: [CreditCard, PIX]
           example: CreditCard
         installments:
           type: integer
@@ -2958,7 +2857,7 @@ components:
         expiration:
           type: string
           nullable: true
-          description: Data/hora de expiração do pagamento (PIX/Boleto)
+          description: Data/hora de expiração do pagamento (PIX)
           example: null
         payment_code:
           type: string
@@ -2979,20 +2878,6 @@ components:
           description: Status do pedido
           enum: [Pending, Challenged, Approved, Declined, Refunded, Canceled]
           example: Approved
-        type:
-          type: string
-          description: Tipo da compra
-          enum: [PurchaseOrder, PlannedPurchaseOrder, GeneralPurchaseOrder, ContractualPurchaseOrder]
-          example: PurchaseOrder
-        cycle_type:
-          type: string
-          description: Tipo de ciclo
-          enum: [Only, MonthlyRecurring, QuarterlyRecurring, SemiannualRecurring, AnnualRecurring]
-          example: Only
-        cycle:
-          type: integer
-          description: Número do ciclo
-          example: 1
         coin:
           type: string
           description: Moeda

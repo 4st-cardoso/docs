@@ -12,9 +12,9 @@ description: 'Visão geral da API v1 da 4Selet Pay — como funciona, o que voc�
 
 A API da 4Selet Pay permite que você integre processamento de pagamentos diretamente na sua aplicação. Com ela você pode:
 
-- Criar e gerenciar **cobranças** via Cartão de Crédito, PIX e PayPal
+- Criar e gerenciar **cobranças** via Cartão de Crédito, PIX
 - Configurar **assinaturas** recorrentes com controle de ciclos, descontos e faturas
-- Consultar e reprocessar **pedidos** e seus desafios de confirmação (3DS, OTP)
+- Consultar e reprocessar **pedidos** e seus desafios de confirmação (OTP)
 - Quitar **faturas em atraso** de assinaturas existentes
 
 ---
@@ -43,37 +43,13 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
 
 ---
 
-## Estrutura das respostas
-
-Todas as respostas seguem o padrão:
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "message": null
-}
-```
-
-Em caso de erro:
-
-```json
-{
-  "success": false,
-  "data": null,
-  "message": "Descrição do erro"
-}
-```
-
----
-
 ## Recursos disponíveis
 
 | Recurso        | Descrição                                                       |
 |----------------|-----------------------------------------------------------------|
 | **Autenticação** | Login, criação de usuário e gerenciamento de tokens           |
-| **Cobranças**    | Pagamentos únicos via Cartão de Crédito, PIX ou PayPal        |
-| **Pedidos**      | Consulta de pedidos e fluxo de confirmação (3DS / OTP)        |
+| **Cobranças**    | Pagamentos únicos via Cartão de Crédito ou PIX                |
+| **Pedidos**      | Consulta de pedidos e fluxo de confirmação (OTP)              |
 | **Assinaturas**  | Cobranças recorrentes com ciclos, faturas e troca de cartão   |
 | **Faturas**      | Quitação de faturas de assinaturas em atraso                  |
 
@@ -100,7 +76,7 @@ Em caso de erro:
     Obtenha seu token de acesso para começar a usar a API.
   </Card>
   <Card title="Cobranças" icon="credit-card" href="/pages/cobrancas/reference">
-    Crie sua primeira cobrança com Cartão, PIX ou PayPal.
+    Crie sua primeira cobrança com Cartão ou PIX.
   </Card>
   <Card title="Assinaturas" icon="arrows-rotate" href="/pages/assinaturas/reference">
     Configure cobranças recorrentes para seus clientes.

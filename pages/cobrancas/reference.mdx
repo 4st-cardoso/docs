@@ -12,7 +12,6 @@ As **Cobranças** representam transações de pagamento únicas. São o núcleo 
 |--------------|-----------------------------------------------|
 | `CreditCard` | Cartão de crédito (parcelado ou à vista)      |
 | `PIX`        | Pagamento instantâneo via PIX                 |
-| `PayPal`     | Redirecionamento para checkout do PayPal      |
 
 ---
 
@@ -62,7 +61,6 @@ POST /v1/charge → HTTP 201
     ├─ Rate limiting por cliente
     │
     ├─ [PIX] → QR Code gerado → aguardar pagamento (status: Pending)
-    ├─ [PayPal] → URL de redirecionamento gerada (status: Pending)
     └─ [CreditCard] → Autorização no gateway
               │
               ├─ Approved → Pedido aprovado (HTTP 201)
@@ -93,7 +91,7 @@ POST /v1/charge → HTTP 201
 
 | Campo                          | Tipo    | Req.       | Descrição                             |
 |-------------------------------|---------|------------|---------------------------------------|
-| `payment.type`                | string  | Sim        | `CreditCard`, `PIX` ou `PayPal`      |
+| `payment.type`                | string  | Sim        | `CreditCard` ou `PIX`                 |
 | `payment.pix_expiration`      | integer | Não        | Expiração em segundos (mín. 1)        |
 | `payment.card.number`         | string  | CreditCard | Número do cartão (mín. 13 dígitos)    |
 | `payment.card.name`           | string  | CreditCard | Nome no cartão                        |
@@ -101,20 +99,7 @@ POST /v1/charge → HTTP 201
 | `payment.card.year`           | string  | CreditCard | Ano de validade (YY)                  |
 | `payment.card.security_code`  | string  | CreditCard | CVV                                   |
 | `payment.card.installments`   | integer | CreditCard | Número de parcelas                    |
-| `payment.card.card_id`        | string  | Não        | ID de cartão salvo (substitui demais) |
 | `payment.card.soft_descriptor`| string  | Não        | Texto na fatura (3-50 chars)          |
-| `payment.conveniencefee`      | number  | Não        | Taxa de conveniência (%)              |
-| `payment.conveniencefeeamount`| number  | Não        | Taxa de conveniência (valor fixo)     |
-
----
-
-## Campos adicionais
-
-| Campo            | Tipo    | Req. | Descrição                                                                        |
-|------------------|---------|------|----------------------------------------------------------------------------------|
-| `type`           | string  | Não  | `PurchaseOrder`, `PlannedPurchaseOrder`, `GeneralPurchaseOrder`, `ContractualPurchaseOrder` |
-| `cycletype`      | string  | Não  | `Only`, `MonthlyRecurring`, `QuarterlyRecurring`, `SemiannualRecurring`, `AnnualRecurring` |
-| `payment_source` | object  | Não  | Dados de origem do pagamento (usado para PayPal, no nível raiz do body)          |
 
 ---
 
