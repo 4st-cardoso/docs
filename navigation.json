@@ -3,9 +3,7 @@
     "group": "Autenticação",
     "pages": [
       "pages/autenticacao/reference",
-      "pages/autenticacao/login",
-      "pages/autenticacao/login-app",
-      "pages/autenticacao/new-user"
+      "pages/autenticacao/login"
     ]
   },
   {

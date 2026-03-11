@@ -78,7 +78,7 @@ paths:
         Autentica o usuário com email e senha e retorna um Bearer Token para uso nas demais rotas.
         O token tem prazo de expiração informado na resposta.
       operationId: login
-      security: []
+      security: null
       requestBody:
         required: true
         content:
@@ -108,33 +108,6 @@ paths:
               example:
                 success: false
                 message: Invalid Credentials
-        '422':
-          $ref: '#/components/responses/ValidationError'
-  /v1/new-user:
-    post:
-      tags: [Autenticação]
-      summary: Criar novo usuário
-      description: Cria um novo usuário na plataforma. Rota pública, não requer autenticação.
-      operationId: createUser
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewUserRequest'
-            example:
-              name: "João Silva"
-              email: "joao@exemplo.com.br"
-              password: "suaSenha123"
-              password_confirmation: "suaSenha123"
-      responses:
-        '200':
-          description: Usuário criado com sucesso
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
         '422':
           $ref: '#/components/responses/ValidationError'
 

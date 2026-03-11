@@ -34,12 +34,6 @@
                 "pages": [
                   "pages/start/introduction"
                 ]
-              },
-              {
-                "group": "Webhooks",
-                "pages": [
-                  "pages/start/webhooks"
-                ]
               }
             ]
           },
@@ -50,8 +44,7 @@
                 "group": "Autenticação",
                 "pages": [
                   "pages/autenticacao/reference",
-                  "pages/autenticacao/login",
-                  "pages/autenticacao/new-user"
+                  "pages/autenticacao/login"
                 ]
               },
               {
