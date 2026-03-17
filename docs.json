@@ -85,6 +85,16 @@
                   "pages/faturas/reference",
                   "pages/faturas/pay-overdue"
                 ]
+              },
+              {
+                "group": "Endpoints de Webhook",
+                "pages": [
+                  "pages/webhook-endpoints/reference",
+                  "pages/webhook-endpoints/list",
+                  "pages/webhook-endpoints/create",
+                  "pages/webhook-endpoints/update",
+                  "pages/webhook-endpoints/delete"
+                ]
               }
             ]
           }

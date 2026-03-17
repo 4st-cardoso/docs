@@ -1,0 +1,12 @@
+---
+title: "Remover Endpoint"
+openapi: "DELETE /v1/webhook-endpoints/{id}"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. O webhook deve pertencer à conta autenticada.
+</Note>
+
+<Warning>
+  Esta operação é irreversível. O endpoint será removido permanentemente e não receberá mais notificações de eventos.
+</Warning>

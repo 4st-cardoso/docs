@@ -1,0 +1,12 @@
+---
+title: "Criar Endpoint"
+openapi: "POST /v1/webhook-endpoints"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. O endpoint criado começa com status `Ativo` e receberá notificações POST para cada evento listado em `events`.
+</Note>
+
+<Warning>
+  O campo `events` deve conter ao menos um evento válido. Consulte a [referência de eventos](/pages/webhook-endpoints/reference#eventos-disponíveis) para ver todos os valores aceitos.
+</Warning>
