@@ -1,0 +1,132 @@
+---
+title: "Endpoints de Webhook"
+description: "Gerencie os endpoints que recebem notificações de eventos da plataforma 4Selet Pay."
+icon: "webhook"
+---
+
+## Visão Geral
+
+Os **Endpoints de Webhook** permitem que sua aplicação receba notificações em tempo real sempre que eventos relevantes ocorrem na plataforma — como pagamentos aprovados, cobranças expiradas ou assinaturas canceladas.
+
+Ao cadastrar um endpoint, a plataforma enviará um `POST` para a URL configurada com o payload do evento.
+
+---
+
+## Header obrigatório
+
+Todas as rotas de webhook-endpoints exigem o header `account` com o código da conta:
+
+```http
+account: acc_abc123xyz
+```
+
+---
+
+## Formato de resposta padrão
+
+```json
+{
+  "mensagem": "Mensagem descritiva",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 200,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": { ... }
+}
+```
+
+---
+
+## Eventos disponíveis
+
+Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que deseja monitorar:
+
+### Pedidos
+
+| Evento               | Descrição                  |
+|----------------------|----------------------------|
+| `order.paid`         | Pedido pago                |
+| `order.failed`       | Pedido falhou              |
+| `order.refunded`     | Pedido reembolsado         |
+| `order.challenged`   | Pedido em contestação      |
+| `order.unprocessed`  | Pedido não processado      |
+| `order.chargeback`   | Pedido em chargeback       |
+
+### Cobranças
+
+| Evento                      | Descrição                             |
+|-----------------------------|---------------------------------------|
+| `charge.created`            | Cobrança criada                       |
+| `charge.pending`            | Cobrança pendente                     |
+| `charge.paid`               | Cobrança paga                         |
+| `charge.failed`             | Cobrança falhou                       |
+| `charge.reproved`           | Cobrança reprovada                    |
+| `charge.refunded`           | Cobrança estornada                    |
+| `charge.partial_refunded`   | Cobrança parcialmente estornada       |
+| `charge.expired`            | Cobrança expirada                     |
+| `charge.canceled`           | Cobrança cancelada                    |
+| `charge.challenged`         | Cobrança contestada                   |
+| `charge.chargeback`         | Cobrança em chargeback                |
+
+### Assinaturas
+
+| Evento                        | Descrição                   |
+|-------------------------------|-----------------------------|
+| `subscription.canceled`       | Assinatura cancelada        |
+| `subscription.delayed`        | Assinatura atrasada         |
+| `subscription.regularized`    | Assinatura regularizada     |
+
+### Faturas
+
+| Evento            | Descrição         |
+|-------------------|-------------------|
+| `invoice.created` | Fatura criada     |
+| `invoice.paid`    | Fatura paga       |
+| `invoice.failed`  | Fatura falhou     |
+
+### PIX
+
+| Evento           | Descrição     |
+|------------------|---------------|
+| `pix.generated`  | PIX gerado    |
+
+### Saques
+
+| Evento                 | Descrição               |
+|------------------------|-------------------------|
+| `withdrawal.requested` | Solicitação de saque    |
+
+### Conta e Usuário
+
+| Evento                  | Descrição                         |
+|-------------------------|-----------------------------------|
+| `account.bank.update`   | Dados bancários atualizados       |
+| `account.team.invite`   | Convite para time da conta        |
+| `welcome`               | Boas-vindas                       |
+| `email.confirmation`    | Confirmação de e-mail             |
+| `email.recovery`        | Recuperação de e-mail             |
+
+### Compras
+
+| Evento                  | Descrição                    |
+|-------------------------|------------------------------|
+| `purchase.many_failed`  | Múltiplas compras com falha  |
+
+---
+
+## Status do webhook
+
+| Valor     | Descrição                                  |
+|-----------|--------------------------------------------|
+| `Ativo`   | Endpoint ativo — recebe notificações       |
+| `Inativo` | Endpoint desativado — não recebe eventos   |
+
+---
+
+<Info>
+  O payload enviado para o seu endpoint varia conforme o tipo de evento. Certifique-se de que sua URL retorne HTTP `2xx` para confirmar o recebimento.
+</Info>
+
+<Warning>
+  Remover um webhook é uma operação irreversível. Os logs de requisições anteriores são mantidos, mas o endpoint não receberá novos eventos.
+</Warning>

@@ -42,6 +42,8 @@ tags:
     description: Relatórios gerenciais (acesso restrito a Super Admins)
   - name: Webhooks
     description: Endpoints para receber notificações de gateways de pagamento
+  - name: Endpoints de Webhook
+    description: Gerenciamento de endpoints de webhook para receber notificações de eventos da plataforma
 
 paths:
 
@@ -1559,6 +1561,197 @@ paths:
                 codigoretorno: 422
                 id: "00000000-0000-0000-0000-000000000000"
                 data: []
+
+  # ─────────────────────────────────────────────────────────────────
+  # ENDPOINTS DE WEBHOOK
+  # ─────────────────────────────────────────────────────────────────
+
+  /v1/webhook-endpoints:
+    get:
+      tags: [Endpoints de Webhook]
+      summary: Listar endpoints de webhook
+      description: >
+        Retorna todos os endpoints de webhook cadastrados para a conta informada no header `account`.
+        Requer autenticação Bearer.
+      operationId: listWebhookEndpoints
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+      responses:
+        '200':
+          description: Endpoints encontrados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpointListResponse'
+              example:
+                mensagem: "Webhooks encontrados com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  - id: 1
+                    url: "https://meusite.com.br/webhook"
+                    events:
+                      - "order.paid"
+                      - "charge.failed"
+                    status: "Ativo"
+                    created_at: "2026-03-01T10:00:00.000000Z"
+                    updated_at: "2026-03-10T15:30:00.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Endpoints de Webhook]
+      summary: Criar endpoint de webhook
+      description: >
+        Cria um novo endpoint de webhook para a conta informada no header `account`.
+        O endpoint receberá notificações POST para os eventos selecionados.
+        Requer autenticação Bearer.
+      operationId: createWebhookEndpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointCreateRequest'
+            example:
+              url: "https://meusite.com.br/webhook"
+              events:
+                - "order.paid"
+                - "charge.failed"
+                - "subscription.canceled"
+      responses:
+        '201':
+          description: Webhook criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIReturnWithId'
+              example:
+                mensagem: "Webhook criado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 201
+                id: "42"
+                data: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /v1/webhook-endpoints/{id}:
+    put:
+      tags: [Endpoints de Webhook]
+      summary: Atualizar endpoint de webhook
+      description: >
+        Atualiza parcialmente um endpoint de webhook existente. Todos os campos são opcionais — envie apenas o que deseja alterar.
+        Requer autenticação Bearer e que o webhook pertença à conta informada no header `account`.
+      operationId: updateWebhookEndpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - name: id
+          in: path
+          required: true
+          description: ID do webhook a ser atualizado
+          schema:
+            type: integer
+            example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointUpdateRequest'
+            examples:
+              atualizar_url:
+                summary: Atualizar apenas a URL
+                value:
+                  url: "https://novo-site.com.br/webhook"
+              atualizar_eventos:
+                summary: Atualizar lista de eventos
+                value:
+                  events:
+                    - "order.paid"
+                    - "invoice.created"
+              desativar:
+                summary: Desativar o webhook
+                value:
+                  status: "Inativo"
+      responses:
+        '200':
+          description: Webhook atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIReturnSuccess'
+              example:
+                mensagem: "Webhook atualizado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Endpoints de Webhook]
+      summary: Remover endpoint de webhook
+      description: >
+        Remove permanentemente um endpoint de webhook. O webhook deve pertencer à conta informada no header `account`.
+        Requer autenticação Bearer.
+      operationId: deleteWebhookEndpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - name: id
+          in: path
+          required: true
+          description: ID do webhook a ser removido
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Webhook deletado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIReturnSuccess'
+              example:
+                mensagem: "Webhook deletado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
 
   securitySchemes:
@@ -3638,3 +3831,172 @@ components:
           type: string
           description: Código da conta padrão do usuário (opcional)
           example: "acc_abc123"
+
+    # ─── Webhook Endpoints ───────────────────────────────────────────
+
+    WebhookEndpointItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        url:
+          type: string
+          format: uri
+          example: "https://meusite.com.br/webhook"
+        events:
+          type: array
+          items:
+            type: string
+          example: ["order.paid", "charge.failed"]
+        status:
+          type: string
+          enum: [Ativo, Inativo]
+          example: "Ativo"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-03-01T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-03-10T15:30:00.000000Z"
+
+    WebhookEndpointListResponse:
+      type: object
+      properties:
+        mensagem:
+          type: string
+          example: "Webhooks encontrados com sucesso"
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+        codigoretorno:
+          type: integer
+          example: 200
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEndpointItem'
+
+    WebhookEndpointCreateRequest:
+      type: object
+      required:
+        - url
+        - events
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL que receberá as notificações via POST
+          example: "https://meusite.com.br/webhook"
+        events:
+          type: array
+          minItems: 1
+          description: >
+            Lista de eventos a monitorar. Valores aceitos:
+            `welcome`, `email.confirmation`, `email.recovery`,
+            `account.bank.update`, `account.team.invite`,
+            `order.paid`, `order.failed`, `order.refunded`, `order.challenged`, `order.unprocessed`, `order.chargeback`,
+            `pix.generated`,
+            `charge.created`, `charge.pending`, `charge.paid`, `charge.failed`, `charge.reproved`,
+            `charge.refunded`, `charge.partial_refunded`, `charge.expired`, `charge.canceled`, `charge.challenged`, `charge.chargeback`,
+            `withdrawal.requested`,
+            `purchase.many_failed`,
+            `subscription.canceled`, `subscription.delayed`, `subscription.regularized`,
+            `invoice.created`, `invoice.paid`, `invoice.failed`
+          items:
+            type: string
+            enum:
+              - welcome
+              - email.confirmation
+              - email.recovery
+              - account.bank.update
+              - account.team.invite
+              - order.paid
+              - order.failed
+              - order.refunded
+              - order.challenged
+              - order.unprocessed
+              - order.chargeback
+              - pix.generated
+              - charge.created
+              - charge.pending
+              - charge.paid
+              - charge.failed
+              - charge.reproved
+              - charge.refunded
+              - charge.partial_refunded
+              - charge.expired
+              - charge.canceled
+              - charge.challenged
+              - charge.chargeback
+              - withdrawal.requested
+              - purchase.many_failed
+              - subscription.canceled
+              - subscription.delayed
+              - subscription.regularized
+              - invoice.created
+              - invoice.paid
+              - invoice.failed
+          example: ["order.paid", "charge.failed"]
+
+    WebhookEndpointUpdateRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Nova URL do webhook (opcional)
+          example: "https://novo-site.com.br/webhook"
+        events:
+          type: array
+          minItems: 1
+          description: Nova lista de eventos (opcional)
+          items:
+            type: string
+            enum:
+              - welcome
+              - email.confirmation
+              - email.recovery
+              - account.bank.update
+              - account.team.invite
+              - order.paid
+              - order.failed
+              - order.refunded
+              - order.challenged
+              - order.unprocessed
+              - order.chargeback
+              - pix.generated
+              - charge.created
+              - charge.pending
+              - charge.paid
+              - charge.failed
+              - charge.reproved
+              - charge.refunded
+              - charge.partial_refunded
+              - charge.expired
+              - charge.canceled
+              - charge.challenged
+              - charge.chargeback
+              - withdrawal.requested
+              - purchase.many_failed
+              - subscription.canceled
+              - subscription.delayed
+              - subscription.regularized
+              - invoice.created
+              - invoice.paid
+              - invoice.failed
+          example: ["order.paid", "invoice.created"]
+        status:
+          type: string
+          enum: [Ativo, Inativo]
+          description: Status do webhook (opcional)
+          example: "Ativo"

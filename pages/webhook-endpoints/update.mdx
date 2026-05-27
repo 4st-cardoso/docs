@@ -1,0 +1,12 @@
+---
+title: "Atualizar Endpoint"
+openapi: "PUT /v1/webhook-endpoints/{id}"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. Todos os campos (`url`, `events`, `status`) são opcionais — envie apenas o que deseja alterar. O webhook deve pertencer à conta autenticada.
+</Note>
+
+<Tip>
+  Para desativar temporariamente um webhook sem removê-lo, envie `"status": "Inativo"`.
+</Tip>
