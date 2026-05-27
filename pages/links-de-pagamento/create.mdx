@@ -1,0 +1,12 @@
+---
+title: "Criar Link de Pagamento"
+openapi: "POST /v1/payment-links"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. O link gerado é imediatamente ativo e pode ser compartilhado com clientes.
+</Note>
+
+<Tip>
+  Para definir uma imagem no checkout, envie `config.image` com uma URL pública ou uma string base64. O servidor processa e armazena automaticamente. Se o processamento falhar, o link é criado normalmente e a resposta incluirá o campo `image_warning`.
+</Tip>

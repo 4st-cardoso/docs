@@ -1,0 +1,355 @@
+---
+title: "Links de Pagamento"
+description: "Crie checkouts pré-configurados e compartilhe um link único com seus clientes para receber pagamentos."
+icon: "link"
+---
+
+## Visão Geral
+
+Os **Links de Pagamento** permitem criar um checkout pré-configurado com itens, formas de pagamento e regras de expiração. Compartilhe o link gerado com seus clientes — eles acessam, confirmam os dados e pagam diretamente, sem que você precise criar uma cobrança manualmente.
+
+Cada link gera uma URL de checkout única com token de segurança. O link pode ser reutilizado (com ou sem limite de usos) e expira automaticamente quando a data ou o número máximo de pagamentos é atingido.
+
+---
+
+## Métodos de Pagamento Suportados
+
+| Método       | Descrição                                        |
+|--------------|--------------------------------------------------|
+| `CreditCard` | Cartão de crédito (parcelado ou à vista)         |
+| `PIX`        | Pagamento instantâneo via PIX                    |
+| `Boleto`     | Boleto bancário                                  |
+
+Se `payment_types` for omitido na criação, todos os métodos ativos na conta serão exibidos no checkout.
+
+---
+
+## Header obrigatório
+
+Todas as rotas de links de pagamento exigem o header `account` com o código da conta:
+
+```http
+account: acc_abc123xyz
+```
+
+---
+
+## Formato de resposta padrão
+
+```json
+{
+  "mensagem": "Mensagem descritiva",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 200,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": { ... }
+}
+```
+
+| Campo           | Tipo    | Descrição                                              |
+|-----------------|---------|--------------------------------------------------------|
+| `mensagem`      | string  | Mensagem descritiva da operação                        |
+| `erro`          | boolean | `false` em caso de sucesso, `true` em caso de erro     |
+| `mensagenserro` | array   | Lista de mensagens de erro (vazia em caso de sucesso)  |
+| `codigoretorno` | integer | Código HTTP de retorno                                 |
+| `id`            | string  | ID do recurso criado/afetado ou GUID vazio             |
+| `data`          | mixed   | Dados retornados (objeto, array ou vazio)              |
+
+---
+
+## Status de um Link de Pagamento
+
+| Status       | Descrição                                                          |
+|--------------|--------------------------------------------------------------------|
+| `InProgress` | Link ativo e disponível para pagamento                             |
+| `Canceled`   | Link cancelado manualmente                                         |
+| `Concluded`  | Link encerrado após atingir o limite de usos (`max_uses`)          |
+
+Um link também é considerado inativo quando `expires_at` é uma data passada, mesmo que o status ainda seja `InProgress`.
+
+---
+
+## Campos do cliente
+
+Os dados do cliente são pré-preenchidos no checkout. O cliente pode editar as informações antes de pagar.
+
+| Campo                    | Tipo   | Req. | Descrição                                              |
+|--------------------------|--------|------|--------------------------------------------------------|
+| `client.name`            | string | Sim  | Nome completo (máx. 255)                               |
+| `client.email`           | string | Sim  | E-mail                                                 |
+| `client.phone.ddi`       | string | Sim  | Código do país (DDI)                                   |
+| `client.phone.ddd`       | string | Sim  | Código de área (DDD)                                   |
+| `client.phone.number`    | string | Sim  | Número do telefone                                     |
+| `client.gender`          | string | Não  | `Male`, `Female`, `Other`, `Undefined`                 |
+| `client.birthdate`       | date   | Não  | Data de nascimento (`YYYY-MM-DD`)                      |
+| `client.document.type`   | string | Não  | `CPF`, `CNPJ`, `passport`, `undefined`                 |
+| `client.document.number` | string | Não  | Número do documento (CPF/CNPJ validado com dígito)     |
+| `client.address.*`       | object | Não* | Endereço (* todos os campos obrigatórios entre si)     |
+
+**Campos de endereço** — obrigatórios quando `address.street` é enviado:
+
+| Campo                      | Tipo   | Descrição                  |
+|----------------------------|--------|----------------------------|
+| `address.zipcode`          | string | CEP (máx. 20)              |
+| `address.street`           | string | Logradouro (máx. 255)      |
+| `address.number`           | string | Número (máx. 20)           |
+| `address.neighborhood`     | string | Bairro (máx. 255)          |
+| `address.city`             | string | Cidade (máx. 255)          |
+| `address.state`            | string | UF — 2 letras              |
+| `address.complement`       | string | Complemento (opcional)     |
+| `address.country`          | string | País (opcional, máx. 255)  |
+
+---
+
+## Campos dos itens
+
+| Campo              | Tipo    | Req. | Descrição                                              |
+|--------------------|---------|------|--------------------------------------------------------|
+| `items[].id`       | string  | Sim  | Identificador do produto (SKU, UUID ou código)         |
+| `items[].description`| string| Sim  | Descrição exibida no checkout (máx. 255)               |
+| `items[].amount`   | decimal | Sim  | Valor unitário em reais (ex: `97.99`). Mín: `0.01`    |
+| `items[].quantity` | integer | Sim  | Quantidade. Mín: `1`                                   |
+
+O total dos itens somado ao frete deve ser de no mínimo **R$ 5,00**.
+
+---
+
+## Configurações do link (`config`)
+
+Todas as chaves de `config` são opcionais.
+
+| Campo                    | Tipo    | Descrição                                                                    |
+|--------------------------|---------|------------------------------------------------------------------------------|
+| `payment_types`          | array   | Métodos exibidos no checkout: `"CreditCard"`, `"PIX"`, `"Boleto"`           |
+| `installments`           | array   | Opções de parcelamento (ver seção abaixo)                                    |
+| `expires_at`             | datetime| Data/hora de expiração (`YYYY-MM-DD HH:MM:SS`). `null` = sem expiração      |
+| `max_uses`               | integer | Máximo de pagamentos aceitos. `null` = ilimitado. Mín: `1`                  |
+| `freight`                | decimal | Frete em reais adicionado ao total. Mín: `0`. Padrão: `0`                   |
+| `link_name`              | string  | Nome interno do link (não exibido no checkout). Máx. 255                     |
+| `order_title`            | string  | Título exibido no checkout (substitui "Resumo do pedido"). Máx. 255          |
+| `soft_descriptor`        | string  | Texto exibido na fatura do cartão. Máx. 22                                   |
+| `image`                  | string  | URL pública ou base64 da imagem exibida no topo do checkout (ver abaixo)    |
+| `image_url`              | string  | URL de imagem já armazenada. Máx. 1000. Preterido quando `image` é enviado  |
+| `pix_expiration`         | integer | Expiração do QR Code PIX em horas. Mín: `1`                                 |
+| `pix_discount_value`     | decimal | Valor do desconto para pagamentos PIX                                        |
+| `pix_discount_type`      | string  | Tipo do desconto PIX: `"percentage"` ou `"fixed"`                           |
+| `obfuscate_client`       | boolean | Mascarar dados do pagador no checkout                                        |
+| `obfuscate_items`        | boolean | Ocultar nomes e valores dos itens no checkout                                |
+| `split`                  | array   | Divisão automática do recebimento (ver seção abaixo)                         |
+| `back_url`               | string  | URL do botão "Voltar" exibido no checkout. Máx. 1000                         |
+| `redirect_url`           | string  | URL de redirecionamento após pagamento confirmado. Máx. 1000                 |
+
+---
+
+## Parcelamento (`config.installments`)
+
+As opções de parcelamento são definidas por **milestones** — cada milestone define a taxa de juros para todas as parcelas desde o milestone anterior até o `count` informado.
+
+| Campo           | Tipo    | Descrição                                                             |
+|-----------------|---------|-----------------------------------------------------------------------|
+| `count`         | integer | Número de parcelas (1–12)                                             |
+| `interest_rate` | decimal | Fator multiplicador sobre o valor base. `1.0` = sem juros. Mín: `1` |
+
+**Fórmula:** `total_cobrado = valor_base × interest_rate`
+
+```json Exemplos de configuração de parcelamento
+[
+  { "count": 1, "interest_rate": 1 }
+]
+```
+> Exibe somente 1x sem juros.
+
+```json
+[
+  { "count": 1, "interest_rate": 1 },
+  { "count": 12, "interest_rate": 1 }
+]
+```
+> Exibe de 1x a 12x, todos sem juros.
+
+```json
+[
+  { "count": 2,  "interest_rate": 1    },
+  { "count": 6,  "interest_rate": 1.10 },
+  { "count": 12, "interest_rate": 1.20 }
+]
+```
+> 1x–2x sem juros, 3x–6x com 10%, 7x–12x com 20%.
+
+Se `installments` for omitido, o checkout exibe apenas 1x sem juros.
+
+---
+
+## Imagem do link (`config.image`)
+
+O campo `image` aceita dois formatos:
+
+- **URL pública** (`https://...`): o servidor faz o download, armazena internamente e grava a URL resultante.
+- **Base64** (com ou sem prefixo `data:image/...;base64,`): o servidor decodifica e armazena.
+
+Formatos aceitos: `jpg`, `png`, `webp`, `gif`.
+
+<Warning>
+  Se a imagem não puder ser processada (URL inacessível, formato não suportado, base64 inválido), o link é criado normalmente sem imagem. A resposta incluirá o campo `image_warning` com a descrição do motivo.
+</Warning>
+
+Alternativamente, você pode enviar a imagem antes pelo endpoint de upload e usar a URL resultante em `image_url`:
+
+```http
+POST /links-de-pagamento/upload-imagem
+Content-Type: multipart/form-data
+Campo: image (arquivo)
+
+Resposta: { "url": "https://...", "path": "payment-links/images/..." }
+```
+
+---
+
+## Desconto PIX (`config.pix_discount_value` / `config.pix_discount_type`)
+
+Concede desconto exclusivo para pagamentos via PIX.
+
+| `pix_discount_type` | Comportamento                                              |
+|---------------------|------------------------------------------------------------|
+| `"percentage"`      | Percentual sobre o valor total (ex: `10` = 10% de desconto)|
+| `"fixed"`           | Valor fixo em reais (ex: `5.00` = R$ 5,00 de desconto)    |
+
+O desconto é aplicado sobre os itens — **não incide sobre o frete**. O valor final após desconto deve ser de no mínimo R$ 5,00.
+
+<Note>
+  O campo `"PIX"` deve estar presente em `payment_types` para que o desconto seja aplicado.
+</Note>
+
+---
+
+## Expiração do QR Code PIX (`config.pix_expiration`)
+
+Define o tempo de vida do QR Code PIX em **horas**. A prioridade de resolução no momento do pagamento é:
+
+1. `payment.pix_expiration` no body da cobrança (em segundos — override)
+2. Tempo restante até `expires_at` (calculado em segundos, mínimo 300 s)
+3. `config.pix_expiration` × 3600 (convertido para segundos)
+4. Padrão da adquirente (~30 min)
+
+---
+
+## Split de pagamento (`config.split`)
+
+Divide automaticamente o recebimento entre múltiplos recebedores.
+
+| Campo           | Tipo    | Req. | Descrição                                                           |
+|-----------------|---------|------|---------------------------------------------------------------------|
+| `receiver_code` | string  | Sim  | Código do recebedor (`account_receiver`)                           |
+| `percentage`    | decimal | *    | Percentual do total (0–100). Exclusivo com `amount`                |
+| `amount`        | decimal | *    | Valor fixo em reais. Exclusivo com `percentage`                    |
+
+Todos os recebedores juntos devem totalizar 100% ou o valor total do link.
+
+---
+
+## Objeto de resposta do link
+
+| Campo            | Tipo    | Descrição                                             |
+|------------------|---------|-------------------------------------------------------|
+| `code`           | string  | Código único do link (ex: `lnk_abc123`)               |
+| `order_code`     | string  | Código do pedido gerado na criação                    |
+| `token`          | string  | Token de segurança do checkout (64 caracteres hex)    |
+| `url`            | string  | URL completa do checkout para compartilhar            |
+| `status`         | string  | Status atual do link                                  |
+| `payment_types`  | array   | Métodos de pagamento configurados                     |
+| `installments`   | array   | Opções de parcelamento expandidas                     |
+| `obfuscate_client`| boolean| Dados do pagador mascarados no checkout               |
+| `obfuscate_items`| boolean | Itens ocultos no checkout                             |
+| `expires_at`     | datetime| Data/hora de expiração ou `null`                      |
+| `max_uses`       | integer | Limite de pagamentos ou `null` se ilimitado           |
+| `uses_count`     | integer | Quantidade de pagamentos realizados via este link     |
+| `split`          | array   | Configuração de split ou array vazio                  |
+| `value`          | decimal | Valor total do link em reais                          |
+| `created_at`     | string  | Data de criação (ISO 8601)                            |
+
+---
+
+## Exemplo completo
+
+```json Criar link de pagamento
+{
+  "client": {
+    "name": "Hugo Belo",
+    "email": "hugo@exemplo.com.br",
+    "phone": { "ddi": "55", "ddd": "62", "number": "984063942" },
+    "document": { "type": "CPF", "number": "71854312120" }
+  },
+  "items": [
+    {
+      "id": "plano-premium",
+      "description": "Plano Mensal Premium",
+      "amount": 97.99,
+      "quantity": 1
+    }
+  ],
+  "config": {
+    "payment_types": ["CreditCard", "PIX"],
+    "installments": [
+      { "count": 1,  "interest_rate": 1      },
+      { "count": 6,  "interest_rate": 1.1047 },
+      { "count": 12, "interest_rate": 1.2    }
+    ],
+    "expires_at": "2026-12-31 23:59:59",
+    "max_uses": 100,
+    "link_name": "Black Friday – Plano Premium",
+    "order_title": "Plano Mensal Premium",
+    "pix_discount_value": 10,
+    "pix_discount_type": "percentage",
+    "redirect_url": "https://meusite.com.br/obrigado"
+  }
+}
+```
+
+```json Resposta (HTTP 201)
+{
+  "mensagem": "Link de pagamento criado com sucesso",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 201,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": {
+    "code": "lnk_abc123xyz",
+    "order_code": "ord_abc123xyz",
+    "token": "a1b2c3d4e5f6...",
+    "url": "https://checkout.4seletpay.com.br/lnk_abc123xyz?token=a1b2c3d4e5f6...",
+    "status": "InProgress",
+    "payment_types": ["CreditCard", "PIX"],
+    "installments": [
+      { "count": 1,  "interest_rate": 1      },
+      { "count": 2,  "interest_rate": 1      },
+      { "count": 3,  "interest_rate": 1.1047 },
+      { "count": 4,  "interest_rate": 1.1047 },
+      { "count": 5,  "interest_rate": 1.1047 },
+      { "count": 6,  "interest_rate": 1.1047 },
+      { "count": 7,  "interest_rate": 1.2    },
+      { "count": 8,  "interest_rate": 1.2    },
+      { "count": 9,  "interest_rate": 1.2    },
+      { "count": 10, "interest_rate": 1.2    },
+      { "count": 11, "interest_rate": 1.2    },
+      { "count": 12, "interest_rate": 1.2    }
+    ],
+    "obfuscate_client": false,
+    "obfuscate_items": false,
+    "expires_at": "2026-12-31T23:59:59.000000Z",
+    "max_uses": 100,
+    "uses_count": 0,
+    "split": [],
+    "value": 97.99,
+    "created_at": "2026-05-27T10:00:00.000000Z"
+  }
+}
+```
+
+<Tip>
+  Compartilhe o campo `url` diretamente com seus clientes. Ele já contém o token de segurança necessário para acessar o checkout.
+</Tip>
+
+<Warning>
+  Um link expirado ou que atingiu `max_uses` retorna erro ao ser acessado no checkout. Crie um novo link ou ajuste as configurações via painel administrativo.
+</Warning>

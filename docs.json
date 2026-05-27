@@ -80,6 +80,17 @@
                 ]
               },
               {
+                "group": "Links de Pagamento",
+                "pages": [
+                  "pages/links-de-pagamento/reference",
+                  "pages/links-de-pagamento/create",
+                  "pages/links-de-pagamento/list",
+                  "pages/links-de-pagamento/get",
+                  "pages/links-de-pagamento/cancel",
+                  "pages/links-de-pagamento/delete"
+                ]
+              },
+              {
                 "group": "Faturas",
                 "pages": [
                   "pages/faturas/reference",

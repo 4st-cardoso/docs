@@ -1,0 +1,12 @@
+---
+title: "Excluir Link de Pagamento"
+openapi: "DELETE /v1/payment-links/{code}"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. Links ativos são cancelados automaticamente antes da exclusão.
+</Note>
+
+<Warning>
+  Esta ação é irreversível e remove permanentemente o link e suas configurações. Pagamentos já realizados via este link não são afetados.
+</Warning>

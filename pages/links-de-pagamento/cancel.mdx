@@ -1,0 +1,12 @@
+---
+title: "Cancelar Link de Pagamento"
+openapi: "POST /v1/payment-links/{code}/cancel"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. Apenas links com status `InProgress` podem ser cancelados.
+</Note>
+
+<Warning>
+  Esta ação é irreversível. Um link cancelado não pode ser reativado — crie um novo link se necessário.
+</Warning>
