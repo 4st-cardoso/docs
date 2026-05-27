@@ -136,7 +136,7 @@ Todas as chaves de `config` são opcionais.
 | `pix_discount_type`      | string  | Tipo do desconto PIX: `"percentage"` ou `"fixed"`                           |
 | `obfuscate_client`       | boolean | Mascarar dados do pagador no checkout                                        |
 | `obfuscate_items`        | boolean | Ocultar nomes e valores dos itens no checkout                                |
-| `split`                  | array   | Divisão automática do recebimento (ver seção abaixo)                         |
+{/* | `split`                  | array   | Divisão automática do recebimento (ver seção abaixo)                         | */}
 | `back_url`               | string  | URL do botão "Voltar" exibido no checkout. Máx. 1000                         |
 | `redirect_url`           | string  | URL de redirecionamento após pagamento confirmado. Máx. 1000                 |
 
@@ -234,6 +234,7 @@ Define o tempo de vida do QR Code PIX em **horas**. A prioridade de resolução 
 
 ---
 
+{/*
 ## Split de pagamento (`config.split`)
 
 Divide automaticamente o recebimento entre múltiplos recebedores.
@@ -247,6 +248,7 @@ Divide automaticamente o recebimento entre múltiplos recebedores.
 Todos os recebedores juntos devem totalizar 100% ou o valor total do link.
 
 ---
+*/}
 
 ## Objeto de resposta do link
 
@@ -264,7 +266,7 @@ Todos os recebedores juntos devem totalizar 100% ou o valor total do link.
 | `expires_at`     | datetime| Data/hora de expiração ou `null`                      |
 | `max_uses`       | integer | Limite de pagamentos ou `null` se ilimitado           |
 | `uses_count`     | integer | Quantidade de pagamentos realizados via este link     |
-| `split`          | array   | Configuração de split ou array vazio                  |
+{/* | `split`          | array   | Configuração de split ou array vazio                  | */}
 | `value`          | decimal | Valor total do link em reais                          |
 | `created_at`     | string  | Data de criação (ISO 8601)                            |
 
@@ -339,7 +341,6 @@ Todos os recebedores juntos devem totalizar 100% ou o valor total do link.
     "expires_at": "2026-12-31T23:59:59.000000Z",
     "max_uses": 100,
     "uses_count": 0,
-    "split": [],
     "value": 97.99,
     "created_at": "2026-05-27T10:00:00.000000Z"
   }
