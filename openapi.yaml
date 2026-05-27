@@ -2431,32 +2431,32 @@ components:
               nullable: true
               description: Ocultar nomes e valores dos itens no checkout
               example: false
-            split:
-              type: array
-              nullable: true
-              description: Divisão automática do recebimento entre recebedores
-              items:
-                type: object
-                required: [receiver_code]
-                properties:
-                  receiver_code:
-                    type: string
-                    description: Código do recebedor (account_receiver)
-                    example: "rec_abc123"
-                  percentage:
-                    type: number
-                    format: float
-                    nullable: true
-                    minimum: 0
-                    maximum: 100
-                    description: Percentual do total (exclusivo com amount)
-                    example: 80.00
-                  amount:
-                    type: number
-                    format: float
-                    nullable: true
-                    minimum: 0
-                    description: Valor fixo em reais (exclusivo com percentage)
+            # split:
+            #   type: array
+            #   nullable: true
+            #   description: Divisão automática do recebimento entre recebedores
+            #   items:
+            #     type: object
+            #     required: [receiver_code]
+            #     properties:
+            #       receiver_code:
+            #         type: string
+            #         description: Código do recebedor (account_receiver)
+            #         example: "rec_abc123"
+            #       percentage:
+            #         type: number
+            #         format: float
+            #         nullable: true
+            #         minimum: 0
+            #         maximum: 100
+            #         description: Percentual do total (exclusivo com amount)
+            #         example: 80.00
+            #       amount:
+            #         type: number
+            #         format: float
+            #         nullable: true
+            #         minimum: 0
+            #         description: Valor fixo em reais (exclusivo com percentage)
             back_url:
               type: string
               format: uri
@@ -2540,11 +2540,11 @@ components:
           type: integer
           description: Quantidade de pagamentos realizados via este link
           example: 0
-        split:
-          type: array
-          description: Configuração de split ou array vazio
-          items:
-            type: object
+        # split:
+        #   type: array
+        #   description: Configuração de split ou array vazio
+        #   items:
+        #     type: object
         value:
           type: number
           format: float
