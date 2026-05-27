@@ -1,0 +1,165 @@
+---
+title: "Bem-vindo à API da 4Selet Pay"
+mode: "custom"
+---
+
+<div style={{ 
+    position: "relative",
+    textAlign: "center", 
+    padding: "80px 20px",
+    backgroundImage: "url('/images/hero-banner.png')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    borderBottom: "1px solid rgba(255,255,255,0.08)"
+}}>
+  <h1 style={{ fontSize: "40px", fontWeight: "600", marginBottom: "16px", color: "#fff" }}>
+    Bem-vindo à API da 4Selet Pay
+  </h1>
+  <p style={{
+    maxWidth: "800px",
+    margin: "0 auto",
+    opacity: 0.8,
+    fontSize: "18px",
+    fontWeight: "300",
+  }}>
+    Aqui você encontra tudo o que precisa para integrar a API da 4Selet Pay:
+    <br />
+    cobranças únicas, assinaturas recorrentes, links de pagamento e muito mais.
+  </p>
+</div>
+
+<div style={{
+  padding: "60px 20px",
+  maxWidth: "1100px",
+  margin: "0 auto",
+  borderBottom: "1px solid rgba(255,255,255,0.06)"
+}}>
+  <h2 style={{ fontSize: "22px", fontWeight: "600", marginBottom: "12px", color: "#fff" }}>
+    O que é a 4Selet Pay?
+  </h2>
+  <p style={{ opacity: 0.7, marginBottom: "24px", lineHeight: "1.7" }}>
+    A 4Selet Pay é uma plataforma de processamento de pagamentos construída para simplificar a integração de cobranças na sua aplicação. Suporta Cartão de Crédito, PIX e Boleto — com uma API consistente, webhooks em tempo real e controle total sobre o ciclo de vida dos seus pagamentos.
+  </p>
+
+  ```http
+  POST /api/v1/charge
+  Authorization: Bearer {seu_token}
+  account: {codigo_da_conta}
+  ```
+
+  <div style={{ marginTop: "32px" }}>
+    <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px", color: "#fff" }}>
+      Princípios da API
+    </h3>
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+      gap: "16px"
+    }}>
+      <Card title="Consistente" icon="check-double" horizontal>
+        Toda resposta segue o mesmo envelope: `mensagem`, `erro`, `codigoretorno` e `data`. Sem surpresas.
+      </Card>
+      <Card title="Orientada a eventos" icon="bell" horizontal>
+        Webhooks notificam seu sistema em tempo real quando algo importante acontece — sem polling.
+      </Card>
+    </div>
+  </div>
+</div>
+
+<div style={{ 
+  padding: "60px 20px",
+  maxWidth: "1100px",
+  margin: "0 auto"
+}}>
+  <h2 style={{ fontSize: "22px", fontWeight: "600", marginBottom: "24px", color: "#fff" }}>
+    O que você pode fazer
+  </h2>
+
+  <div style={{ 
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "24px",
+    marginBottom: "48px"
+  }}>
+    <Card icon="credit-card" title="Criar uma cobrança" href="/pages/cobrancas/reference">
+      Processe pagamentos únicos via Cartão de Crédito ou PIX com uma chamada simples.
+    </Card>
+
+    <Card icon="arrows-rotate" title="Configurar assinaturas" href="/pages/assinaturas/reference">
+      Crie cobranças recorrentes com controle de ciclos, faturas e troca de cartão.
+    </Card>
+
+    <Card icon="link" title="Gerar link de pagamento" href="/pages/links-de-pagamento/reference">
+      Crie um checkout pré-configurado e compartilhe um link com seus clientes.
+    </Card>
+
+    <Card icon="file-invoice" title="Quitar faturas em atraso" href="/pages/faturas/reference">
+      Permita que seus clientes regularizem faturas de assinatura com atraso.
+    </Card>
+
+    <Card icon="box-open" title="Acompanhar pedidos" href="/pages/pedidos/reference">
+      Consulte pedidos, valide confirmações OTP e reenvie notificações.
+    </Card>
+
+    <Card icon="bell" title="Receber webhooks" href="/pages/webhooks/reference">
+      Configure seu endpoint e seja notificado em tempo real a cada evento de pagamento.
+    </Card>
+  </div>
+
+  <h2 style={{ fontSize: "22px", fontWeight: "600", marginBottom: "24px", color: "#fff" }}>
+    Primeiros passos
+  </h2>
+
+  <div style={{ 
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "24px",
+    marginBottom: "48px"
+  }}>
+    <Card icon="key" title="Autenticação" href="/pages/autenticacao/reference">
+      Aprenda como obter seu Bearer Token e autenticar todas as requisições.
+    </Card>
+
+    <Card icon="credit-card" title="Primeira cobrança" href="/pages/cobrancas/create">
+      Crie sua primeira cobrança PIX ou Cartão em minutos.
+    </Card>
+
+    <Card icon="link" title="Primeiro link de pagamento" href="/pages/links-de-pagamento/create">
+      Gere um checkout compartilhável sem precisar lidar com dados de pagamento.
+    </Card>
+
+    <Card icon="webhook" title="Configurar webhooks" href="/pages/webhooks/reference">
+      Aprenda a receber notificações automáticas de pagamento no seu sistema.
+    </Card>
+  </div>
+</div>
+
+<div style={{ 
+  padding: "60px 20px",
+  maxWidth: "1100px",
+  margin: "0 auto"
+}}>
+  <h2 style={{ 
+    fontSize: "28px", 
+    fontWeight: "600", 
+    marginBottom: "32px",
+    color: "#fff"
+  }}>
+    Precisa de ajuda?
+  </h2>
+
+  <div style={{ 
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "24px"
+  }}>
+    <Card icon="headset" title="Suporte" href="mailto:suporte@4selet.com.br">
+      Entre em contato com nossa equipe para ajuda com sua integração.
+    </Card>
+
+    <Card icon="globe" title="Dashboard" href="https://app.4seletpay.com.br">
+      Acesse o painel administrativo para gerenciar sua conta e configurações.
+    </Card>
+  </div>
+</div>

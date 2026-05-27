@@ -1,0 +1,97 @@
+---
+title: "Eventos de Assinatura"
+description: "Payloads dos eventos relacionados a assinaturas — cancelamento, atraso e regularização."
+icon: "arrows-rotate"
+---
+
+## subscription.canceled
+
+Disparado quando uma assinatura é cancelada — manualmente pelo integrador ou por política interna após falhas recorrentes de cobrança.
+
+```json Payload
+{
+  "type": "subscription.canceled",
+  "id": "hook_b2c3d4e5f6a1",
+  "data": {
+    "code": "sub_abc123xyz",
+    "status": "RecurringCanceled",
+    "value": 99.90,
+    "payment_type": "CreditCard",
+    "canceled_at": "2026-05-27T10:00:00.000000Z",
+    "invoices_count": 6
+  }
+}
+```
+
+| Campo            | Tipo    | Descrição                                          |
+|------------------|---------|----------------------------------------------------|
+| `code`           | string  | Código único da assinatura                         |
+| `status`         | string  | Sempre `RecurringCanceled`                         |
+| `value`          | decimal | Valor por ciclo em reais                           |
+| `payment_type`   | string  | Método de pagamento da assinatura                  |
+| `canceled_at`    | string  | Data/hora do cancelamento (ISO 8601)               |
+| `invoices_count` | integer | Total de faturas geradas antes do cancelamento     |
+
+---
+
+## subscription.delayed
+
+Disparado quando uma assinatura entra em atraso — ou seja, uma fatura não foi paga dentro do prazo e a assinatura aguarda regularização.
+
+```json Payload
+{
+  "type": "subscription.delayed",
+  "id": "hook_c3d4e5f6a1b2",
+  "data": {
+    "code": "sub_xyz789abc",
+    "status": "RecurringOverdue",
+    "value": 149.90,
+    "payment_type": "CreditCard",
+    "overdue_since": "2026-05-01T00:00:00.000000Z",
+    "overdue_invoice_code": "ord_overdue456"
+  }
+}
+```
+
+| Campo                  | Tipo    | Descrição                                         |
+|------------------------|---------|---------------------------------------------------|
+| `code`                 | string  | Código único da assinatura                        |
+| `status`               | string  | Sempre `RecurringOverdue`                         |
+| `value`                | decimal | Valor por ciclo em reais                          |
+| `payment_type`         | string  | Método de pagamento da assinatura                 |
+| `overdue_since`        | string  | Data em que entrou em atraso (ISO 8601)           |
+| `overdue_invoice_code` | string  | Código do pedido da fatura em aberto              |
+
+---
+
+## subscription.regularized
+
+Disparado quando uma assinatura que estava em atraso é regularizada — após o pagamento da fatura em aberto.
+
+```json Payload
+{
+  "type": "subscription.regularized",
+  "id": "hook_d4e5f6a1b2c3",
+  "data": {
+    "code": "sub_xyz789abc",
+    "status": "Recurring",
+    "value": 149.90,
+    "payment_type": "CreditCard",
+    "regularized_at": "2026-05-27T14:00:00.000000Z",
+    "paid_invoice_code": "ord_overdue456"
+  }
+}
+```
+
+| Campo               | Tipo    | Descrição                                        |
+|---------------------|---------|--------------------------------------------------|
+| `code`              | string  | Código único da assinatura                       |
+| `status`            | string  | Sempre `Recurring`                               |
+| `value`             | decimal | Valor por ciclo em reais                         |
+| `payment_type`      | string  | Método de pagamento da assinatura                |
+| `regularized_at`    | string  | Data/hora da regularização (ISO 8601)            |
+| `paid_invoice_code` | string  | Código do pedido da fatura que foi quitada       |
+
+<Tip>
+  Ao receber `subscription.regularized`, reative o acesso do cliente ao produto ou serviço que havia sido suspenso por atraso.
+</Tip>

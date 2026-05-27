@@ -1,0 +1,95 @@
+---
+title: "Eventos de Pedido"
+description: "Payloads dos eventos relacionados a pedidos — falha, não processado e desafiado."
+icon: "box-open"
+---
+
+## order.failed
+
+Disparado quando um pedido falha no processamento pelo gateway de pagamento.
+
+```json Payload
+{
+  "type": "order.failed",
+  "id": "hook_c3d4e5f6a1b2",
+  "data": {
+    "code": "ord_abc123xyz",
+    "status": "Failed",
+    "value": 350.00,
+    "payment_type": "CreditCard",
+    "failure_reason": "insufficient_funds",
+    "failed_at": "2026-05-27T10:30:00.000000Z"
+  }
+}
+```
+
+| Campo            | Tipo    | Descrição                                         |
+|------------------|---------|---------------------------------------------------|
+| `code`           | string  | Código único do pedido                            |
+| `status`         | string  | Sempre `Failed`                                   |
+| `value`          | decimal | Valor do pedido em reais                          |
+| `payment_type`   | string  | Método de pagamento utilizado                     |
+| `failure_reason` | string  | Motivo da falha retornado pelo gateway            |
+| `failed_at`      | string  | Data/hora da falha (ISO 8601)                     |
+
+---
+
+## order.unprocessed
+
+Disparado quando um pedido não pôde ser encaminhado para processamento — normalmente por indisponibilidade temporária do gateway ou ausência de adquirente configurado.
+
+```json Payload
+{
+  "type": "order.unprocessed",
+  "id": "hook_d4e5f6a1b2c3",
+  "data": {
+    "code": "ord_xyz789abc",
+    "status": "Unprocessed",
+    "value": 99.90,
+    "payment_type": "CreditCard",
+    "created_at": "2026-05-27T10:45:00.000000Z"
+  }
+}
+```
+
+| Campo          | Tipo    | Descrição                           |
+|----------------|---------|-------------------------------------|
+| `code`         | string  | Código único do pedido              |
+| `status`       | string  | Sempre `Unprocessed`                |
+| `value`        | decimal | Valor do pedido em reais            |
+| `payment_type` | string  | Método de pagamento solicitado      |
+| `created_at`   | string  | Data/hora de criação (ISO 8601)     |
+
+---
+
+## order.challenged
+
+Disparado quando um pedido requer confirmação adicional do pagador — geralmente via código OTP enviado ao e-mail ou telefone.
+
+```json Payload
+{
+  "type": "order.challenged",
+  "id": "hook_e5f6a1b2c3d4",
+  "data": {
+    "code": "ord_challenged123",
+    "status": "Challenged",
+    "value": 500.00,
+    "payment_type": "CreditCard",
+    "challenge_expires_at": "2026-05-27T11:15:00.000000Z",
+    "created_at": "2026-05-27T10:45:00.000000Z"
+  }
+}
+```
+
+| Campo                  | Tipo    | Descrição                                    |
+|------------------------|---------|----------------------------------------------|
+| `code`                 | string  | Código único do pedido                       |
+| `status`               | string  | Sempre `Challenged`                          |
+| `value`                | decimal | Valor do pedido em reais                     |
+| `payment_type`         | string  | Método de pagamento                          |
+| `challenge_expires_at` | string  | Prazo para confirmação do OTP (ISO 8601)     |
+| `created_at`           | string  | Data/hora de criação (ISO 8601)              |
+
+<Tip>
+  Use o endpoint [Verificar confirmação](/pages/pedidos/verify) para confirmar o OTP recebido pelo pagador e concluir o pedido challenged.
+</Tip>

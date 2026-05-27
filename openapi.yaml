@@ -11,8 +11,8 @@ info:
     email: suporte@4selet.com.br
 
 servers:
-  - url: https://hml.4seletpay.com.br/api
-    description: Servidor de Produção
+  - url: https://sandbox.4seletpay.com.br/api
+    description: Servidor de Sandbox
 
 security:
   - bearerAuth: []
@@ -44,6 +44,8 @@ tags:
     description: Endpoints para receber notificações de gateways de pagamento
   - name: Endpoints de Webhook
     description: Gerenciamento de endpoints de webhook para receber notificações de eventos da plataforma
+  - name: Links de Pagamento
+    description: Criação e gerenciamento de links de pagamento com checkout pré-configurado
 
 paths:
 
@@ -1637,7 +1639,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/APIReturnWithId'
+                $ref: '#/components/schemas/SuccessResponse'
               example:
                 mensagem: "Webhook criado com sucesso"
                 erro: false
@@ -1698,7 +1700,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/APIReturnSuccess'
+                $ref: '#/components/schemas/SuccessResponse'
               example:
                 mensagem: "Webhook atualizado com sucesso"
                 erro: false
@@ -1737,7 +1739,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/APIReturnSuccess'
+                $ref: '#/components/schemas/SuccessResponse'
               example:
                 mensagem: "Webhook deletado com sucesso"
                 erro: false
@@ -1751,6 +1753,346 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+
+  # ─────────────────────────────────────────────────────────────────
+  # LINKS DE PAGAMENTO
+  # ─────────────────────────────────────────────────────────────────
+
+  /v1/payment-links:
+    post:
+      tags: [Links de Pagamento]
+      summary: Criar link de pagamento
+      description: >
+        Cria um novo link de pagamento com checkout pré-configurado e URL única com token de segurança.
+        Suporta `CreditCard`, `PIX` e `Boleto`. Compartilhe o campo `url` da resposta diretamente com o cliente.
+
+
+        O campo `config.image` aceita URL pública HTTPS ou string base64 — processado e armazenado automaticamente (fail-soft:
+        se falhar, o link é criado normalmente sem imagem e a resposta incluirá `image_warning`).
+
+
+        Requer o header `account` com o código da conta.
+      operationId: createPaymentLink
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentLinkRequest'
+            examples:
+              basico:
+                summary: Link básico com PIX e cartão
+                value:
+                  client:
+                    name: "Hugo Belo"
+                    email: "hugo@exemplo.com.br"
+                    phone:
+                      ddi: "55"
+                      ddd: "62"
+                      number: "984063942"
+                    document:
+                      type: "CPF"
+                      number: "71854312120"
+                  items:
+                    - id: "plano-premium"
+                      description: "Plano Mensal Premium"
+                      amount: 97.99
+                      quantity: 1
+                  config:
+                    payment_types: ["CreditCard", "PIX"]
+                    expires_at: "2026-12-31 23:59:59"
+                    max_uses: 100
+                    pix_discount_value: 10
+                    pix_discount_type: "percentage"
+                    redirect_url: "https://meusite.com.br/obrigado"
+              com_parcelamento:
+                summary: Link com parcelamento e split
+                value:
+                  client:
+                    name: "Ana Lima"
+                    email: "ana@exemplo.com.br"
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "998765432"
+                  items:
+                    - id: "curso-001"
+                      description: "Curso Completo"
+                      amount: 497.00
+                      quantity: 1
+                  config:
+                    payment_types: ["CreditCard", "PIX"]
+                    installments:
+                      - count: 1
+                        interest_rate: 1
+                      - count: 6
+                        interest_rate: 1.1047
+                      - count: 12
+                        interest_rate: 1.2
+                    split:
+                      - receiver_code: "rec_abc123"
+                        percentage: 80.00
+                      - receiver_code: "rec_xyz456"
+                        percentage: 20.00
+                    link_name: "Curso Completo – Turma Maio 2026"
+                    soft_descriptor: "MeuCurso"
+      responses:
+        '201':
+          description: Link de pagamento criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentLinkResponse'
+              example:
+                mensagem: "Link de pagamento criado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 201
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  code: "lnk_abc123xyz"
+                  order_code: "ord_abc123xyz"
+                  token: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+                  url: "https://checkout.4seletpay.com.br/lnk_abc123xyz?token=a1b2c3d4e5f6..."
+                  status: "InProgress"
+                  payment_types: ["CreditCard", "PIX"]
+                  installments:
+                    - count: 1
+                      interest_rate: 1
+                    - count: 2
+                      interest_rate: 1
+                  obfuscate_client: false
+                  obfuscate_items: false
+                  expires_at: "2026-12-31T23:59:59.000000Z"
+                  max_uses: 100
+                  uses_count: 0
+                  split: []
+                  value: 97.99
+                  created_at: "2026-05-27T10:00:00.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    get:
+      tags: [Links de Pagamento]
+      summary: Listar links de pagamento
+      description: >
+        Retorna a lista paginada de links de pagamento da conta informada no header `account`.
+        A resposta segue o formato padrão de paginação do Laravel (diferente do envelope APIReturnUtil das demais rotas).
+      operationId: listPaymentLinks
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - name: page
+          in: query
+          required: false
+          description: Número da página
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          required: false
+          description: Quantidade de itens por página
+          schema:
+            type: integer
+            default: 15
+            example: 15
+      responses:
+        '200':
+          description: Lista de links de pagamento retornada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentLinkData'
+                  current_page:
+                    type: integer
+                    example: 1
+                  per_page:
+                    type: integer
+                    example: 15
+                  total:
+                    type: integer
+                    example: 42
+                  last_page:
+                    type: integer
+                    example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/payment-links/{code}:
+    get:
+      tags: [Links de Pagamento]
+      summary: Consultar link de pagamento
+      description: >
+        Retorna os dados completos de um link de pagamento pelo seu código,
+        incluindo configurações, contagem de usos e status atual.
+        Requer o header `account` com o código da conta.
+      operationId: getPaymentLink
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - name: code
+          in: path
+          required: true
+          description: Código único do link de pagamento
+          schema:
+            type: string
+            example: "lnk_abc123xyz"
+      responses:
+        '200':
+          description: Dados do link de pagamento retornados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentLinkResponse'
+              example:
+                mensagem: "Link de pagamento encontrado"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  code: "lnk_abc123xyz"
+                  order_code: "ord_abc123xyz"
+                  token: "a1b2c3d4e5f6..."
+                  url: "https://checkout.4seletpay.com.br/lnk_abc123xyz?token=a1b2c3d4e5f6..."
+                  status: "InProgress"
+                  payment_types: ["CreditCard", "PIX"]
+                  installments: []
+                  obfuscate_client: false
+                  obfuscate_items: false
+                  expires_at: "2026-12-31T23:59:59.000000Z"
+                  max_uses: 100
+                  uses_count: 7
+                  split: []
+                  value: 97.99
+                  created_at: "2026-05-27T10:00:00.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Links de Pagamento]
+      summary: Excluir link de pagamento
+      description: >
+        Remove permanentemente um link de pagamento.
+        Links ativos são cancelados automaticamente antes da exclusão.
+        Esta operação é irreversível — pagamentos já realizados via este link não são afetados.
+        Requer o header `account` com o código da conta.
+      operationId: deletePaymentLink
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - name: code
+          in: path
+          required: true
+          description: Código único do link de pagamento
+          schema:
+            type: string
+            example: "lnk_abc123xyz"
+      responses:
+        '200':
+          description: Link de pagamento excluído com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                mensagem: "Link de pagamento excluído com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/payment-links/{code}/cancel:
+    post:
+      tags: [Links de Pagamento]
+      summary: Cancelar link de pagamento
+      description: >
+        Cancela um link de pagamento ativo. Apenas links com status `InProgress` podem ser cancelados.
+        Esta operação é irreversível — um link cancelado não pode ser reativado.
+        Requer o header `account` com o código da conta.
+      operationId: cancelPaymentLink
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - name: code
+          in: path
+          required: true
+          description: Código único do link de pagamento
+          schema:
+            type: string
+            example: "lnk_abc123xyz"
+      responses:
+        '200':
+          description: Link de pagamento cancelado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentLinkResponse'
+              example:
+                mensagem: "Link de pagamento cancelado com sucesso"
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  code: "lnk_abc123xyz"
+                  order_code: "ord_abc123xyz"
+                  token: "a1b2c3d4e5f6..."
+                  url: null
+                  status: "Canceled"
+                  payment_types: ["CreditCard", "PIX"]
+                  installments: []
+                  obfuscate_client: false
+                  obfuscate_items: false
+                  expires_at: null
+                  max_uses: null
+                  uses_count: 7
+                  split: []
+                  value: 97.99
+                  created_at: "2026-05-27T10:00:00.000000Z"
+        '400':
+          description: Link já cancelado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Link de pagamento já está cancelado."
+                erro: true
+                mensagenserro: ["Link de pagamento já está cancelado."]
+                codigoretorno: 400
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
 
@@ -1839,6 +2181,408 @@ components:
             data: []
 
   schemas:
+
+    # ── Links de Pagamento ────────────────────────────────────────
+
+    CreatePaymentLinkRequest:
+      type: object
+      required: [client, items]
+      properties:
+        client:
+          type: object
+          required: [name, email, phone]
+          properties:
+            name:
+              type: string
+              maxLength: 255
+              description: Nome completo do pagador
+              example: "Hugo Belo"
+            email:
+              type: string
+              format: email
+              maxLength: 255
+              description: E-mail do pagador
+              example: "hugo@exemplo.com.br"
+            gender:
+              type: string
+              nullable: true
+              enum: [Male, Female, Other, Undefined]
+              description: Gênero (opcional)
+            birthdate:
+              type: string
+              format: date
+              nullable: true
+              description: Data de nascimento (YYYY-MM-DD, opcional)
+              example: "1993-07-07"
+            phone:
+              type: object
+              required: [ddi, ddd, number]
+              properties:
+                ddi:
+                  type: string
+                  description: Código do país (DDI)
+                  example: "55"
+                ddd:
+                  type: string
+                  description: Código de área (DDD)
+                  example: "62"
+                number:
+                  type: string
+                  description: Número do telefone
+                  example: "984063942"
+            document:
+              type: object
+              nullable: true
+              properties:
+                type:
+                  type: string
+                  nullable: true
+                  enum: [CPF, CNPJ, passport, undefined]
+                  description: Tipo do documento
+                  example: "CPF"
+                number:
+                  type: string
+                  nullable: true
+                  description: Número do documento (CPF/CNPJ validado com dígito verificador)
+                  example: "71854312120"
+            address:
+              type: object
+              nullable: true
+              description: Endereço (todos os campos obrigatórios entre si quando street é enviado)
+              properties:
+                zipcode:
+                  type: string
+                  maxLength: 20
+                  example: "74715280"
+                street:
+                  type: string
+                  maxLength: 255
+                  example: "Rua Londrina"
+                number:
+                  type: string
+                  maxLength: 20
+                  example: "sn"
+                neighborhood:
+                  type: string
+                  maxLength: 255
+                  example: "Jd. Novo Mundo"
+                complement:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+                  example: "casa"
+                city:
+                  type: string
+                  maxLength: 255
+                  example: "Goiânia"
+                state:
+                  type: string
+                  maxLength: 2
+                  example: "GO"
+                country:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+                  example: "BR"
+        items:
+          type: array
+          minItems: 1
+          description: Produtos ou serviços incluídos no link. Total mínimo (itens + frete) = R$ 5,00.
+          items:
+            type: object
+            required: [id, description, amount, quantity]
+            properties:
+              id:
+                type: string
+                description: Identificador do produto (SKU, UUID ou código)
+                example: "plano-premium"
+              description:
+                type: string
+                maxLength: 255
+                description: Descrição exibida no checkout
+                example: "Plano Mensal Premium"
+              amount:
+                type: number
+                format: float
+                minimum: 0.01
+                maximum: 1000000
+                description: Valor unitário em reais (ex. 97.99 = R$ 97,99)
+                example: 97.99
+              quantity:
+                type: integer
+                minimum: 1
+                description: Quantidade de unidades
+                example: 1
+        config:
+          type: object
+          nullable: true
+          description: Configurações opcionais do link
+          properties:
+            payment_types:
+              type: array
+              nullable: true
+              description: Métodos exibidos no checkout. Se omitido, todos os ativos da conta são liberados.
+              items:
+                type: string
+                enum: [CreditCard, PIX, Boleto]
+              example: ["CreditCard", "PIX"]
+            installments:
+              type: array
+              nullable: true
+              description: >
+                Opções de parcelamento por milestones. Cada milestone define a taxa para todas as parcelas
+                desde o milestone anterior até o count informado. interest_rate é um fator multiplicador
+                (1.0 = sem juros, 1.10 = 10% de acréscimo).
+              items:
+                type: object
+                required: [count, interest_rate]
+                properties:
+                  count:
+                    type: integer
+                    minimum: 1
+                    maximum: 12
+                    description: Número de parcelas (milestone)
+                    example: 6
+                  interest_rate:
+                    type: number
+                    format: float
+                    minimum: 1
+                    description: Fator multiplicador (ex. 1.1047 = 10,47% de acréscimo total)
+                    example: 1.1047
+            expires_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Data/hora de expiração do link (YYYY-MM-DD HH:MM:SS). Deve ser futura. null = sem expiração.
+              example: "2026-12-31 23:59:59"
+            max_uses:
+              type: integer
+              nullable: true
+              minimum: 1
+              description: Número máximo de pagamentos aceitos. null = ilimitado.
+              example: 100
+            freight:
+              type: number
+              format: float
+              nullable: true
+              minimum: 0
+              description: Valor do frete em reais adicionado ao total
+              example: 15.90
+            link_name:
+              type: string
+              nullable: true
+              maxLength: 255
+              description: Nome interno do link (não exibido no checkout)
+              example: "Black Friday – Plano Premium"
+            order_title:
+              type: string
+              nullable: true
+              maxLength: 255
+              description: Título exibido no cabeçalho do checkout
+              example: "Plano Mensal Premium"
+            soft_descriptor:
+              type: string
+              nullable: true
+              maxLength: 22
+              description: Texto exibido na fatura do cartão de crédito
+              example: "MinhaLoja"
+            image:
+              type: string
+              nullable: true
+              description: >
+                URL pública HTTPS ou string base64 da imagem exibida no topo do checkout.
+                Tem prioridade sobre image_url. Processado automaticamente (fail-soft).
+                Formatos aceitos: jpg, png, webp, gif.
+              example: "https://exemplo.com/banner.jpg"
+            image_url:
+              type: string
+              nullable: true
+              maxLength: 1000
+              description: URL de uma imagem já armazenada. Preterido quando image é enviado.
+              example: "https://storage.exemplo.com/payment-links/images/banner.jpg"
+            pix_expiration:
+              type: integer
+              nullable: true
+              minimum: 1
+              description: Tempo de vida do QR Code PIX em horas
+              example: 24
+            pix_discount_value:
+              type: number
+              format: float
+              nullable: true
+              minimum: 0
+              description: Valor do desconto para pagamentos PIX
+              example: 10
+            pix_discount_type:
+              type: string
+              nullable: true
+              enum: [percentage, fixed]
+              description: >
+                Tipo do desconto PIX. percentage = percentual sobre o total (0–100).
+                fixed = valor fixo em reais. Exige PIX em payment_types.
+              example: "percentage"
+            obfuscate_client:
+              type: boolean
+              nullable: true
+              description: Mascarar dados do pagador no checkout (iniciais, e-mail parcial, dígitos centrais substituídos)
+              example: false
+            obfuscate_items:
+              type: boolean
+              nullable: true
+              description: Ocultar nomes e valores dos itens no checkout
+              example: false
+            split:
+              type: array
+              nullable: true
+              description: Divisão automática do recebimento entre recebedores
+              items:
+                type: object
+                required: [receiver_code]
+                properties:
+                  receiver_code:
+                    type: string
+                    description: Código do recebedor (account_receiver)
+                    example: "rec_abc123"
+                  percentage:
+                    type: number
+                    format: float
+                    nullable: true
+                    minimum: 0
+                    maximum: 100
+                    description: Percentual do total (exclusivo com amount)
+                    example: 80.00
+                  amount:
+                    type: number
+                    format: float
+                    nullable: true
+                    minimum: 0
+                    description: Valor fixo em reais (exclusivo com percentage)
+            back_url:
+              type: string
+              format: uri
+              nullable: true
+              maxLength: 1000
+              description: URL do botão "Voltar" exibido no checkout
+              example: "https://meusite.com.br/planos"
+            redirect_url:
+              type: string
+              format: uri
+              nullable: true
+              maxLength: 1000
+              description: URL de redirecionamento automático após pagamento confirmado
+              example: "https://meusite.com.br/obrigado"
+
+    PaymentLinkData:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Código único do link de pagamento
+          example: "lnk_abc123xyz"
+        order_code:
+          type: string
+          nullable: true
+          description: Código do pedido gerado na criação
+          example: "ord_abc123xyz"
+        token:
+          type: string
+          description: Token de segurança do checkout (64 caracteres hex)
+          example: "a1b2c3d4e5f6..."
+        url:
+          type: string
+          nullable: true
+          description: URL completa do checkout para compartilhar com o cliente
+          example: "https://checkout.4seletpay.com.br/lnk_abc123xyz?token=..."
+        status:
+          type: string
+          description: Status atual do link
+          enum: [InProgress, Canceled, Concluded]
+          example: "InProgress"
+        payment_types:
+          type: array
+          items:
+            type: string
+          description: Métodos de pagamento configurados
+          example: ["CreditCard", "PIX"]
+        installments:
+          type: array
+          description: Opções de parcelamento expandidas (uma entrada por parcela de 1 a 12)
+          items:
+            type: object
+            properties:
+              count:
+                type: integer
+                example: 1
+              interest_rate:
+                type: number
+                format: float
+                example: 1
+        obfuscate_client:
+          type: boolean
+          description: Dados do pagador mascarados no checkout
+          example: false
+        obfuscate_items:
+          type: boolean
+          description: Itens ocultos no checkout
+          example: false
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data/hora de expiração ou null
+          example: "2026-12-31T23:59:59.000000Z"
+        max_uses:
+          type: integer
+          nullable: true
+          description: Limite máximo de pagamentos ou null se ilimitado
+          example: 100
+        uses_count:
+          type: integer
+          description: Quantidade de pagamentos realizados via este link
+          example: 0
+        split:
+          type: array
+          description: Configuração de split ou array vazio
+          items:
+            type: object
+        value:
+          type: number
+          format: float
+          description: Valor total do link em reais
+          example: 97.99
+        created_at:
+          type: string
+          format: date-time
+          description: Data de criação (ISO 8601)
+          example: "2026-05-27T10:00:00.000000Z"
+        image_warning:
+          type: string
+          nullable: true
+          description: Presente apenas quando o processamento da imagem falhou (fail-soft). Descreve o motivo.
+          example: "Não foi possível processar a imagem: URL inacessível."
+
+    PaymentLinkResponse:
+      type: object
+      properties:
+        mensagem:
+          type: string
+          example: "Link de pagamento criado com sucesso"
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          example: []
+        codigoretorno:
+          type: integer
+          example: 201
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          $ref: '#/components/schemas/PaymentLinkData'
 
     # ── Autenticação ──────────────────────────────────────────────
 

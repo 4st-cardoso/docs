@@ -14,7 +14,7 @@
   },
   "favicon": "/favicon.ico",
   "api": {
-    "baseUrl": "https://hml.4seletpay.com.br/api",
+    "baseUrl": "https://sandbox.4seletpay.com.br/api",
     "auth": {
       "method": "bearer"
     }
@@ -29,15 +29,15 @@
             "tab": "Comece aqui",
             "groups": [
               {
-                "group": "Introdução",
+                "group": "Comece aqui",
                 "pages": [
-                  "pages/start/introduction"
+                  "pages/start/welcome"
                 ]
               }
             ]
           },
           {
-            "tab": "Documentação",
+            "tab": "Referência",
             "groups": [
               {
                 "group": "Autenticação",
@@ -80,6 +80,13 @@
                 ]
               },
               {
+                "group": "Faturas",
+                "pages": [
+                  "pages/faturas/reference",
+                  "pages/faturas/pay-overdue"
+                ]
+              },
+              {
                 "group": "Links de Pagamento",
                 "pages": [
                   "pages/links-de-pagamento/reference",
@@ -91,22 +98,41 @@
                 ]
               },
               {
-                "group": "Faturas",
-                "pages": [
-                  "pages/faturas/reference",
-                  "pages/faturas/pay-overdue"
-                ]
-              },
-              {
-                "group": "Endpoints de Webhook",
+                "group": "Webhooks",
                 "pages": [
                   "pages/webhook-endpoints/reference",
-                  "pages/webhook-endpoints/list",
                   "pages/webhook-endpoints/create",
+                  "pages/webhook-endpoints/list",
                   "pages/webhook-endpoints/update",
                   "pages/webhook-endpoints/delete"
                 ]
               }
+            ]
+          },
+          {
+            "tab": "Webhooks",
+            "groups": [
+              {
+                "group": "Visão geral",
+                "pages": [
+                  "pages/webhooks/reference"
+                ]
+              },
+              {
+                "group": "Eventos",
+                "pages": [
+                  "pages/webhooks/events/charge",
+                  "pages/webhooks/events/order",
+                  "pages/webhooks/events/invoice",
+                  "pages/webhooks/events/subscription"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Changelog",
+            "pages": [
+              "pages/changelog/index"
             ]
           }
         ]
@@ -131,6 +157,10 @@
   },
   "navbar": {
     "links": [
+      {
+        "label": "llms.txt",
+        "href": "https://4seletpay.com.br/llms.txt"
+      },
       {
         "label": "Suporte",
         "href": "mailto:suporte@4selet.com.br"

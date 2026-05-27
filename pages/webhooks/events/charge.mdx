@@ -1,0 +1,67 @@
+---
+title: "Eventos de Cobrança"
+description: "Payloads dos eventos relacionados a cobranças — cancelamento e expiração."
+icon: "credit-card"
+---
+
+## charge.canceled
+
+Disparado quando uma cobrança é cancelada manualmente ou pelo sistema.
+
+```json Payload
+{
+  "type": "charge.canceled",
+  "id": "hook_a1b2c3d4e5f6",
+  "data": {
+    "code": "chg_abc123xyz",
+    "status": "Canceled",
+    "value": 297.00,
+    "payment_type": "PIX",
+    "order_code": "ord_abc123xyz",
+    "canceled_at": "2026-05-27T10:00:00.000000Z"
+  }
+}
+```
+
+| Campo          | Tipo    | Descrição                             |
+|----------------|---------|---------------------------------------|
+| `code`         | string  | Código único da cobrança              |
+| `status`       | string  | Sempre `Canceled`                     |
+| `value`        | decimal | Valor da cobrança em reais            |
+| `payment_type` | string  | Método de pagamento (`PIX`, `CreditCard`, `Boleto`) |
+| `order_code`   | string  | Código do pedido relacionado          |
+| `canceled_at`  | string  | Data/hora do cancelamento (ISO 8601)  |
+
+---
+
+## charge.expired
+
+Disparado quando uma cobrança PIX expira sem que o pagamento tenha sido realizado.
+
+```json Payload
+{
+  "type": "charge.expired",
+  "id": "hook_b2c3d4e5f6a1",
+  "data": {
+    "code": "chg_xyz789abc",
+    "status": "Expired",
+    "value": 150.00,
+    "payment_type": "PIX",
+    "order_code": "ord_xyz789abc",
+    "expired_at": "2026-05-27T11:00:00.000000Z"
+  }
+}
+```
+
+| Campo          | Tipo    | Descrição                            |
+|----------------|---------|--------------------------------------|
+| `code`         | string  | Código único da cobrança             |
+| `status`       | string  | Sempre `Expired`                     |
+| `value`        | decimal | Valor da cobrança em reais           |
+| `payment_type` | string  | Sempre `PIX` para expiração          |
+| `order_code`   | string  | Código do pedido relacionado         |
+| `expired_at`   | string  | Data/hora da expiração (ISO 8601)    |
+
+<Info>
+  O evento `charge.expired` é exclusivo de cobranças PIX — cobranças via Cartão de Crédito não expiram passivamente.
+</Info>

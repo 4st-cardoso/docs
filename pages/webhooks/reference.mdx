@@ -1,0 +1,107 @@
+---
+title: "Webhooks"
+description: "Receba notificações automáticas da 4Selet Pay sempre que algo importante acontecer — como um pagamento aprovado ou uma assinatura cancelada."
+icon: "webhook"
+---
+
+Pense nos webhooks como **"mensagens enviadas pela 4Selet Pay para o seu sistema"**, sem que você precise ficar consultando a API o tempo todo.
+
+---
+
+## Por que usar webhooks?
+
+Sem webhooks, sua aplicação teria que **perguntar para a API a cada segundo**:
+
+> "Esse pagamento já foi confirmado?"
+
+Isso é lento e ineficiente.
+
+Com webhooks, a 4Selet Pay avisa você **imediatamente**:
+
+> "O pagamento foi confirmado. Aqui estão os dados."
+
+Assim você pode:
+
+- Atualizar o status de um pedido
+- Liberar acesso a um produto ou serviço
+- Enviar e-mails e notificações automáticas
+- Registrar movimentações financeiras
+
+Tudo isso sem fazer seu cliente esperar.
+
+---
+
+## Como funciona na prática?
+
+1. **Você cria um endpoint no seu sistema**  
+   Ex.: `https://meusite.com/webhooks/4seletpay`
+
+2. **Você cadastra esse endpoint no painel da 4Selet Pay ou via API**
+
+3. **Sempre que algo importante acontece**, como um pagamento aprovado:
+   - A 4Selet Pay envia um `POST` para a sua URL
+   - O `POST` contém o tipo do evento e os dados relacionados
+   - Seu sistema processa esse evento e responde `200 OK`
+
+---
+
+## Formato do payload
+
+Todos os webhooks da 4Selet Pay seguem o mesmo envelope:
+
+```json
+{
+  "type": "charge.canceled",
+  "id": "hook_a1b2c3d4e5f6",
+  "data": { ... }
+}
+```
+
+| Campo  | Tipo   | Descrição                                             |
+|--------|--------|-------------------------------------------------------|
+| `type` | string | Identificador do evento em notação `entidade.ação`    |
+| `id`   | string | Código único da notificação enviada (`hook_...`)      |
+| `data` | object | Dados específicos do evento (veja cada evento abaixo) |
+
+---
+
+## Eventos suportados
+
+| Evento                       | Quando é disparado                                          |
+|------------------------------|-------------------------------------------------------------|
+| `charge.canceled`            | Uma cobrança foi cancelada                                  |
+| `charge.expired`             | Uma cobrança PIX expirou sem pagamento                      |
+| `order.failed`               | Um pedido falhou no processamento                           |
+| `order.unprocessed`          | Um pedido não pôde ser processado pelo gateway              |
+| `order.challenged`           | Um pedido requer confirmação adicional (OTP)                |
+| `invoice.created`            | Uma nova fatura de assinatura foi gerada                    |
+| `invoice.failed`             | Uma fatura de assinatura não pôde ser cobrada               |
+| `subscription.canceled`      | Uma assinatura foi cancelada                                |
+| `subscription.delayed`       | Uma assinatura está com cobrança atrasada                   |
+| `subscription.regularized`   | Uma assinatura atrasada foi regularizada                    |
+
+Os payloads detalhados de cada evento estão na seção **Eventos** na barra lateral.
+
+---
+
+## Segurança
+
+Cada webhook cadastrado possui uma URL de destino que você controla. Recomendamos:
+
+<Card title="Boas práticas de segurança" horizontal>
+  - Use sempre **HTTPS** no endpoint
+  - Valide que a requisição vem realmente da 4Selet Pay (ex: verificar um secret fixo na URL ou no header)
+  - Registre cada evento recebido e processe cada um **uma única vez** (idempotência)
+  - Responda `200 OK` apenas após concluir o processamento
+  - Implemente **retentativas** no seu sistema para eventos que falharem no processamento
+</Card>
+
+---
+
+## Criando e gerenciando webhooks
+
+Você pode criar, listar, atualizar e excluir suas configurações de webhook via API. Consulte a seção **Webhooks** na aba **Documentação** para os endpoints completos.
+
+<Tip>
+  Cada conta pode ter múltiplos endpoints cadastrados. Todos os endpoints ativos recebem os eventos configurados em paralelo.
+</Tip>

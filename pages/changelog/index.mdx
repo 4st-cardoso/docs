@@ -1,0 +1,94 @@
+---
+title: 'Changelog da API'
+description: 'Histórico de versões, novas funcionalidades e correções da API 4Selet Pay.'
+icon: 'scroll'
+---
+
+Acompanhe as atualizações e o histórico de versões da API.
+Este changelog é atualizado continuamente com melhorias, novas funcionalidades e correções relevantes.
+
+## Atualizações Recentes
+
+<Update label="27 de Mai, 2026">
+## Links de Pagamento
+
+Lançamento dos **Links de Pagamento** — um novo recurso que permite criar checkouts pré-configurados e compartilhá-los diretamente com seus clientes, sem precisar construir uma página de pagamento do zero.
+
+Cada link gera uma URL única com token de segurança. O cliente acessa, confirma os dados e paga. Você recebe a notificação via webhook.
+
+**Novos endpoints:**
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/v1/payment-links` | Criar novo link de pagamento |
+| `GET` | `/v1/payment-links` | Listar links da conta (paginado) |
+| `GET` | `/v1/payment-links/{code}` | Consultar link por código |
+| `POST` | `/v1/payment-links/{code}/cancel` | Cancelar link |
+| `DELETE` | `/v1/payment-links/{code}` | Excluir link |
+
+**Principais funcionalidades:**
+
+- **Dados do cliente pré-preenchidos** — nome, e-mail, telefone, documento e endereço já chegam preenchidos no checkout
+- **Métodos de pagamento configuráveis** — `CreditCard`, `PIX` ou `Boleto`; se omitido, todos os métodos ativos da conta são exibidos
+- **Parcelamento por milestones** — defina faixas de parcelas com taxas de juros específicas; o sistema expande automaticamente de 1x a 12x
+- **Imagem no checkout** — envie uma URL pública ou string base64; o servidor processa e armazena automaticamente (fail-soft: se falhar, o link é criado sem imagem e a resposta inclui `image_warning`)
+- **Desconto exclusivo PIX** — percentual ou valor fixo aplicado apenas para pagamentos via PIX
+- **Expiração automática** — defina `expires_at` para desativar o link em uma data futura
+- **Limite de usos** — defina `max_uses` para encerrar o link após um número máximo de pagamentos
+- **Split de pagamento** — divida o recebimento automaticamente entre múltiplos recebedores por percentual ou valor fixo
+- **Privacidade no checkout** — `obfuscate_client` mascara os dados do pagador; `obfuscate_items` oculta itens e valores
+- **URLs de navegação** — `back_url` para o botão "Voltar" e `redirect_url` para redirecionar após pagamento confirmado
+- **Frete** — valor adicional somado ao total dos itens
+
+**Exemplo — criar link básico:**
+
+```json Request
+POST /v1/payment-links
+Authorization: Bearer {token}
+account: {accountcode}
+
+{
+  "client": {
+    "name": "Hugo Belo",
+    "email": "hugo@exemplo.com.br",
+    "phone": { "ddi": "55", "ddd": "62", "number": "984063942" }
+  },
+  "items": [
+    {
+      "id": "plano-premium",
+      "description": "Plano Mensal Premium",
+      "amount": 97.99,
+      "quantity": 1
+    }
+  ],
+  "config": {
+    "payment_types": ["CreditCard", "PIX"],
+    "expires_at": "2026-12-31 23:59:59",
+    "pix_discount_value": 10,
+    "pix_discount_type": "percentage",
+    "redirect_url": "https://meusite.com.br/obrigado"
+  }
+}
+```
+
+```json Resposta (HTTP 201)
+{
+  "mensagem": "Link de pagamento criado com sucesso",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 201,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": {
+    "code": "lnk_abc123xyz",
+    "url": "https://checkout.4seletpay.com.br/lnk_abc123xyz?token=...",
+    "status": "InProgress",
+    "value": 97.99,
+    "uses_count": 0,
+    "created_at": "2026-05-27T10:00:00.000000Z"
+  }
+}
+```
+
+Consulte a [documentação de Links de Pagamento](/pages/links-de-pagamento/reference) para detalhes completos de todos os campos.
+
+</Update>
