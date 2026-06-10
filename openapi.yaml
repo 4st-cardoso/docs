@@ -2186,11 +2186,14 @@ components:
 
     CreatePaymentLinkRequest:
       type: object
-      required: [client, items]
+      required: [items]
+      description: >
+        O objeto `client` é opcional. Se omitido, os dados do pagador serão coletados no checkout.
+        Se qualquer campo de `client` for enviado, os campos `name`, `email`, `phone` e `document` tornam-se obrigatórios.
       properties:
         client:
           type: object
-          required: [name, email, phone]
+          required: [name, email, phone, document]
           properties:
             name:
               type: string
@@ -2203,17 +2206,6 @@ components:
               maxLength: 255
               description: E-mail do pagador
               example: "hugo@exemplo.com.br"
-            gender:
-              type: string
-              nullable: true
-              enum: [Male, Female, Other, Undefined]
-              description: Gênero (opcional)
-            birthdate:
-              type: string
-              format: date
-              nullable: true
-              description: Data de nascimento (YYYY-MM-DD, opcional)
-              example: "1993-07-07"
             phone:
               type: object
               required: [ddi, ddd, number]
@@ -2232,19 +2224,28 @@ components:
                   example: "984063942"
             document:
               type: object
-              nullable: true
+              required: [type, number]
               properties:
                 type:
                   type: string
-                  nullable: true
                   enum: [CPF, CNPJ, passport, undefined]
                   description: Tipo do documento
                   example: "CPF"
                 number:
                   type: string
-                  nullable: true
                   description: Número do documento (CPF/CNPJ validado com dígito verificador)
                   example: "71854312120"
+            gender:
+              type: string
+              nullable: true
+              enum: [Male, Female, Other, Undefined]
+              description: Gênero (opcional)
+            birthdate:
+              type: string
+              format: date
+              nullable: true
+              description: Data de nascimento (YYYY-MM-DD, opcional)
+              example: "1993-07-07"
             address:
               type: object
               nullable: true

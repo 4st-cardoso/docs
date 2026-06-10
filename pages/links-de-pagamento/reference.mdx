@@ -72,20 +72,22 @@ Um link também é considerado inativo quando `expires_at` é uma data passada, 
 
 ## Campos do cliente
 
-Os dados do cliente são pré-preenchidos no checkout. O cliente pode editar as informações antes de pagar.
+O objeto `client` é **opcional**. Se omitido, os dados do pagador serão coletados diretamente no checkout no momento do pagamento. Se qualquer campo de `client` for enviado, todos os campos marcados como obrigatórios abaixo devem estar presentes.
 
-| Campo                    | Tipo   | Req. | Descrição                                              |
-|--------------------------|--------|------|--------------------------------------------------------|
-| `client.name`            | string | Sim  | Nome completo (máx. 255)                               |
-| `client.email`           | string | Sim  | E-mail                                                 |
-| `client.phone.ddi`       | string | Sim  | Código do país (DDI)                                   |
-| `client.phone.ddd`       | string | Sim  | Código de área (DDD)                                   |
-| `client.phone.number`    | string | Sim  | Número do telefone                                     |
-| `client.gender`          | string | Não  | `Male`, `Female`, `Other`, `Undefined`                 |
-| `client.birthdate`       | date   | Não  | Data de nascimento (`YYYY-MM-DD`)                      |
-| `client.document.type`   | string | Não  | `CPF`, `CNPJ`, `passport`, `undefined`                 |
-| `client.document.number` | string | Não  | Número do documento (CPF/CNPJ validado com dígito)     |
-| `client.address.*`       | object | Não* | Endereço (* todos os campos obrigatórios entre si)     |
+| Campo                    | Tipo   | Req.¹ | Descrição                                              |
+|--------------------------|--------|-------|--------------------------------------------------------|
+| `client.name`            | string | Sim   | Nome completo (máx. 255)                               |
+| `client.email`           | string | Sim   | E-mail                                                 |
+| `client.phone.ddi`       | string | Sim   | Código do país (DDI)                                   |
+| `client.phone.ddd`       | string | Sim   | Código de área (DDD)                                   |
+| `client.phone.number`    | string | Sim   | Número do telefone                                     |
+| `client.document.type`   | string | Sim   | `CPF`, `CNPJ`, `passport`, `undefined`                 |
+| `client.document.number` | string | Sim   | Número do documento (CPF/CNPJ validado com dígito)     |
+| `client.gender`          | string | Não   | `Male`, `Female`, `Other`, `Undefined`                 |
+| `client.birthdate`       | date   | Não   | Data de nascimento (`YYYY-MM-DD`)                      |
+| `client.address.*`       | object | Não²  | Endereço (² todos os campos obrigatórios entre si)     |
+
+¹ Obrigatório quando o objeto `client` é enviado.
 
 **Campos de endereço** — obrigatórios quando `address.street` é enviado:
 
