@@ -24,6 +24,8 @@ tags:
     description: Criação, consulta, cancelamento e reembolso de cobranças
   - name: Pedidos
     description: Consulta de pedidos e gerenciamento de confirmações desafiadas
+  - name: Cartões
+    description: Cadastro e gerenciamento dos cartões salvos de um cliente
   - name: Assinaturas
     description: Criação e gerenciamento de assinaturas recorrentes
   - name: Faturas
@@ -824,6 +826,303 @@ paths:
                     codigoretorno: 404
                     id: "00000000-0000-0000-0000-000000000000"
                     data: []
+
+  # ─────────────────────────────────────────────────────────────────
+  # CARTÕES
+  # ─────────────────────────────────────────────────────────────────
+
+  /v1/clients/{clientCode}/cards:
+    get:
+      tags: [Cartões]
+      summary: Listar cartões
+      description: >
+        Retorna todos os cartões salvos do cliente, do mais recente para o mais antigo,
+        no campo `data.cards`. O número completo (PAN) e o CVV nunca são retornados.
+        Requer o header `account` com o código da conta.
+      operationId: listClientCards
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - $ref: '#/components/parameters/ClientCode'
+      responses:
+        '200':
+          description: Lista de cartões retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartaoListResponse'
+              example:
+                mensagem: "Cartões listados com sucesso."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  cards:
+                    - id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                      first_six_digits: "542501"
+                      last_four_digits: "8229"
+                      brand: "amex"
+                      holder_name: "Tony Stark"
+                      exp_month: 1
+                      exp_year: 2030
+                      type: "credit"
+                      status: "active"
+                      created_at: "2026-03-28T22:09:43.000000Z"
+                      updated_at: "2026-03-28T22:09:43.000000Z"
+                    - id: "1a7d3f90-6b2c-4e18-9a5f-7c8e2d1b4a3c"
+                      first_six_digits: "411193"
+                      last_four_digits: "6203"
+                      brand: "visa"
+                      holder_name: "Tony Stark"
+                      exp_month: 1
+                      exp_year: 2030
+                      type: "credit"
+                      status: "active"
+                      created_at: "2026-03-29T22:09:43.000000Z"
+                      updated_at: "2026-03-29T22:09:43.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Cartões]
+      summary: Criar cartão
+      description: >
+        Salva um novo cartão para o cliente informado. O cartão fica disponível imediatamente
+        e a tokenização junto às adquirentes de cartão da conta é disparada de forma assíncrona
+        (multi-adquirência). O número completo (PAN) e o CVV nunca são retornados — apenas os
+        seis primeiros e os quatro últimos dígitos.
+
+
+        Aceita o header opcional `Idempotency-Key` para evitar cadastros duplicados em retentativas.
+        Requer o header `account` com o código da conta.
+      operationId: createClientCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - $ref: '#/components/parameters/ClientCode'
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Chave de idempotência para evitar cadastros duplicados (máx. 128 caracteres)
+          schema:
+            type: string
+            example: "a1b2c3d4-idem-key"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCartaoRequest'
+            example:
+              name: "Tony Stark"
+              number: "5425011234567793"
+              month: 1
+              year: 2030
+              security_code: "123"
+              type: "credit"
+              flag: "mastercard"
+      responses:
+        '201':
+          description: Cartão salvo com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartaoResponse'
+              example:
+                mensagem: "Cartão salvo. A tokenização junto às adquirentes foi iniciada."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 201
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                  first_six_digits: "542501"
+                  last_four_digits: "7793"
+                  brand: "mastercard"
+                  holder_name: "Tony Stark"
+                  exp_month: 1
+                  exp_year: 2030
+                  type: "credit"
+                  status: "active"
+                  created_at: "2026-05-27T10:00:00.000000Z"
+                  updated_at: "2026-05-27T10:00:00.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /v1/clients/{clientCode}/cards/{cardId}:
+    get:
+      tags: [Cartões]
+      summary: Consultar cartão
+      description: >
+        Retorna os dados de um cartão específico do cliente pelo seu `id` (UUID).
+        O número completo (PAN) e o CVV nunca são retornados.
+        Requer o header `account` com o código da conta.
+      operationId: getClientCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - $ref: '#/components/parameters/ClientCode'
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Dados do cartão retornados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartaoResponse'
+              example:
+                mensagem: "Cartão encontrado."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                  first_six_digits: "542501"
+                  last_four_digits: "7793"
+                  brand: "mastercard"
+                  holder_name: "Tony Stark"
+                  exp_month: 1
+                  exp_year: 2030
+                  type: "credit"
+                  status: "active"
+                  created_at: "2026-05-27T10:00:00.000000Z"
+                  updated_at: "2026-05-27T10:00:00.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Cartões]
+      summary: Atualizar cartão
+      description: >
+        Atualiza os dados editáveis de um cartão. Apenas `name`, `type`, `flag` e a validade
+        (`month` + `year`, enviados juntos) podem ser alterados. O número e o código de segurança
+        são imutáveis. Ao alterar a validade, a tokenização junto às adquirentes é refeita.
+        Requer o header `account` com o código da conta.
+      operationId: updateClientCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - $ref: '#/components/parameters/ClientCode'
+        - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartaoRequest'
+            example:
+              name: "Peter Parker"
+              month: 12
+              year: 2030
+      responses:
+        '200':
+          description: Cartão atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartaoResponse'
+              example:
+                mensagem: "Cartão atualizado com sucesso."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                  first_six_digits: "542501"
+                  last_four_digits: "7793"
+                  brand: "mastercard"
+                  holder_name: "Peter Parker"
+                  exp_month: 12
+                  exp_year: 2030
+                  type: "credit"
+                  status: "active"
+                  created_at: "2026-04-03T20:54:58.000000Z"
+                  updated_at: "2026-04-04T12:25:32.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Cartões]
+      summary: Excluir cartão
+      description: >
+        Remove um cartão (soft delete): o registro passa a ter `status` `deleted` com `deleted_at`
+        preenchido, e seus tokens por adquirente são removidos. Um cartão vinculado a uma assinatura
+        ativa não pode ser excluído (retorna `409 Conflict`).
+        Requer o header `account` com o código da conta.
+      operationId: deleteClientCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountHeader'
+        - $ref: '#/components/parameters/ClientCode'
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Cartão excluído com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartaoResponse'
+              example:
+                mensagem: "Cartão removido com sucesso."
+                erro: false
+                mensagenserro: []
+                codigoretorno: 200
+                id: "00000000-0000-0000-0000-000000000000"
+                data:
+                  id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                  first_six_digits: "542501"
+                  last_four_digits: "7793"
+                  brand: "mastercard"
+                  holder_name: "Tony Stark"
+                  exp_month: 1
+                  exp_year: 2030
+                  type: "credit"
+                  status: "deleted"
+                  created_at: "2026-04-04T12:43:16.000000Z"
+                  updated_at: "2026-04-04T12:43:30.000000Z"
+                  deleted_at: "2026-04-04T12:43:30.000000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cartão vinculado a uma assinatura ativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                mensagem: "Não foi possível remover o cartão."
+                erro: true
+                mensagenserro:
+                  - "Este cartão está vinculado a uma assinatura ativa e não pode ser removido. Altere o cartão da assinatura primeiro."
+                codigoretorno: 409
+                id: "00000000-0000-0000-0000-000000000000"
+                data: []
 
   # ─────────────────────────────────────────────────────────────────
   # ASSINATURAS
@@ -2112,6 +2411,23 @@ components:
       schema:
         type: string
         example: "acc_abc123xyz"
+    ClientCode:
+      name: clientCode
+      in: path
+      required: true
+      description: Código único do cliente dono do cartão
+      schema:
+        type: string
+        example: "cli_abc123"
+    CardId:
+      name: cardId
+      in: path
+      required: true
+      description: UUID do cartão
+      schema:
+        type: string
+        format: uuid
+        example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
 
   responses:
     ValidationError:
@@ -2584,6 +2900,194 @@ components:
           example: "00000000-0000-0000-0000-000000000000"
         data:
           $ref: '#/components/schemas/PaymentLinkData'
+
+    # ── Cartões ───────────────────────────────────────────────────
+
+    CartaoData:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID identificador do cartão
+          example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+        first_six_digits:
+          type: string
+          nullable: true
+          description: Seis primeiros dígitos do cartão (BIN)
+          example: "542501"
+        last_four_digits:
+          type: string
+          nullable: true
+          description: Quatro últimos dígitos do cartão
+          example: "7793"
+        brand:
+          type: string
+          description: Bandeira do cartão
+          enum: [visa, mastercard, elo, amex, undefined]
+          example: "mastercard"
+        holder_name:
+          type: string
+          description: Nome do portador impresso no cartão
+          example: "Tony Stark"
+        exp_month:
+          type: integer
+          nullable: true
+          description: Mês de validade (1–12)
+          example: 1
+        exp_year:
+          type: integer
+          nullable: true
+          description: Ano de validade (YYYY)
+          example: 2030
+        type:
+          type: string
+          description: Tipo do cartão
+          enum: [credit, debit]
+          example: "credit"
+        status:
+          type: string
+          description: Situação do cartão
+          enum: [active, deleted]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Data de criação (ISO 8601)
+          example: "2026-05-27T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Data da última atualização (ISO 8601)
+          example: "2026-05-27T10:00:00.000000Z"
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data de exclusão (ISO 8601) — presente apenas em cartão excluído
+          example: "2026-04-04T12:43:30.000000Z"
+
+    CartaoResponse:
+      type: object
+      properties:
+        mensagem:
+          type: string
+          example: "Cartão salvo. A tokenização junto às adquirentes foi iniciada."
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          example: []
+        codigoretorno:
+          type: integer
+          example: 201
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          $ref: '#/components/schemas/CartaoData'
+
+    CartaoListResponse:
+      type: object
+      properties:
+        mensagem:
+          type: string
+          example: "Cartões listados com sucesso."
+        erro:
+          type: boolean
+          example: false
+        mensagenserro:
+          type: array
+          items:
+            type: string
+          example: []
+        codigoretorno:
+          type: integer
+          example: 200
+        id:
+          type: string
+          example: "00000000-0000-0000-0000-000000000000"
+        data:
+          type: object
+          properties:
+            cards:
+              type: array
+              items:
+                $ref: '#/components/schemas/CartaoData'
+
+    CreateCartaoRequest:
+      type: object
+      required: [name, number, month, year, security_code]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nome do portador impresso no cartão
+          example: "Tony Stark"
+        number:
+          type: string
+          description: Número do cartão (13–19 dígitos, validado por Luhn)
+          example: "5425011234567793"
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Mês de validade
+          example: 1
+        year:
+          type: integer
+          description: Ano de validade (2 ou 4 dígitos; deve estar no futuro)
+          example: 2030
+        security_code:
+          type: string
+          description: Código de segurança (CVV, 3 ou 4 dígitos)
+          example: "123"
+        type:
+          type: string
+          enum: [credit, debit]
+          default: credit
+          description: Tipo do cartão
+          example: "credit"
+        flag:
+          type: string
+          enum: [visa, mastercard, elo, amex]
+          description: Bandeira do cartão (opcional)
+          example: "mastercard"
+
+    UpdateCartaoRequest:
+      type: object
+      description: >
+        Todos os campos são opcionais. O número e o código de segurança são imutáveis.
+        Ao enviar a validade, `month` e `year` devem vir juntos.
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nome do portador impresso no cartão
+          example: "Peter Parker"
+        type:
+          type: string
+          enum: [credit, debit]
+          description: Tipo do cartão
+          example: "credit"
+        flag:
+          type: string
+          enum: [visa, mastercard, elo, amex]
+          description: Bandeira do cartão
+          example: "mastercard"
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Mês de validade (obrigatório junto com `year`)
+          example: 12
+        year:
+          type: integer
+          description: Ano de validade (obrigatório junto com `month`)
+          example: 2030
 
     # ── Autenticação ──────────────────────────────────────────────
 

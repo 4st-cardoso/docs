@@ -1,0 +1,12 @@
+---
+title: "Excluir Cartão"
+openapi: "DELETE /v1/clients/{clientCode}/cards/{cardId}"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. A exclusão é um soft delete: o cartão passa a ter `status` `deleted`, com `deleted_at` preenchido, e seus tokens por adquirente são removidos.
+</Note>
+
+<Warning>
+  Um cartão vinculado a uma assinatura ativa não pode ser excluído — a API retorna `409 Conflict`. Altere o cartão da assinatura antes de excluir.
+</Warning>

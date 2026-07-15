@@ -1,0 +1,12 @@
+---
+title: "Atualizar Cartão"
+openapi: "PUT /v1/clients/{clientCode}/cards/{cardId}"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. Apenas `name`, `type`, `flag` e a validade (`month` + `year`, enviados juntos) podem ser alterados.
+</Note>
+
+<Warning>
+  O número do cartão e o código de segurança são imutáveis. Para trocá-los, cadastre um novo cartão. Ao alterar a validade, a tokenização junto às adquirentes é refeita automaticamente.
+</Warning>

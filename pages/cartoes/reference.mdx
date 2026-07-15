@@ -1,0 +1,158 @@
+---
+title: "Cartões"
+description: "Cadastro e gerenciamento dos cartões salvos de um cliente para cobranças e assinaturas recorrentes."
+icon: "credit-card"
+---
+
+## Visão Geral
+
+Os **Cartões** (`Cards`) são os cartões salvos de um cliente. Um cartão pertence sempre a um cliente (identificado pelo `clientCode` na URL) e pode ser reutilizado em cobranças e assinaturas sem que o portador precise digitar os dados novamente.
+
+Ao salvar um cartão, ele é **tokenizado de forma assíncrona** junto às adquirentes de cartão configuradas na conta (multi-adquirência), na ordem de prioridade definida. A tokenização acontece em segundo plano e **não bloqueia a resposta** — o cartão fica disponível imediatamente e os tokens por adquirente são resolvidos logo em seguida.
+
+<Warning>
+  Por segurança (PCI), o número completo do cartão (PAN) e o código de segurança (CVV) **nunca** são retornados pela API. As respostas expõem apenas os seis primeiros e os quatro últimos dígitos (`first_six_digits` / `last_four_digits`).
+</Warning>
+
+---
+
+## Header obrigatório
+
+Todas as rotas de cartões exigem o header `account` com o código da conta:
+
+```http
+account: acc_abc123xyz
+```
+
+O cliente é identificado pelo `clientCode` na própria URL (ex.: `cli_abc123`), e o cartão pelo seu `id` (UUID).
+
+---
+
+## Formato de resposta padrão
+
+As rotas de cartões seguem o envelope padrão `APIReturnUtil`:
+
+```json
+{
+  "mensagem": "Mensagem descritiva",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 200,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": { ... }
+}
+```
+
+| Campo           | Tipo    | Descrição                                              |
+|-----------------|---------|--------------------------------------------------------|
+| `mensagem`      | string  | Mensagem descritiva da operação                        |
+| `erro`          | boolean | `false` em caso de sucesso, `true` em caso de erro     |
+| `mensagenserro` | array   | Lista de mensagens de erro (vazia em caso de sucesso)  |
+| `codigoretorno` | integer | Código HTTP de retorno                                 |
+| `id`            | string  | ID do recurso afetado ou GUID vazio                    |
+| `data`          | mixed   | Objeto do cartão, ou `{ "cards": [...] }` na listagem  |
+
+---
+
+## Objeto do cartão
+
+| Campo              | Tipo    | Descrição                                                        |
+|--------------------|---------|------------------------------------------------------------------|
+| `id`               | string  | UUID identificador do cartão                                     |
+| `first_six_digits` | string  | Seis primeiros dígitos do cartão (BIN)                           |
+| `last_four_digits` | string  | Quatro últimos dígitos do cartão                                 |
+| `brand`            | string  | Bandeira: `visa`, `mastercard`, `elo`, `amex` ou `undefined`     |
+| `holder_name`      | string  | Nome do portador impresso no cartão                              |
+| `exp_month`        | integer | Mês de validade (`1`–`12`)                                       |
+| `exp_year`         | integer | Ano de validade (`YYYY`)                                         |
+| `type`             | string  | Tipo do cartão: `credit` ou `debit`                              |
+| `status`           | string  | `active` ou `deleted`                                            |
+| `created_at`       | string  | Data de criação (ISO 8601)                                       |
+| `updated_at`       | string  | Data da última atualização (ISO 8601)                           |
+| `deleted_at`       | string  | Data de exclusão (ISO 8601) — presente apenas em cartão excluído |
+
+---
+
+## Status de um cartão
+
+| Status    | Descrição                                          |
+|-----------|----------------------------------------------------|
+| `active`  | Cartão ativo e disponível para uso                 |
+| `deleted` | Cartão excluído (soft delete) — não pode ser usado |
+
+---
+
+## Campos de cadastro
+
+| Campo           | Tipo    | Req. | Descrição                                                     |
+|-----------------|---------|------|---------------------------------------------------------------|
+| `name`          | string  | Sim  | Nome do portador impresso no cartão (máx. 255)                |
+| `number`        | string  | Sim  | Número do cartão (13–19 dígitos, validado por Luhn)           |
+| `month`         | integer | Sim  | Mês de validade (`1`–`12`)                                    |
+| `year`          | integer | Sim  | Ano de validade (2 ou 4 dígitos; deve estar no futuro)        |
+| `security_code` | string  | Sim  | Código de segurança (CVV, 3 ou 4 dígitos)                     |
+| `type`          | string  | Não  | `credit` (padrão) ou `debit`                                  |
+| `flag`          | string  | Não  | Bandeira: `visa`, `mastercard`, `elo`, `amex`                 |
+
+<Note>
+  Na atualização, apenas `name`, `type`, `flag`, `month` e `year` podem ser alterados — `month` e `year` devem ser enviados juntos. O **número** e o **código de segurança** são imutáveis: para trocá-los, cadastre um novo cartão.
+</Note>
+
+---
+
+## Multi-adquirência e tokenização
+
+Ao criar (ou ao alterar a validade) de um cartão, a plataforma dispara a tokenização junto a **todas as adquirentes de cartão ativas da conta**, deduplicadas e na ordem de prioridade configurada. Cada par (cartão, adquirente) gera um token próprio, permitindo cobrança e failover entre adquirentes com o mesmo cartão salvo.
+
+<Info>
+  A tokenização é assíncrona (fila) e não altera o corpo da resposta. Adquirentes que não suportam tokenização são simplesmente ignoradas.
+</Info>
+
+---
+
+## Exclusão
+
+A exclusão de um cartão é um **soft delete**: o registro passa a ter `status` `deleted` e `deleted_at` preenchido, e seus tokens por adquirente são removidos.
+
+<Warning>
+  Um cartão vinculado a uma **assinatura ativa** não pode ser excluído — a API retorna `409 Conflict`. Altere o cartão da assinatura antes de excluir.
+</Warning>
+
+---
+
+## Exemplo completo
+
+```json Criar cartão (request)
+{
+  "name": "Tony Stark",
+  "number": "5425011234567793",
+  "month": 1,
+  "year": 2030,
+  "security_code": "123",
+  "type": "credit",
+  "flag": "mastercard"
+}
+```
+
+```json Resposta (HTTP 201)
+{
+  "mensagem": "Cartão salvo. A tokenização junto às adquirentes foi iniciada.",
+  "erro": false,
+  "mensagenserro": [],
+  "codigoretorno": 201,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "data": {
+    "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "first_six_digits": "542501",
+    "last_four_digits": "7793",
+    "brand": "mastercard",
+    "holder_name": "Tony Stark",
+    "exp_month": 1,
+    "exp_year": 2030,
+    "type": "credit",
+    "status": "active",
+    "created_at": "2026-05-27T10:00:00.000000Z",
+    "updated_at": "2026-05-27T10:00:00.000000Z"
+  }
+}
+```

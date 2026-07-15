@@ -67,6 +67,17 @@
                 ]
               },
               {
+                "group": "Cartões",
+                "pages": [
+                  "pages/cartoes/reference",
+                  "pages/cartoes/create",
+                  "pages/cartoes/list",
+                  "pages/cartoes/get",
+                  "pages/cartoes/update",
+                  "pages/cartoes/delete"
+                ]
+              },
+              {
                 "group": "Assinaturas",
                 "pages": [
                   "pages/assinaturas/reference",
