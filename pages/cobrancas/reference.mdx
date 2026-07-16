@@ -124,7 +124,7 @@ O `card_id` é o campo `id` retornado ao cadastrar o cartão (veja o grupo **Car
 ```
 
 <Warning>
-  O `card_id` só é aceito se o cartão pertencer ao cliente da cobrança: o `client.email` enviado precisa ser o **mesmo do dono do cartão**, na **mesma conta**. Um `card_id` de outro cliente ou de outra conta é rejeitado com **422**.
+  O `card_id` só é aceito se o cartão pertencer à **mesma conta** da cobrança. Um `card_id` de **outra conta** é rejeitado com **422**, assim como um cartão **excluído** ou inexistente.
 </Warning>
 
 <Note>

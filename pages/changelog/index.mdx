@@ -9,6 +9,59 @@ Este changelog é atualizado continuamente com melhorias, novas funcionalidades 
 
 ## Atualizações Recentes
 
+<Update label="16 de Jul, 2026">
+## Cartões salvos, tokenização e cobrança com `card_id`
+
+Novo conjunto de rotas para **gerenciar os cartões salvos de um cliente** e reutilizá-los nas cobranças, além de melhorias no `/charge`.
+
+**Novos endpoints — Cartões:**
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/v1/clients/{clientCode}/cards` | Cadastrar cartão do cliente |
+| `GET` | `/v1/clients/{clientCode}/cards` | Listar cartões do cliente |
+| `GET` | `/v1/clients/{clientCode}/cards/{cardId}` | Consultar cartão |
+| `PUT` | `/v1/clients/{clientCode}/cards/{cardId}` | Atualizar cartão (nome, tipo, bandeira, validade) |
+| `DELETE` | `/v1/clients/{clientCode}/cards/{cardId}` | Excluir cartão (soft delete) |
+| `POST` | `/v1/clients/{clientCode}/cards/{cardId}/tokens` | Gerar token do cartão nas adquirentes |
+
+**Cobrança com cartão salvo (`/charge`):**
+
+- Agora é possível enviar `payment.card.card_id` (o `id` retornado no cadastro do cartão) **no lugar dos dados completos do cartão**. Os campos `number`, `name`, `month`, `year` e `security_code` tornam-se opcionais quando `card_id` é enviado (continue enviando `installments`).
+- Toda cobrança com cartão passa a retornar o `card_id` em `data.orders[].charges[].payment.card_id` — tanto ao enviar `card_id` quanto os dados completos (nesse caso o cartão é salvo e o `card_id` é devolvido). Em pagamentos sem cartão (ex.: PIX), vem `null`.
+
+**Segurança e comportamento:**
+
+- O número completo do cartão (PAN) e o CVV **nunca** são retornados — apenas `first_six_digits` e `last_four_digits`.
+- As rotas de cartão e o uso de `card_id` são **escopados por conta** — um `card_id` de outra conta é rejeitado com `422`.
+- **Tokenização multi-adquirência**: ao salvar um cartão, a tokenização é disparada de forma assíncrona nas adquirentes de cartão da conta; o endpoint `/tokens` permite gerar o token sob demanda (hoje suportado pela Pagarme).
+- Exclusão é *soft delete* e é bloqueada (`409`) quando o cartão está vinculado a uma assinatura ativa.
+
+**Exemplo — cobrar com cartão salvo:**
+
+```json Request
+POST /v1/charge
+Authorization: Bearer {token}
+account: {accountcode}
+
+{
+  "client": {
+    "name": "João Silva",
+    "email": "joao@exemplo.com.br",
+    "phone": { "ddi": "55", "ddd": "11", "number": "999999999" },
+    "document": { "type": "CPF", "number": "123.456.789-09" }
+  },
+  "items": [
+    { "id": "produto_001", "description": "Camiseta Premium", "amount": 99.90, "quantity": 1 }
+  ],
+  "payment": {
+    "type": "CreditCard",
+    "card": { "card_id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f", "installments": 1 }
+  }
+}
+```
+</Update>
+
 <Update label="27 de Mai, 2026">
 ## Links de Pagamento
 

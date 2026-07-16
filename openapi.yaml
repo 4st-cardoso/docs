@@ -3459,8 +3459,8 @@ components:
           nullable: true
           description: >
             UUID de um cartão salvo (o `id` retornado ao cadastrar o cartão).
-            Alternativa aos dados do cartão. Só é aceito se o cartão pertencer ao
-            cliente da cobrança (mesmo `client.email`, mesma conta).
+            Alternativa aos dados do cartão. Só é aceito se o cartão pertencer à
+            mesma conta da cobrança (cartões de outra conta são rejeitados).
           example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
         number:
           type: string
