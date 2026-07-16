@@ -105,8 +105,24 @@ As rotas de cartões seguem o envelope padrão `APIReturnUtil`:
 Ao criar (ou ao alterar a validade) de um cartão, a plataforma dispara a tokenização junto a **todas as adquirentes de cartão ativas da conta**, deduplicadas e na ordem de prioridade configurada. Cada par (cartão, adquirente) gera um token próprio, permitindo cobrança e failover entre adquirentes com o mesmo cartão salvo.
 
 <Info>
-  A tokenização é assíncrona (fila) e não altera o corpo da resposta. Adquirentes que não suportam tokenização são simplesmente ignoradas.
+  Na criação e na atualização de validade, a tokenização é assíncrona (fila) e não altera o corpo da resposta. Adquirentes que não suportam tokenização são simplesmente ignoradas.
 </Info>
+
+### Criar token sob demanda
+
+A rota **Criar token Cartão** (`POST .../cards/{cardId}/tokens`) tokeniza o cartão salvo de forma **síncrona** e retorna o resultado por adquirente em `data.tokens`:
+
+| Campo                     | Tipo    | Descrição                                                    |
+|---------------------------|---------|--------------------------------------------------------------|
+| `acquisition_settings_id` | string  | Adquirente contra a qual o cartão foi tokenizado             |
+| `status`                  | string  | `pending`, `tokenized`, `unsupported` ou `failed`            |
+| `tokenized`               | boolean | `true` quando `status` é `tokenized`                         |
+| `token`                   | string  | Token da adquirente (nulo quando não tokenizado)             |
+| `expires_at`              | string  | Expiração do token (ISO 8601) ou `null`                      |
+
+<Warning>
+  Hoje apenas a **Pagarme** implementa a tokenização. As demais adquirentes retornam `status: unsupported` com `token` nulo.
+</Warning>
 
 ---
 

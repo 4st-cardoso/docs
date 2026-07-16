@@ -74,7 +74,8 @@
                   "pages/cartoes/list",
                   "pages/cartoes/get",
                   "pages/cartoes/update",
-                  "pages/cartoes/delete"
+                  "pages/cartoes/delete",
+                  "pages/cartoes/create-token"
                 ]
               },
               {

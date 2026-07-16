@@ -1,0 +1,16 @@
+---
+title: "Criar token Cartão"
+openapi: "POST /v1/clients/{clientCode}/cards/{cardId}/tokens"
+---
+
+<Note>
+  Requer o header `account` com o código da conta. Gera o token do cartão salvo (identificado pelo `cardId`) junto às adquirentes de cartão configuradas na conta, e retorna o resultado por adquirente em `data.tokens`.
+</Note>
+
+<Info>
+  A tokenização é feita de forma síncrona: a plataforma chama cada adquirente de cartão da conta (na ordem de prioridade), persiste o token em `card_acquisition_tokens` e devolve o status na resposta. Aceita o header opcional `Idempotency-Key`.
+</Info>
+
+<Warning>
+  Hoje apenas a **Pagarme** implementa a tokenização de cartão. Adquirentes que não suportam retornam o status `unsupported` (com `token` nulo). O número completo (PAN) e o CVV nunca são retornados.
+</Warning>
