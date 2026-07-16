@@ -89,17 +89,51 @@ POST /v1/charge → HTTP 201
 
 ## Campos do pagamento
 
-| Campo                          | Tipo    | Req.       | Descrição                             |
-|-------------------------------|---------|------------|---------------------------------------|
-| `payment.type`                | string  | Sim        | `CreditCard` ou `PIX`                 |
-| `payment.pix_expiration`      | integer | Não        | Expiração em segundos (mín. 1)        |
-| `payment.card.number`         | string  | CreditCard | Número do cartão (mín. 13 dígitos)    |
-| `payment.card.name`           | string  | CreditCard | Nome no cartão                        |
-| `payment.card.month`          | string  | CreditCard | Mês de validade (MM)                  |
-| `payment.card.year`           | string  | CreditCard | Ano de validade (YY)                  |
-| `payment.card.security_code`  | string  | CreditCard | CVV                                   |
-| `payment.card.installments`   | integer | CreditCard | Número de parcelas                    |
-| `payment.card.soft_descriptor`| string  | Não        | Texto na fatura (3-50 chars)          |
+| Campo                          | Tipo    | Req.        | Descrição                                                        |
+|-------------------------------|---------|-------------|------------------------------------------------------------------|
+| `payment.type`                | string  | Sim         | `CreditCard` ou `PIX`                                            |
+| `payment.pix_expiration`      | integer | Não         | Expiração em segundos (mín. 1)                                   |
+| `payment.card.card_id`        | string  | Não¹        | UUID de um cartão salvo. Se enviado, dispensa os dados do cartão |
+| `payment.card.number`         | string  | CreditCard² | Número do cartão (mín. 13 dígitos)                               |
+| `payment.card.name`           | string  | CreditCard² | Nome no cartão                                                   |
+| `payment.card.month`          | string  | CreditCard² | Mês de validade (MM)                                            |
+| `payment.card.year`           | string  | CreditCard² | Ano de validade (YY)                                            |
+| `payment.card.security_code`  | string  | CreditCard² | CVV                                                              |
+| `payment.card.installments`   | integer | CreditCard  | Número de parcelas                                              |
+| `payment.card.soft_descriptor`| string  | Não         | Texto na fatura (3-50 chars)                                    |
+
+¹ Alternativa aos dados do cartão — veja **Cartão salvo** abaixo.
+² Obrigatório apenas quando `card_id` **não** é enviado.
+
+---
+
+## Cartão salvo (`card_id`)
+
+Em vez de reenviar os dados do cartão a cada cobrança, você pode cobrar um **cartão já salvo** enviando apenas o `payment.card.card_id`.
+
+O `card_id` é o campo `id` retornado ao cadastrar o cartão (veja o grupo **Cartões**). Quando ele é enviado, os campos `number`, `name`, `month`, `year` e `security_code` tornam-se **opcionais** — você não precisa mais trafegar os dados do cartão.
+
+```json Pagamento com cartão salvo
+"payment": {
+  "type": "CreditCard",
+  "card": {
+    "card_id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "installments": 1
+  }
+}
+```
+
+<Warning>
+  O `card_id` só é aceito se o cartão pertencer ao cliente da cobrança: o `client.email` enviado precisa ser o **mesmo do dono do cartão**, na **mesma conta**. Um `card_id` de outro cliente ou de outra conta é rejeitado com **422**.
+</Warning>
+
+<Note>
+  Continue enviando `payment.card.installments` (mín. `1`) mesmo ao usar `card_id` — ele define o parcelamento desta cobrança.
+</Note>
+
+<Info>
+  Toda cobrança com cartão retorna o `card_id` do cartão em `data.orders[].charges[].payment.card_id` — **tanto quando você envia `card_id` quanto quando envia os dados completos** (nesse caso o cartão é salvo e o `card_id` gerado é devolvido). Guarde esse valor para reutilizar o cartão nas próximas cobranças. Em pagamentos sem cartão (ex.: PIX), `card_id` vem `null`.
+</Info>
 
 ---
 

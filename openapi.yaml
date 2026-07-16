@@ -193,6 +193,29 @@ paths:
                       description: "Camiseta Premium"
                       amount: 99.90
                       quantity: 2
+              cartao_credito_salvo:
+                summary: Pagamento com cartão salvo (card_id)
+                value:
+                  client:
+                    name: "João Silva"
+                    email: "joao@exemplo.com.br"
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "999999999"
+                    document:
+                      type: "CPF"
+                      number: "123.456.789-09"
+                  payment:
+                    type: CreditCard
+                    card:
+                      card_id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                      installments: 1
+                  items:
+                    - id: "produto_001"
+                      description: "Camiseta Premium"
+                      amount: 99.90
+                      quantity: 2
               pix:
                 summary: Pagamento com PIX
                 value:
@@ -253,6 +276,7 @@ paths:
                           payment:
                             payment_type: "CreditCard"
                             installments: 1
+                            card_id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
         '202':
           description: Transação desafiada — requer confirmação adicional (OTP)
           content:
@@ -451,6 +475,7 @@ paths:
                             expiration: null
                             payment_type: "CreditCard"
                             installments: 1
+                            card_id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
                           last_transaction:
                             transaction_id: "txn_abc123"
                             type: "Authorization"
@@ -3423,30 +3448,43 @@ components:
 
     CardData:
       type: object
+      description: >
+        Dados do cartão. Envie os dados completos do cartão OU apenas `card_id`
+        (cartão salvo). Quando `card_id` é informado, `number`, `name`, `month`,
+        `year` e `security_code` tornam-se opcionais.
       properties:
+        card_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            UUID de um cartão salvo (o `id` retornado ao cadastrar o cartão).
+            Alternativa aos dados do cartão. Só é aceito se o cartão pertencer ao
+            cliente da cobrança (mesmo `client.email`, mesma conta).
+          example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
         number:
           type: string
-          description: Número do cartão (obrigatório, mín. 13 dígitos)
+          description: Número do cartão (obrigatório quando `card_id` não é enviado, mín. 13 dígitos)
           example: "4111111111111111"
         name:
           type: string
-          description: Nome impresso no cartão (obrigatório)
+          description: Nome impresso no cartão (obrigatório quando `card_id` não é enviado)
           example: "JOAO SILVA"
         month:
           type: string
-          description: Mês de validade MM (obrigatório)
+          description: Mês de validade MM (obrigatório quando `card_id` não é enviado)
           example: "12"
         year:
           type: string
-          description: Ano de validade YY (obrigatório)
+          description: Ano de validade YY (obrigatório quando `card_id` não é enviado)
           example: "27"
         security_code:
           type: string
-          description: Código de segurança CVV (obrigatório)
+          description: Código de segurança CVV (obrigatório quando `card_id` não é enviado)
           example: "123"
         installments:
           type: integer
-          description: Número de parcelas (obrigatório, mín. 1)
+          description: Número de parcelas para CreditCard (mín. 1). Envie mesmo ao usar `card_id`.
           minimum: 1
           example: 1
         soft_descriptor:

@@ -10,3 +10,7 @@ openapi: "POST /v1/charge"
 <Warning>
   Clientes bloqueados por IP, e-mail, CPF ou BIN do cartão terão a cobrança rejeitada automaticamente.
 </Warning>
+
+<Tip>
+  Para cobrar um **cartão já salvo**, envie apenas `payment.card.card_id` (o `id` retornado no cadastro do cartão) no lugar dos dados completos do cartão. Continue enviando `payment.card.installments`. O `card_id` só é aceito para o cliente dono do cartão — mesmo `client.email`, mesma conta.
+</Tip>
