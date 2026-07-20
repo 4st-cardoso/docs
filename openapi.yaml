@@ -194,7 +194,7 @@ paths:
                       amount: 99.90
                       quantity: 2
               cartao_credito_salvo:
-                summary: Pagamento com cartão salvo (card_id)
+                summary: Pagamento com cartão salvo (card_token)
                 value:
                   client:
                     name: "João Silva"
@@ -209,7 +209,7 @@ paths:
                   payment:
                     type: CreditCard
                     card:
-                      card_id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                      card_token: "card_8ely0awvf9hda3jk5m2n7p4q"
                       installments: 1
                   items:
                     - id: "produto_001"
@@ -276,7 +276,7 @@ paths:
                           payment:
                             payment_type: "CreditCard"
                             installments: 1
-                            card_id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                            card_token: "card_8ely0awvf9hda3jk5m2n7p4q"
         '202':
           description: Transação desafiada — requer confirmação adicional (OTP)
           content:
@@ -475,7 +475,7 @@ paths:
                             expiration: null
                             payment_type: "CreditCard"
                             installments: 1
-                            card_id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                            card_token: "card_8ely0awvf9hda3jk5m2n7p4q"
                           last_transaction:
                             transaction_id: "txn_abc123"
                             type: "Authorization"
@@ -912,79 +912,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-    post:
-      tags: [Cartões]
-      summary: Criar cartão
-      description: >
-        Salva um novo cartão para o cliente informado. O cartão fica disponível imediatamente
-        e a tokenização junto às adquirentes de cartão da conta é disparada de forma assíncrona
-        (multi-adquirência). O número completo (PAN) e o CVV nunca são retornados — apenas os
-        seis primeiros e os quatro últimos dígitos.
-
-
-        Aceita o header opcional `Idempotency-Key` para evitar cadastros duplicados em retentativas.
-        Requer o header `account` com o código da conta.
-      operationId: createClientCard
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AccountHeader'
-        - $ref: '#/components/parameters/ClientCode'
-        - name: Idempotency-Key
-          in: header
-          required: false
-          description: Chave de idempotência para evitar cadastros duplicados (máx. 128 caracteres)
-          schema:
-            type: string
-            example: "a1b2c3d4-idem-key"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCartaoRequest'
-            example:
-              name: "Tony Stark"
-              number: "5425011234567793"
-              month: 1
-              year: 2030
-              security_code: "123"
-              type: "credit"
-              flag: "mastercard"
-      responses:
-        '201':
-          description: Cartão salvo com sucesso
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartaoResponse'
-              example:
-                mensagem: "Cartão salvo. A tokenização junto às adquirentes foi iniciada."
-                erro: false
-                mensagenserro: []
-                codigoretorno: 201
-                id: "00000000-0000-0000-0000-000000000000"
-                data:
-                  id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
-                  first_six_digits: "542501"
-                  last_four_digits: "7793"
-                  brand: "mastercard"
-                  holder_name: "Tony Stark"
-                  exp_month: 1
-                  exp_year: 2030
-                  type: "credit"
-                  status: "active"
-                  created_at: "2026-05-27T10:00:00.000000Z"
-                  updated_at: "2026-05-27T10:00:00.000000Z"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
   /v1/clients/{clientCode}/cards/{cardId}:
     get:
       tags: [Cartões]
@@ -1036,8 +963,9 @@ paths:
       description: >
         Atualiza os dados editáveis de um cartão. Apenas `name`, `type`, `flag` e a validade
         (`month` + `year`, enviados juntos) podem ser alterados. O número e o código de segurança
-        são imutáveis. Ao alterar a validade, a tokenização junto às adquirentes é refeita.
-        Requer o header `account` com o código da conta.
+        são imutáveis. Ao alterar a validade, a tokenização do cartão é reiniciada e o resultado
+        é enviado por webhook (`card.token_created` / `card.token_failed`). Um evento
+        `card.updated` é emitido a cada atualização. Requer o header `account` com o código da conta.
       operationId: updateClientCard
       security:
         - bearerAuth: []
@@ -1094,8 +1022,8 @@ paths:
       summary: Excluir cartão
       description: >
         Remove um cartão (soft delete): o registro passa a ter `status` `deleted` com `deleted_at`
-        preenchido, e seus tokens por adquirente são removidos. Um cartão vinculado a uma assinatura
-        ativa não pode ser excluído (retorna `409 Conflict`).
+        preenchido, e seus tokens são removidos. Um cartão vinculado a uma assinatura
+        ativa não pode ser excluído (retorna `409 Conflict`). Um evento `card.deleted` é emitido.
         Requer o header `account` com o código da conta.
       operationId: deleteClientCard
       security:
@@ -1149,72 +1077,80 @@ paths:
                 id: "00000000-0000-0000-0000-000000000000"
                 data: []
 
-  /v1/clients/{clientCode}/cards/{cardId}/tokens:
+  /v1/clients/{clientCode}/cards/tokens:
     post:
       tags: [Cartões]
-      summary: Criar token do cartão
+      summary: Salvar cartão
       description: >
-        Gera o token do cartão salvo (identificado pelo `cardId`) junto às adquirentes de cartão
-        configuradas na conta, na ordem de prioridade, de forma síncrona, e retorna o resultado
-        por adquirente em `data.tokens`.
+        Salva um cartão para o cliente e inicia sua tokenização. A resposta retorna
+        imediatamente com `tokenization_status: "pending"`; o resultado da tokenização é
+        entregue de forma assíncrona por webhook (`card.token_created` em caso de sucesso ou
+        `card.token_failed` caso o cartão não possa ser tokenizado). Um evento `card.created`
+        também é emitido ao salvar o cartão.
 
 
-        Hoje apenas a **Pagarme** implementa a tokenização de cartão; adquirentes sem suporte
-        retornam o status `unsupported` com `token` nulo. O número completo (PAN) e o CVV nunca
-        são retornados.
-
-
-        Aceita o header opcional `Idempotency-Key`. Requer o header `account` com o código da conta.
+        O número completo (PAN) e o CVV nunca são retornados — apenas os seis primeiros e os
+        quatro últimos dígitos. Aceita o header opcional `Idempotency-Key` para evitar
+        cadastros duplicados em retentativas. Requer o header `account` com o código da conta.
       operationId: createClientCardToken
       security:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/AccountHeader'
         - $ref: '#/components/parameters/ClientCode'
-        - $ref: '#/components/parameters/CardId'
         - name: Idempotency-Key
           in: header
           required: false
-          description: Chave de idempotência para evitar tokenizações duplicadas (máx. 128 caracteres)
+          description: Chave de idempotência para evitar cadastros duplicados (máx. 128 caracteres)
           schema:
             type: string
             example: "a1b2c3d4-idem-key"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCartaoRequest'
+            example:
+              name: "Tony Stark"
+              number: "5425011234567793"
+              month: 1
+              year: 2030
+              security_code: "123"
+              type: "credit"
+              flag: "mastercard"
       responses:
-        '200':
-          description: Tokenização processada com sucesso
+        '202':
+          description: Cartão recebido; tokenização iniciada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CartaoTokenResponse'
+                $ref: '#/components/schemas/CartaoResponse'
               example:
-                mensagem: "Tokenização do cartão processada."
+                mensagem: "Cartão recebido. A tokenização foi iniciada; o resultado será enviado por webhook."
                 erro: false
                 mensagenserro: []
-                codigoretorno: 200
+                codigoretorno: 202
                 id: "00000000-0000-0000-0000-000000000000"
                 data:
-                  card:
-                    id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
-                    first_six_digits: "542501"
-                    last_four_digits: "7793"
-                    brand: "mastercard"
-                    holder_name: "Tony Stark"
-                    exp_month: 1
-                    exp_year: 2030
-                    type: "credit"
-                    status: "active"
-                    created_at: "2026-05-27T10:00:00.000000Z"
-                    updated_at: "2026-05-27T10:00:00.000000Z"
-                  tokens:
-                    - acquisition_settings_id: "3f1c9a2b-7d84-4e60-9b1a-5c2f8e0d6a71"
-                      status: "tokenized"
-                      tokenized: true
-                      token: "card_8ELY0AwVF9HDa3jK"
-                      expires_at: "2027-05-27T10:00:00.000000Z"
+                  id: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+                  first_six_digits: "542501"
+                  last_four_digits: "7793"
+                  brand: "mastercard"
+                  holder_name: "Tony Stark"
+                  exp_month: 1
+                  exp_year: 2030
+                  type: "credit"
+                  status: "active"
+                  tokenization_status: "pending"
+                  created_at: "2026-05-27T10:00:00.000000Z"
+                  updated_at: "2026-05-27T10:00:00.000000Z"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -3005,6 +2941,12 @@ components:
           format: uuid
           description: UUID identificador do cartão
           example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+        card_token:
+          type: string
+          description: >
+            Token opaco do cartão. É o valor enviado em `payment.card.card_token`
+            ao cobrar com o cartão salvo.
+          example: "card_8ely0awvf9hda3jk5m2n7p4q"
         first_six_digits:
           type: string
           nullable: true
@@ -3044,6 +2986,15 @@ components:
           description: Situação do cartão
           enum: [active, deleted]
           example: "active"
+        tokenization_status:
+          type: string
+          description: >
+            Situação da tokenização do cartão. `pending` enquanto está sendo processado,
+            `tokenized` quando o cartão está pronto para cobranças e `failed` quando não foi
+            possível tokenizá-lo. As transições `tokenized`/`failed` também são notificadas por
+            webhook (`card.token_created` / `card.token_failed`).
+          enum: [pending, tokenized, failed]
+          example: "pending"
         created_at:
           type: string
           format: date-time
@@ -3066,7 +3017,7 @@ components:
       properties:
         mensagem:
           type: string
-          example: "Cartão salvo. A tokenização junto às adquirentes foi iniciada."
+          example: "Cartão recebido. A tokenização foi iniciada; o resultado será enviado por webhook."
         erro:
           type: boolean
           example: false
@@ -3111,65 +3062,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/CartaoData'
-
-    CartaoTokenEntry:
-      type: object
-      properties:
-        acquisition_settings_id:
-          type: string
-          format: uuid
-          description: Adquirente contra a qual o cartão foi tokenizado
-          example: "3f1c9a2b-7d84-4e60-9b1a-5c2f8e0d6a71"
-        status:
-          type: string
-          description: Situação da tokenização nesta adquirente
-          enum: [pending, tokenized, unsupported, failed]
-          example: "tokenized"
-        tokenized:
-          type: boolean
-          description: Atalho — `true` quando `status` é `tokenized`
-          example: true
-        token:
-          type: string
-          nullable: true
-          description: Token retornado pela adquirente (nulo quando não tokenizado)
-          example: "card_8ELY0AwVF9HDa3jK"
-        expires_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: Expiração do token (ISO 8601) ou null
-          example: "2027-05-27T10:00:00.000000Z"
-
-    CartaoTokenResponse:
-      type: object
-      properties:
-        mensagem:
-          type: string
-          example: "Tokenização do cartão processada."
-        erro:
-          type: boolean
-          example: false
-        mensagenserro:
-          type: array
-          items:
-            type: string
-          example: []
-        codigoretorno:
-          type: integer
-          example: 200
-        id:
-          type: string
-          example: "00000000-0000-0000-0000-000000000000"
-        data:
-          type: object
-          properties:
-            card:
-              $ref: '#/components/schemas/CartaoData'
-            tokens:
-              type: array
-              items:
-                $ref: '#/components/schemas/CartaoTokenEntry'
 
     CreateCartaoRequest:
       type: object
@@ -3449,42 +3341,46 @@ components:
     CardData:
       type: object
       description: >
-        Dados do cartão. Envie os dados completos do cartão OU apenas `card_id`
-        (cartão salvo). Quando `card_id` é informado, `number`, `name`, `month`,
+        Dados do cartão. Envie os dados completos do cartão OU apenas `card_token`
+        (cartão salvo). Quando `card_token` é informado, `number`, `name`, `month`,
         `year` e `security_code` tornam-se opcionais.
+
+
+        O `card_token` **não** carrega o billing address. Ao cobrar com um cartão
+        salvo, informe o billing address (`client.address`) na própria requisição.
       properties:
-        card_id:
+        card_token:
           type: string
-          format: uuid
           nullable: true
           description: >
-            UUID de um cartão salvo (o `id` retornado ao cadastrar o cartão).
-            Alternativa aos dados do cartão. Só é aceito se o cartão pertencer à
-            mesma conta da cobrança (cartões de outra conta são rejeitados).
-          example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+            Token de um cartão salvo (o `card_token` retornado ao salvar o cartão
+            e no evento `card.token_created`). Alternativa aos dados do cartão. Só é
+            aceito se o cartão pertencer à mesma conta da cobrança (cartões de outra
+            conta são rejeitados).
+          example: "card_8ely0awvf9hda3jk5m2n7p4q"
         number:
           type: string
-          description: Número do cartão (obrigatório quando `card_id` não é enviado, mín. 13 dígitos)
+          description: Número do cartão (obrigatório quando `card_token` não é enviado, mín. 13 dígitos)
           example: "4111111111111111"
         name:
           type: string
-          description: Nome impresso no cartão (obrigatório quando `card_id` não é enviado)
+          description: Nome impresso no cartão (obrigatório quando `card_token` não é enviado)
           example: "JOAO SILVA"
         month:
           type: string
-          description: Mês de validade MM (obrigatório quando `card_id` não é enviado)
+          description: Mês de validade MM (obrigatório quando `card_token` não é enviado)
           example: "12"
         year:
           type: string
-          description: Ano de validade YY (obrigatório quando `card_id` não é enviado)
+          description: Ano de validade YY (obrigatório quando `card_token` não é enviado)
           example: "27"
         security_code:
           type: string
-          description: Código de segurança CVV (obrigatório quando `card_id` não é enviado)
+          description: Código de segurança CVV (obrigatório quando `card_token` não é enviado)
           example: "123"
         installments:
           type: integer
-          description: Número de parcelas para CreditCard (mín. 1). Envie mesmo ao usar `card_id`.
+          description: Número de parcelas para CreditCard (mín. 1). Envie mesmo ao usar `card_token`.
           minimum: 1
           example: 1
         soft_descriptor:

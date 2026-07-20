@@ -93,7 +93,7 @@ POST /v1/charge → HTTP 201
 |-------------------------------|---------|-------------|------------------------------------------------------------------|
 | `payment.type`                | string  | Sim         | `CreditCard` ou `PIX`                                            |
 | `payment.pix_expiration`      | integer | Não         | Expiração em segundos (mín. 1)                                   |
-| `payment.card.card_id`        | string  | Não¹        | UUID de um cartão salvo. Se enviado, dispensa os dados do cartão |
+| `payment.card.card_token`     | string  | Não¹        | Token de um cartão salvo. Se enviado, dispensa os dados do cartão |
 | `payment.card.number`         | string  | CreditCard² | Número do cartão (mín. 13 dígitos)                               |
 | `payment.card.name`           | string  | CreditCard² | Nome no cartão                                                   |
 | `payment.card.month`          | string  | CreditCard² | Mês de validade (MM)                                            |
@@ -103,36 +103,40 @@ POST /v1/charge → HTTP 201
 | `payment.card.soft_descriptor`| string  | Não         | Texto na fatura (3-50 chars)                                    |
 
 ¹ Alternativa aos dados do cartão — veja **Cartão salvo** abaixo.
-² Obrigatório apenas quando `card_id` **não** é enviado.
+² Obrigatório apenas quando `card_token` **não** é enviado.
 
 ---
 
-## Cartão salvo (`card_id`)
+## Cartão salvo (`card_token`)
 
-Em vez de reenviar os dados do cartão a cada cobrança, você pode cobrar um **cartão já salvo** enviando apenas o `payment.card.card_id`.
+Em vez de reenviar os dados do cartão a cada cobrança, você pode cobrar um **cartão já salvo** enviando apenas o `payment.card.card_token`.
 
-O `card_id` é o campo `id` retornado ao cadastrar o cartão (veja o grupo **Cartões**). Quando ele é enviado, os campos `number`, `name`, `month`, `year` e `security_code` tornam-se **opcionais** — você não precisa mais trafegar os dados do cartão.
+O `card_token` é o token retornado ao salvar o cartão (campo `card_token`, também entregue no evento `card.token_created`). Quando ele é enviado, os campos `number`, `name`, `month`, `year` e `security_code` tornam-se **opcionais** — você não precisa mais trafegar os dados do cartão.
 
 ```json Pagamento com cartão salvo
 "payment": {
   "type": "CreditCard",
   "card": {
-    "card_id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "card_8ely0awvf9hda3jk5m2n7p4q",
     "installments": 1
   }
 }
 ```
 
 <Warning>
-  O `card_id` só é aceito se o cartão pertencer à **mesma conta** da cobrança. Um `card_id` de **outra conta** é rejeitado com **422**, assim como um cartão **excluído** ou inexistente.
+  O `card_token` só é aceito se o cartão pertencer à **mesma conta** da cobrança. Um `card_token` de **outra conta** é rejeitado com **422**, assim como um cartão **excluído** ou inexistente.
+</Warning>
+
+<Warning>
+  **Billing Address** — o billing address do cartão **não** é tokenizado. Ao criar um pedido/cobrança com `card_token`, você **também precisa informar o billing address** (`client.address`) na requisição.
 </Warning>
 
 <Note>
-  Continue enviando `payment.card.installments` (mín. `1`) mesmo ao usar `card_id` — ele define o parcelamento desta cobrança.
+  Continue enviando `payment.card.installments` (mín. `1`) mesmo ao usar `card_token` — ele define o parcelamento desta cobrança.
 </Note>
 
 <Info>
-  Toda cobrança com cartão retorna o `card_id` do cartão em `data.orders[].charges[].payment.card_id` — **tanto quando você envia `card_id` quanto quando envia os dados completos** (nesse caso o cartão é salvo e o `card_id` gerado é devolvido). Guarde esse valor para reutilizar o cartão nas próximas cobranças. Em pagamentos sem cartão (ex.: PIX), `card_id` vem `null`.
+  Toda cobrança com cartão retorna o `card_token` do cartão em `data.orders[].charges[].payment.card_token` — **tanto quando você envia `card_token` quanto quando envia os dados completos** (nesse caso o cartão é salvo e o `card_token` gerado é devolvido). Guarde esse valor para reutilizar o cartão nas próximas cobranças. Em pagamentos sem cartão (ex.: PIX), `card_token` vem `null`.
 </Info>
 
 ---

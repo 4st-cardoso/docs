@@ -71,6 +71,13 @@ Todos os webhooks da 4Selet Pay seguem o mesmo envelope:
 |------------------------------|-------------------------------------------------------------|
 | `charge.canceled`            | Uma cobrança foi cancelada                                  |
 | `charge.expired`             | Uma cobrança PIX expirou sem pagamento                      |
+| `card.created`               | Um cartão foi salvo                                         |
+| `card.updated`               | Um cartão foi atualizado                                    |
+| `card.deleted`               | Um cartão foi removido                                      |
+| `card.expired`               | Um cartão salvo atingiu o fim da validade                  |
+| `card.token_pending`         | A tokenização de um cartão foi iniciada                    |
+| `card.token_created`         | Um cartão foi tokenizado e está pronto para cobranças      |
+| `card.token_failed`          | Não foi possível tokenizar um cartão                       |
 | `order.failed`               | Um pedido falhou no processamento                           |
 | `order.unprocessed`          | Um pedido não pôde ser processado pelo gateway              |
 | `order.challenged`           | Um pedido requer confirmação adicional (OTP)                |

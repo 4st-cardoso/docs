@@ -8,7 +8,7 @@ icon: "credit-card"
 
 Os **Cartões** (`Cards`) são os cartões salvos de um cliente. Um cartão pertence sempre a um cliente (identificado pelo `clientCode` na URL) e pode ser reutilizado em cobranças e assinaturas sem que o portador precise digitar os dados novamente.
 
-Ao salvar um cartão, ele é **tokenizado de forma assíncrona** junto às adquirentes de cartão configuradas na conta (multi-adquirência), na ordem de prioridade definida. A tokenização acontece em segundo plano e **não bloqueia a resposta** — o cartão fica disponível imediatamente e os tokens por adquirente são resolvidos logo em seguida.
+Ao salvar um cartão, ele é **tokenizado de forma assíncrona**. A tokenização acontece em segundo plano e **não bloqueia a resposta**: o endpoint responde imediatamente com `tokenization_status: "pending"` e o resultado é entregue por webhook (`card.token_created` / `card.token_failed`).
 
 <Warning>
   Por segurança (PCI), o número completo do cartão (PAN) e o código de segurança (CVV) **nunca** são retornados pela API. As respostas expõem apenas os seis primeiros e os quatro últimos dígitos (`first_six_digits` / `last_four_digits`).
@@ -59,6 +59,7 @@ As rotas de cartões seguem o envelope padrão `APIReturnUtil`:
 | Campo              | Tipo    | Descrição                                                        |
 |--------------------|---------|------------------------------------------------------------------|
 | `id`               | string  | UUID identificador do cartão                                     |
+| `card_token`       | string  | Token opaco do cartão — enviado em `payment.card.card_token` ao cobrar |
 | `first_six_digits` | string  | Seis primeiros dígitos do cartão (BIN)                           |
 | `last_four_digits` | string  | Quatro últimos dígitos do cartão                                 |
 | `brand`            | string  | Bandeira: `visa`, `mastercard`, `elo`, `amex` ou `undefined`     |
@@ -67,6 +68,7 @@ As rotas de cartões seguem o envelope padrão `APIReturnUtil`:
 | `exp_year`         | integer | Ano de validade (`YYYY`)                                         |
 | `type`             | string  | Tipo do cartão: `credit` ou `debit`                              |
 | `status`           | string  | `active` ou `deleted`                                            |
+| `tokenization_status` | string | `pending`, `tokenized` ou `failed`                             |
 | `created_at`       | string  | Data de criação (ISO 8601)                                       |
 | `updated_at`       | string  | Data da última atualização (ISO 8601)                           |
 | `deleted_at`       | string  | Data de exclusão (ISO 8601) — presente apenas em cartão excluído |
@@ -100,35 +102,26 @@ As rotas de cartões seguem o envelope padrão `APIReturnUtil`:
 
 ---
 
-## Multi-adquirência e tokenização
+## Tokenização
 
-Ao criar (ou ao alterar a validade) de um cartão, a plataforma dispara a tokenização junto a **todas as adquirentes de cartão ativas da conta**, deduplicadas e na ordem de prioridade configurada. Cada par (cartão, adquirente) gera um token próprio, permitindo cobrança e failover entre adquirentes com o mesmo cartão salvo.
+Ao salvar um cartão (`POST .../cards/tokens`) — ou ao alterar sua validade — a plataforma inicia a tokenização em segundo plano. A resposta é imediata, com `tokenization_status: "pending"`, e o resultado é comunicado por webhook:
+
+| Evento                | Significado                                                    |
+|-----------------------|----------------------------------------------------------------|
+| `card.created`        | O cartão foi salvo.                                            |
+| `card.token_pending`  | A tokenização foi iniciada.                                    |
+| `card.token_created`  | O cartão está tokenizado e pronto para cobranças.             |
+| `card.token_failed`   | Não foi possível tokenizar o cartão.                          |
 
 <Info>
-  Na criação e na atualização de validade, a tokenização é assíncrona (fila) e não altera o corpo da resposta. Adquirentes que não suportam tokenização são simplesmente ignoradas.
+  Aguarde o `card.token_created` antes de usar o cartão em uma cobrança. Consulte os payloads em **Webhooks → Eventos → Cartão**.
 </Info>
-
-### Criar token sob demanda
-
-A rota **Criar token Cartão** (`POST .../cards/{cardId}/tokens`) tokeniza o cartão salvo de forma **síncrona** e retorna o resultado por adquirente em `data.tokens`:
-
-| Campo                     | Tipo    | Descrição                                                    |
-|---------------------------|---------|--------------------------------------------------------------|
-| `acquisition_settings_id` | string  | Adquirente contra a qual o cartão foi tokenizado             |
-| `status`                  | string  | `pending`, `tokenized`, `unsupported` ou `failed`            |
-| `tokenized`               | boolean | `true` quando `status` é `tokenized`                         |
-| `token`                   | string  | Token da adquirente (nulo quando não tokenizado)             |
-| `expires_at`              | string  | Expiração do token (ISO 8601) ou `null`                      |
-
-<Warning>
-  Hoje apenas a **Pagarme** implementa a tokenização. As demais adquirentes retornam `status: unsupported` com `token` nulo.
-</Warning>
 
 ---
 
 ## Exclusão
 
-A exclusão de um cartão é um **soft delete**: o registro passa a ter `status` `deleted` e `deleted_at` preenchido, e seus tokens por adquirente são removidos.
+A exclusão de um cartão é um **soft delete**: o registro passa a ter `status` `deleted` e `deleted_at` preenchido, e seus tokens são removidos. Um evento `card.deleted` é emitido.
 
 <Warning>
   Um cartão vinculado a uma **assinatura ativa** não pode ser excluído — a API retorna `409 Conflict`. Altere o cartão da assinatura antes de excluir.
@@ -138,7 +131,7 @@ A exclusão de um cartão é um **soft delete**: o registro passa a ter `status`
 
 ## Exemplo completo
 
-```json Criar cartão (request)
+```json Salvar cartão (request)
 {
   "name": "Tony Stark",
   "number": "5425011234567793",
@@ -150,12 +143,12 @@ A exclusão de um cartão é um **soft delete**: o registro passa a ter `status`
 }
 ```
 
-```json Resposta (HTTP 201)
+```json Resposta (HTTP 202)
 {
-  "mensagem": "Cartão salvo. A tokenização junto às adquirentes foi iniciada.",
+  "mensagem": "Cartão recebido. A tokenização foi iniciada; o resultado será enviado por webhook.",
   "erro": false,
   "mensagenserro": [],
-  "codigoretorno": 201,
+  "codigoretorno": 202,
   "id": "00000000-0000-0000-0000-000000000000",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
@@ -167,6 +160,7 @@ A exclusão de um cartão é um **soft delete**: o registro passa a ter `status`
     "exp_year": 2030,
     "type": "credit",
     "status": "active",
+    "tokenization_status": "pending",
     "created_at": "2026-05-27T10:00:00.000000Z",
     "updated_at": "2026-05-27T10:00:00.000000Z"
   }

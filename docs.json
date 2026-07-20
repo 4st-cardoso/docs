@@ -70,12 +70,11 @@
                 "group": "Cartões",
                 "pages": [
                   "pages/cartoes/reference",
-                  "pages/cartoes/create",
+                  "pages/cartoes/create-token",
                   "pages/cartoes/list",
                   "pages/cartoes/get",
                   "pages/cartoes/update",
-                  "pages/cartoes/delete",
-                  "pages/cartoes/create-token"
+                  "pages/cartoes/delete"
                 ]
               },
               {
@@ -134,6 +133,7 @@
                 "group": "Eventos",
                 "pages": [
                   "pages/webhooks/events/charge",
+                  "pages/webhooks/events/card",
                   "pages/webhooks/events/order",
                   "pages/webhooks/events/invoice",
                   "pages/webhooks/events/subscription"
