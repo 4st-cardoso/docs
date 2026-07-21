@@ -59,7 +59,7 @@ As rotas de cartões seguem o envelope padrão `APIReturnUtil`:
 | Campo              | Tipo    | Descrição                                                        |
 |--------------------|---------|------------------------------------------------------------------|
 | `id`               | string  | UUID identificador do cartão                                     |
-| `card_token`       | string  | Token opaco do cartão — enviado em `payment.card.card_token` ao cobrar |
+| `card_token`       | string  | Identificador do cartão salvo — enviado em `payment.card.card_token` ao cobrar |
 | `first_six_digits` | string  | Seis primeiros dígitos do cartão (BIN)                           |
 | `last_four_digits` | string  | Quatro últimos dígitos do cartão                                 |
 | `brand`            | string  | Bandeira: `visa`, `mastercard`, `elo`, `amex` ou `undefined`     |

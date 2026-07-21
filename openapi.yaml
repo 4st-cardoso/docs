@@ -209,7 +209,7 @@ paths:
                   payment:
                     type: CreditCard
                     card:
-                      card_token: "card_8ely0awvf9hda3jk5m2n7p4q"
+                      card_token: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
                       installments: 1
                   items:
                     - id: "produto_001"
@@ -276,7 +276,7 @@ paths:
                           payment:
                             payment_type: "CreditCard"
                             installments: 1
-                            card_token: "card_8ely0awvf9hda3jk5m2n7p4q"
+                            card_token: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
         '202':
           description: Transação desafiada — requer confirmação adicional (OTP)
           content:
@@ -475,7 +475,7 @@ paths:
                             expiration: null
                             payment_type: "CreditCard"
                             installments: 1
-                            card_token: "card_8ely0awvf9hda3jk5m2n7p4q"
+                            card_token: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
                           last_transaction:
                             transaction_id: "txn_abc123"
                             type: "Authorization"
@@ -2944,9 +2944,10 @@ components:
         card_token:
           type: string
           description: >
-            Token opaco do cartão. É o valor enviado em `payment.card.card_token`
-            ao cobrar com o cartão salvo.
-          example: "card_8ely0awvf9hda3jk5m2n7p4q"
+            Identificador do cartão salvo, retornado ao salvar o cartão e no evento
+            `card.token_created`. É o valor enviado em `payment.card.card_token` ao
+            cobrar com o cartão salvo.
+          example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
         first_six_digits:
           type: string
           nullable: true
@@ -3357,7 +3358,7 @@ components:
             e no evento `card.token_created`). Alternativa aos dados do cartão. Só é
             aceito se o cartão pertencer à mesma conta da cobrança (cartões de outra
             conta são rejeitados).
-          example: "card_8ely0awvf9hda3jk5m2n7p4q"
+          example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
         number:
           type: string
           description: Número do cartão (obrigatório quando `card_token` não é enviado, mín. 13 dígitos)

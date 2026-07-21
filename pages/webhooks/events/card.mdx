@@ -9,7 +9,7 @@ Todos os eventos de cartão entregam o mesmo objeto `data` — a representação
 | Campo                 | Tipo    | Descrição                                                        |
 |-----------------------|---------|------------------------------------------------------------------|
 | `id`                  | string  | UUID do cartão                                                   |
-| `card_token`          | string  | Token opaco do cartão — enviado em `payment.card.card_token` ao cobrar |
+| `card_token`          | string  | Identificador do cartão salvo — enviado em `payment.card.card_token` ao cobrar |
 | `first_six_digits`    | string  | Seis primeiros dígitos (BIN)                                     |
 | `last_four_digits`    | string  | Quatro últimos dígitos                                           |
 | `brand`               | string  | Bandeira do cartão                                               |
@@ -111,7 +111,7 @@ Disparado quando o cartão foi tokenizado e está pronto para cobranças.
   "id": "hook_c3d4e5f6a1b2",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
-    "card_token": "card_8ely0awvf9hda3jk5m2n7p4q",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
