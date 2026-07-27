@@ -43,7 +43,8 @@
                 "group": "Autenticação",
                 "pages": [
                   "pages/autenticacao/reference",
-                  "pages/autenticacao/login"
+                  "pages/autenticacao/login",
+                  "pages/autenticacao/chave-de-api"
                 ]
               },
               {
@@ -107,6 +108,13 @@
                   "pages/links-de-pagamento/get",
                   "pages/links-de-pagamento/cancel",
                   "pages/links-de-pagamento/delete"
+                ]
+              },
+              {
+                "group": "Análise de Fraude",
+                "pages": [
+                  "pages/analise-de-fraude/reference",
+                  "pages/analise-de-fraude/create"
                 ]
               },
               {

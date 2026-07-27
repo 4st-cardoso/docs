@@ -1,0 +1,91 @@
+---
+title: "Chave de API (secret key)"
+description: "Como gerar, usar e revogar a chave que autentica na API de Análise de Fraude."
+icon: "key"
+---
+
+<Warning>
+  A autenticação por **chave de API (secret key)** ainda está **em desenvolvimento**. No momento, ela
+  funciona **apenas nas rotas de Análise de Fraude**. As demais rotas da API continuam usando o
+  [token de login](/pages/autenticacao/reference) (`Authorization: Bearer <token JWT>`).
+</Warning>
+
+## O que é
+
+A **chave de API** (secret key) é a credencial que autentica as chamadas à API de Análise de Fraude. Ela pertence à sua conta e vai no header `Authorization` de cada requisição:
+
+```http
+Authorization: Bearer sk_live_ab12cd34ef56_XxYyZzAaBbCc...
+```
+
+O formato é `sk_<ambiente>_<identificador>_<segredo>`. O **identificador** ajuda a reconhecer a chave; o **segredo** é a parte sigilosa.
+
+---
+
+## Como gerar
+
+<Steps>
+  <Step title="Abra o dashboard">
+    Entre no [dashboard](https://app.4seletpay.com.br) da sua conta.
+  </Step>
+  <Step title="Vá em Configurações → Chaves de API">
+    No menu de **Configurações**, abra a seção **Chaves de API**.
+  </Step>
+  <Step title="Crie a chave">
+    Clique em **Criar chave**, dê um nome que ajude a identificá-la (ex.: `Integração checkout`) e confirme.
+  </Step>
+  <Step title="Copie o valor na hora">
+    O valor completo (`sk_..._..._...`) aparece **uma única vez**. Copie e guarde em local seguro — depois disso, só ficam visíveis o nome e os últimos dígitos.
+  </Step>
+</Steps>
+
+<Warning>
+  Se você sair da tela sem copiar, **não dá para ver a chave de novo**. Nesse caso, revogue a chave e crie outra.
+</Warning>
+
+---
+
+## Ambientes: teste e produção
+
+O prefixo da chave indica o ambiente em que ela foi criada:
+
+| Prefixo     | Ambiente    | Para quê                                  |
+|-------------|-------------|-------------------------------------------|
+| `sk_test_`  | Dev mode    | Testar a integração sem valer de verdade  |
+| `sk_live_`  | Produção    | Uso real, com cobrança por análise        |
+
+<Warning>
+  Uma chave de **Dev mode** (`sk_test_`) **não funciona** em produção, e uma chave de produção (`sk_live_`) não funciona em Dev mode. Use a chave do ambiente onde você está integrando.
+</Warning>
+
+---
+
+## Como usar
+
+Envie a chave no header `Authorization` em todas as chamadas de Análise de Fraude:
+
+```bash cURL
+curl -X POST https://app.4seletpay.com.br/api/v1/fraud/risk-analyses \
+  -H "Authorization: Bearer sk_live_ab12cd34ef56_XxYyZzAaBbCc..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 25000,
+    "currency": "BRL",
+    "customer": { "email": "joao@exemplo.com.br", "document": "12345678900" },
+    "context": { "ip": "189.10.20.30" }
+  }'
+```
+
+---
+
+## Boas práticas de segurança
+
+- **Nunca** exponha a chave no front-end (site, app, JavaScript do navegador). Use-a apenas no seu servidor.
+- Não versione a chave em repositórios nem em prints — guarde-a em um cofre de segredos ou variável de ambiente.
+- Uma chave é suficiente para toda a conta; crie chaves separadas quando quiser isolar integrações.
+
+---
+
+## Revogar uma chave
+
+Se uma chave vazar ou não for mais usada, revogue-a em **Configurações → Chaves de API**. A revogação é **imediata**: chamadas com aquela chave passam a receber `401` (`invalid_api_secret`). Gere uma nova chave e atualize a sua integração.

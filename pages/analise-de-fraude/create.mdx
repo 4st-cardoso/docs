@@ -1,0 +1,20 @@
+---
+title: "Analisar risco"
+openapi: "POST /v1/fraud/risk-analyses"
+---
+
+<Warning>
+  Esta rota usa a sua **chave de API (secret key)**, **não** o token de login (JWT) das demais rotas. Envie `Authorization: Bearer sk_...`. Veja [Chave de API](/pages/autenticacao/chave-de-api).
+</Warning>
+
+<Warning>
+  Envie apenas o **BIN** (`card.bin`, 6 dígitos) e os **últimos 4 dígitos** (`card.last4`). Número completo, CVV ou validade do cartão fazem a chamada retornar `422` (`forbidden_card_field`).
+</Warning>
+
+<Tip>
+  Use o header opcional `Idempotency-Key` para garantir que um reenvio da mesma transação não gere uma nova análise (nem nova cobrança). Veja [idempotência](/pages/analise-de-fraude/reference#idempotência).
+</Tip>
+
+<Info>
+  O `amount` é em **centavos** (`25000` = R$ 250,00). Todos os dados do cliente, do cartão e do contexto são opcionais, mas **quanto mais dados, melhor a análise** — o e-mail, o documento e o IP têm peso importante no risco.
+</Info>

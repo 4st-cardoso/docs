@@ -1,0 +1,159 @@
+---
+title: "Análise de Fraude"
+description: "API de Risco: consulte o risco de fraude de uma transação antes de aprová-la."
+icon: "shield-check"
+---
+
+## Visão geral
+
+A **Análise de Fraude** (API de Risco) é para quem já tem o próprio checkout e quer apenas **saber o risco de uma transação** antes de aprová-la. Você envia os dados da compra e recebe de volta uma **recomendação**, uma **nota de risco**, o **nível** e os **motivos**.
+
+O processamento do pagamento continua com você — a 4SeletPay só devolve a análise.
+
+<Note>
+  Cada análise concluída é **cobrada**. O valor por consulta é definido para a sua conta e fechado em uma fatura mensal.
+</Note>
+
+---
+
+## Autenticação
+
+<Warning>
+  **Atenção:** diferente das outras rotas da API, a Análise de Fraude **não** usa o token de login (JWT). Você precisa autenticar com a sua **chave de API (secret key)** no header `Authorization: Bearer sk_...`. Enviar o token de login (bearer token comum das demais rotas) aqui resulta em `401`.
+</Warning>
+
+A chave de API (secret key) é própria da sua conta e vai no header `Authorization`:
+
+```http
+Authorization: Bearer sk_live_ab12cd34ef56_XxYyZz...
+```
+
+<Card title="Como gerar sua chave de API" icon="key" href="/pages/autenticacao/chave-de-api">
+  Passo a passo para criar, usar e revogar sua secret key.
+</Card>
+
+---
+
+## Endpoints
+
+| Método | Rota                      | O que faz                        |
+|--------|---------------------------|----------------------------------|
+| `POST` | `/v1/fraud/risk-analyses` | Analisa o risco de uma transação |
+
+---
+
+## O que você recebe
+
+```json Resposta (HTTP 200)
+{
+  "object": "risk_analysis",
+  "id": "fan_a1b2c3d4e5f6g7h8",
+  "external_reference": "order-1024",
+  "status": "completed",
+  "risk_score": 30,
+  "risk_level": "low",
+  "recommendation": "follow",
+  "decision": "ALLOW",
+  "reasons": ["NEW_CUSTOMER"],
+  "analyzed_at": "2026-07-27T12:00:00-03:00"
+}
+```
+
+| Campo              | Tipo    | Descrição                                                       |
+|--------------------|---------|-----------------------------------------------------------------|
+| `id`               | string  | Código único da análise (guarde para sua referência)            |
+| `external_reference`| string | O identificador que você enviou (ou `null`)                     |
+| `status`           | string  | `completed`, `unavailable` ou `failed`                          |
+| `risk_score`       | integer | Nota de risco de **0 (baixo) a 100 (alto)**                     |
+| `risk_level`       | string  | `low`, `medium` ou `high`                                       |
+| `recommendation`   | string  | Ação sugerida: `follow`, `additional_validation` ou `reject`    |
+| `decision`         | string  | Decisão do motor: `ALLOW`, `CHALLENGE` ou `DENY`                |
+| `reasons`          | array   | Códigos dos motivos que pesaram na decisão                      |
+| `analyzed_at`      | string  | Data e hora da análise (ISO 8601)                               |
+
+### Como interpretar a decisão
+
+| `decision` | `recommendation`        | O que fazer                                              |
+|------------|-------------------------|---------------------------------------------------------|
+| `ALLOW`    | `follow`                | Risco baixo — pode seguir com o pagamento                |
+| `CHALLENGE`| `additional_validation` | Risco médio — peça uma validação extra antes de aprovar  |
+| `DENY`     | `reject`                | Risco alto — recomendado recusar a transação             |
+
+<Info>
+  A decisão é uma **recomendação**. Quem aprova ou recusa o pagamento é você — use a nota, o nível e os motivos para decidir dentro da sua regra de negócio.
+</Info>
+
+---
+
+## Motivos (`reasons`)
+
+O campo `reasons` traz os códigos dos sinais que influenciaram a nota. Os principais:
+
+| Código                        | Significado                                              |
+|-------------------------------|---------------------------------------------------------|
+| `NEW_CUSTOMER`                | Cliente novo                                            |
+| `TRUSTED_CUSTOMER`            | Cliente recorrente confiável (reduz o risco)            |
+| `CUSTOMER_HAS_CHARGEBACK`     | Cliente com chargeback anterior                         |
+| `IP_BIN_COUNTRY_MISMATCH`     | País do IP diferente do país do cartão                  |
+| `HIGH_RISK_IP_COUNTRY`        | IP em país de alto risco                                |
+| `LOCAL_IP_INTERNATIONAL_CARD` | IP local com cartão internacional                       |
+| `INTERNATIONAL_IP_LOCAL_CARD` | IP internacional com cartão local                       |
+| `IP_ANONYMOUS`                | IP anônimo (VPN, proxy ou Tor)                          |
+| `IP_HIGH_RISK_SCORE`          | IP com score de risco alto                              |
+| `IP_MEDIUM_RISK_SCORE`        | IP com score de risco médio                             |
+| `PREPAID_CARD`                | Cartão pré-pago                                         |
+| `CARD_HIGH_RISK_SCORE`        | Cartão com score de risco alto                          |
+| `CARD_MEDIUM_RISK_SCORE`      | Cartão com score de risco médio                         |
+| `EMAIL_TOO_MANY_FAILS_15M`    | Muitas tentativas recusadas para o e-mail em 15 minutos |
+| `IP_TOO_MANY_FAILS_15M`       | Muitas tentativas recusadas para o IP em 15 minutos     |
+| `DOCUMENT_TOO_MANY_FAILS_15M` | Muitas tentativas recusadas para o documento em 15 minutos |
+| `EMAIL_MANY_CARDS_30M`        | Muitos cartões distintos para o mesmo e-mail em 30 minutos |
+| `CARD_MANY_EMAILS_30M`        | Muitos e-mails distintos para o mesmo cartão em 30 minutos |
+| `IP_MANY_EMAILS_30M`          | Muitos e-mails distintos para o mesmo IP em 30 minutos  |
+| `HIGH_AMOUNT`                 | Valor alto                                              |
+| `VERY_HIGH_AMOUNT`            | Valor muito alto                                        |
+| `NEW_CUSTOMER_WEIRD_HOUR`     | Cliente novo comprando em horário atípico               |
+| `EMAIL_NOT_SAFE`              | E-mail sem reputação confiável                          |
+
+---
+
+## Idempotência
+
+Para não analisar (e cobrar) a mesma transação duas vezes em caso de reenvio, envie um header `Idempotency-Key`:
+
+```http
+Idempotency-Key: order-9f2b1a
+```
+
+- A **mesma chave com o mesmo corpo** devolve a análise original, sem nova cobrança.
+- A **mesma chave com um corpo diferente** retorna `422` (`idempotency_conflict`).
+
+---
+
+## Formato de erro
+
+As rotas de Análise de Fraude usam um envelope de erro **plano** (diferente do restante da API):
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "validation_failed",
+    "message": "The amount field is required."
+  }
+}
+```
+
+| Status | `code`                | Quando acontece                                             |
+|--------|-----------------------|------------------------------------------------------------|
+| `401`  | `invalid_api_secret`  | Chave ausente, inválida ou revogada                        |
+| `402`  | `payment_required`    | Acesso suspenso por faturas de antifraude em aberto        |
+| `403`  | `product_not_enabled` | Produto de antifraude não habilitado para a conta          |
+| `422`  | `validation_failed`   | Algum campo enviado é inválido                             |
+| `422`  | `forbidden_card_field`| Você enviou número completo, CVV ou validade do cartão     |
+| `422`  | `idempotency_conflict`| Mesma `Idempotency-Key` com corpo diferente                |
+| `503`  | `analysis_unavailable`| Provedor de risco indisponível — repita com a mesma chave  |
+
+<Warning>
+  **Nunca** envie o número completo do cartão, o CVV ou a validade. Só o **BIN** (6 primeiros dígitos) e os **últimos 4 dígitos** são aceitos — qualquer outro campo de cartão retorna `422`.
+</Warning>

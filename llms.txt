@@ -17,6 +17,7 @@ Notas importantes:
 
 - [Referência de Autenticação](https://docs.4seletpay.com.br/pages/autenticacao/reference): Visão geral do fluxo de autenticação OAuth2 via Laravel Passport. O token retornado deve ser enviado no header `Authorization: Bearer <token>` em todas as requisições protegidas.
 - [POST /v1/login](https://docs.4seletpay.com.br/pages/autenticacao/login): Obtém um Bearer Token. Campos obrigatórios: `email`, `password`. Retorna `access_token`, `token_type` e `expires_in`.
+- [Chave de API (secret key)](https://docs.4seletpay.com.br/pages/autenticacao/chave-de-api): Modelo de autenticação **em desenvolvimento**, funcional **apenas nas rotas de Análise de Fraude** (as demais rotas continuam usando o token de login). Gera-se no dashboard em Configurações → Chaves de API. O valor `sk_<ambiente>_<identificador>_<segredo>` aparece uma única vez. `sk_test_` (Dev mode) e `sk_live_` (produção) não são intercambiáveis. Revogação imediata.
 
 ## Cobranças
 
@@ -58,6 +59,11 @@ Notas importantes:
 - [GET /v1/payment-links/{code}](https://docs.4seletpay.com.br/pages/links-de-pagamento/get): Consulta um link pelo código. Retorna `uses_count`, `expires_at`, `status` e todas as configurações.
 - [POST /v1/payment-links/{code}/cancel](https://docs.4seletpay.com.br/pages/links-de-pagamento/cancel): Cancela um link ativo. Irreversível.
 - [DELETE /v1/payment-links/{code}](https://docs.4seletpay.com.br/pages/links-de-pagamento/delete): Remove um link permanentemente. Links ativos são cancelados antes da exclusão.
+
+## Análise de Fraude
+
+- [Referência de Análise de Fraude](https://docs.4seletpay.com.br/pages/analise-de-fraude/reference): API de Risco (Modelo A) — consulta o risco de fraude de uma transação sem processar o pagamento. Autenticação **por chave de API (secret key)** (`Authorization: Bearer sk_live_...` ou `sk_test_...`), **não** usa o token de login (JWT) nem o header `account`. Não envie número completo, CVV ou validade do cartão — só `card.bin` (6 dígitos) e `card.last4` (4 dígitos). `amount` é em **centavos**. Erros usam envelope plano `{ "error": { "type", "code", "message" } }`. Cada análise concluída é cobrada. Header opcional `Idempotency-Key` evita análise/cobrança duplicada.
+- [POST /v1/fraud/risk-analyses](https://docs.4seletpay.com.br/pages/analise-de-fraude/create): Analisa o risco. Obrigatórios: `amount` (centavos), `currency` (ISO 3 letras). Opcionais: `external_reference`, `payment_method`, `customer.{name,document,email,phone}`, `card.{bin,last4,brand}`, `context.{ip,user_agent}`. Retorna `id`, `status`, `risk_score` (0–100), `risk_level` (`low`/`medium`/`high`), `recommendation` (`follow`/`additional_validation`/`reject`), `decision` (`ALLOW`/`CHALLENGE`/`DENY`) e `reasons` (códigos).
 
 ## Webhooks
 

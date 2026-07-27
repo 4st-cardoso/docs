@@ -48,6 +48,8 @@ tags:
     description: Gerenciamento de endpoints de webhook para receber notificações de eventos da plataforma
   - name: Links de Pagamento
     description: Criação e gerenciamento de links de pagamento com checkout pré-configurado
+  - name: Análise de Fraude
+    description: API de Risco — consulta o risco de fraude de uma transação (autenticada por chave de API)
 
 paths:
 
@@ -2487,6 +2489,126 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # ─────────────────────────────────────────────────────────────────
+  # ANÁLISE DE FRAUDE
+  # ─────────────────────────────────────────────────────────────────
+
+  /v1/fraud/risk-analyses:
+    post:
+      tags: [Análise de Fraude]
+      summary: Analisar risco de uma transação
+      description: >
+        Avalia o risco de fraude de uma transação e devolve uma recomendação, uma nota de risco
+        (0–100), o nível e os motivos. Cada análise concluída é cobrada. Autenticada pela chave de API.
+      operationId: createRiskAnalysis
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: >
+            Chave de idempotência opcional. Repetir a mesma chave com o mesmo corpo devolve a análise
+            original sem cobrar de novo; a mesma chave com corpo diferente retorna 422.
+          schema:
+            type: string
+            example: order-9f2b1a
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskAnalysisRequest'
+            example:
+              external_reference: order-1024
+              amount: 25000
+              currency: BRL
+              payment_method: credit_card
+              customer:
+                name: João Silva
+                document: "12345678900"
+                email: joao@exemplo.com.br
+                phone: "+5511999998888"
+              card:
+                bin: "516292"
+                last4: "0000"
+                brand: mastercard
+              context:
+                ip: 189.10.20.30
+                user_agent: MinhaLoja/1.0
+      responses:
+        '200':
+          description: Análise concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskAnalysis'
+              example:
+                object: risk_analysis
+                id: fan_a1b2c3d4e5f6g7h8
+                external_reference: order-1024
+                status: completed
+                risk_score: 30
+                risk_level: low
+                recommendation: follow
+                decision: ALLOW
+                reasons: [NEW_CUSTOMER]
+                analyzed_at: "2026-07-27T12:00:00-03:00"
+        '401':
+          $ref: '#/components/responses/FraudUnauthorized'
+        '402':
+          description: Acesso suspenso por faturas de antifraude em aberto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudError'
+              example:
+                error:
+                  type: billing_error
+                  code: payment_required
+                  message: Antifraud API access is suspended due to an outstanding balance.
+        '403':
+          $ref: '#/components/responses/FraudProductDisabled'
+        '422':
+          description: Dados inválidos, campo de cartão proibido (número/CVV/validade) ou conflito de idempotência
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudError'
+              examples:
+                validation_failed:
+                  summary: Dados inválidos
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_failed
+                      message: The amount field is required.
+                forbidden_card_field:
+                  summary: Campo de cartão proibido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: forbidden_card_field
+                      message: The field [card.number] is not accepted. Send only the card bin and last four digits.
+                idempotency_conflict:
+                  summary: Conflito de idempotência
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_conflict
+                      message: The Idempotency-Key was already used with a different payload.
+        '503':
+          description: Provedor de risco indisponível — repita com a mesma Idempotency-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudError'
+              example:
+                error:
+                  type: service_unavailable
+                  code: analysis_unavailable
+                  message: The analysis could not be completed. Retry with the same Idempotency-Key.
+
 components:
 
   securitySchemes:
@@ -2495,6 +2617,13 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: "Token JWT obtido via `POST /v1/login`. Envie no header `Authorization: Bearer <token>`."
+    secretKeyAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Chave de API (secret key) da conta, no formato `sk_live_...` (produção) ou `sk_test_...` (Dev mode).
+        Envie no header `Authorization: Bearer <chave>`. Usada apenas nas rotas de Análise de Fraude.
+        Gere a sua no dashboard em Configurações → Chaves de API.
 
   parameters:
     AccountHeader:
@@ -2524,6 +2653,28 @@ components:
         example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
 
   responses:
+    FraudUnauthorized:
+      description: Chave de API ausente, inválida ou revogada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FraudError'
+          example:
+            error:
+              type: authentication_error
+              code: invalid_api_secret
+              message: Invalid API secret.
+    FraudProductDisabled:
+      description: Produto de antifraude não habilitado para a conta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FraudError'
+          example:
+            error:
+              type: authorization_error
+              code: product_not_enabled
+              message: The antifraud API is not enabled for this account.
     ValidationError:
       description: Erro de validação dos dados enviados
       content:
@@ -2591,6 +2742,152 @@ components:
             data: []
 
   schemas:
+
+    # ── Análise de Fraude ─────────────────────────────────────────
+
+    FraudError:
+      type: object
+      description: Envelope de erro das rotas de Análise de Fraude
+      properties:
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+              example: invalid_request_error
+            code:
+              type: string
+              example: validation_failed
+            message:
+              type: string
+              example: The amount field is required.
+
+    RiskAnalysisRequest:
+      type: object
+      required: [amount, currency]
+      properties:
+        external_reference:
+          type: string
+          maxLength: 191
+          description: Seu identificador da transação (aparece na resposta)
+          example: order-1024
+        amount:
+          type: integer
+          minimum: 0
+          description: Valor da transação em centavos (10000 = R$ 100,00)
+          example: 25000
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Moeda no padrão ISO 4217 (3 letras)
+          example: BRL
+        payment_method:
+          type: string
+          maxLength: 30
+          example: credit_card
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+              maxLength: 191
+              example: João Silva
+            document:
+              type: string
+              maxLength: 60
+              description: CPF ou CNPJ, com ou sem máscara
+              example: "12345678900"
+            email:
+              type: string
+              format: email
+              maxLength: 191
+              example: joao@exemplo.com.br
+            phone:
+              type: string
+              maxLength: 40
+              example: "+5511999998888"
+        card:
+          type: object
+          description: >
+            Apenas BIN e últimos 4 dígitos. Enviar o número completo, o CVV ou a validade
+            faz a requisição retornar 422 (`forbidden_card_field`).
+          properties:
+            bin:
+              type: string
+              description: 6 primeiros dígitos do cartão
+              example: "516292"
+            last4:
+              type: string
+              description: 4 últimos dígitos do cartão
+              example: "0000"
+            brand:
+              type: string
+              maxLength: 30
+              example: mastercard
+        context:
+          type: object
+          properties:
+            ip:
+              type: string
+              description: Endereço IP do comprador
+              example: 189.10.20.30
+            user_agent:
+              type: string
+              maxLength: 512
+              example: MinhaLoja/1.0
+
+    RiskAnalysis:
+      type: object
+      description: Resultado de uma análise de risco
+      properties:
+        object:
+          type: string
+          example: risk_analysis
+        id:
+          type: string
+          description: Código da análise (use-o para consultar depois)
+          example: fan_a1b2c3d4e5f6g7h8
+        external_reference:
+          type: string
+          nullable: true
+          example: order-1024
+        status:
+          type: string
+          enum: [completed, unavailable, failed]
+          example: completed
+        risk_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Nota de risco de 0 (baixo) a 100 (alto)
+          example: 30
+        risk_level:
+          type: string
+          enum: [low, medium, high]
+          example: low
+        recommendation:
+          type: string
+          nullable: true
+          enum: [follow, additional_validation, reject]
+          description: "Ação sugerida: seguir, validar melhor ou recusar"
+          example: follow
+        decision:
+          type: string
+          nullable: true
+          enum: [ALLOW, CHALLENGE, DENY]
+          description: "Decisão do motor: aprovar, revisar ou recusar"
+          example: ALLOW
+        reasons:
+          type: array
+          description: Códigos dos motivos que pesaram na decisão
+          items:
+            type: string
+          example: [NEW_CUSTOMER]
+        analyzed_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T12:00:00-03:00"
 
     # ── Links de Pagamento ────────────────────────────────────────
 
