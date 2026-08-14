@@ -1,0 +1,70 @@
+---
+title: "Eventos de Nota Fiscal"
+description: "Payload do evento disparado quando a nota fiscal de um pedido é emitida e autorizada."
+icon: "receipt"
+---
+
+A emissão de nota fiscal é assíncrona e acontece depois que o pedido é pago. Quando **todas** as notas do pedido são autorizadas pela prefeitura/SEFAZ, a 4Selet Pay dispara um único evento `tax_invoice.issued` com os links públicos dos PDFs.
+
+<Info>
+  Um pedido pode gerar **mais de uma nota** (por exemplo, quando o valor é dividido entre nota de serviço e nota de produto). O evento só é disparado quando **todas** as notas do pedido estão autorizadas, e apenas **uma vez** por pedido — reentregas do provedor fiscal não re-disparam o evento.
+</Info>
+
+---
+
+## tax_invoice.issued
+
+Disparado quando a nota fiscal do pedido é emitida e autorizada.
+
+```json Payload
+{
+  "type": "tax_invoice.issued",
+  "id": "hook_a1b2c3d4e5f6",
+  "webhook_version": "v1",
+  "data": {
+    "order_code": "ord_9f3c1b2a",
+    "email": "joao@exemplo.com.br",
+    "customer_name": "João Silva",
+    "corporate_name": "Minha Empresa LTDA",
+    "total_amount": "R$ 199,90",
+    "invoices": [
+      {
+        "model": "serviceInvoice",
+        "code": "000000123",
+        "pdf_url": "https://app.spedy.com.br/public/service-invoices/8f14e45f-ea1c-4f2b-9d61-3f2c7b8a1d05/pdf"
+      }
+    ],
+    "products": "Plano Mensal Premium",
+    "payment_method": "Cartão de Crédito"
+  }
+}
+```
+
+### Campos de `data`
+
+| Campo            | Tipo   | Descrição                                                            |
+|------------------|--------|----------------------------------------------------------------------|
+| `order_code`     | string | Código do pedido ao qual a nota se refere                            |
+| `email`          | string | E-mail do cliente final (destinatário da nota)                       |
+| `customer_name`  | string | Nome do cliente final                                                |
+| `corporate_name` | string | Razão social (ou nome) da conta emissora                             |
+| `total_amount`   | string | Valor total do pedido já formatado em Real (ex.: `"R$ 199,90"`)      |
+| `invoices`       | array  | Lista das notas emitidas para o pedido (veja abaixo)                 |
+| `products`       | string | Nomes dos produtos do pedido separados por vírgula                   |
+| `payment_method` | string | Forma de pagamento: `Cartão de Crédito`, `Cartão de Débito`, `Pix`, `Boleto` ou `PayPal` |
+
+### Objeto de `invoices[]`
+
+| Campo     | Tipo   | Descrição                                                                 |
+|-----------|--------|---------------------------------------------------------------------------|
+| `model`   | string | Modelo da nota: `serviceInvoice` (serviço) ou `productInvoice` (produto)  |
+| `code`    | string | Número da nota emitida                                                    |
+| `pdf_url` | string | Link público para o PDF da nota — pode ser entregue diretamente ao cliente |
+
+<Warning>
+  O `pdf_url` é um link **público**: quem tiver a URL consegue abrir o PDF. Trate-o com o mesmo cuidado que trataria o documento fiscal.
+</Warning>
+
+<Note>
+  O evento só é entregue quando o cliente do pedido tem e-mail cadastrado — o campo `email` é o destinatário usado no envio da nota.
+</Note>

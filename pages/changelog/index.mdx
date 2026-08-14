@@ -9,8 +9,86 @@ Este changelog é atualizado continuamente com melhorias, novas funcionalidades 
 
 ## Atualizações Recentes
 
+<Update label="14 de Ago, 2026">
+## Cartões: um único endpoint para salvar e tokenizar
+
+Unificamos o cadastro de cartão em **um só endpoint**. Antes, salvar um cartão para uso posterior exigia duas chamadas — uma para criar o cartão e outra, separada, apenas para tokenizá-lo. Agora **a criação do cartão já dispara a tokenização**, e não existe mais rota de tokenização avulsa.
+
+**Endpoints removidos:**
+
+| Método | Endpoint | Substituído por |
+|--------|----------|-----------------|
+| `POST` | `/v1/clients/{clientCode}/cards` | `POST /v1/clients/{clientCode}/cards/tokens` |
+| `POST` | `/v1/clients/{clientCode}/cards/{cardId}/tokens` | `POST /v1/clients/{clientCode}/cards/tokens` |
+
+**Endpoint único de cadastro:**
+
+```http
+POST /v1/clients/{clientCode}/cards/tokens
+```
+
+<Warning>
+  **Mudança incompatível.** Se a sua integração chamava `POST .../cards` seguido de `POST .../cards/{cardId}/tokens`, troque as duas chamadas por uma única chamada a `POST .../cards/tokens` com o mesmo corpo do antigo cadastro. As demais rotas de cartão (listar, consultar, atualizar e excluir) permanecem inalteradas.
+</Warning>
+
+O comportamento é o mesmo já documentado: a resposta volta imediatamente com `202 Accepted` e `tokenization_status: "pending"`, e o resultado da tokenização chega por webhook (`card.token_created` / `card.token_failed`). Não é necessário fazer polling.
+
+**`card_token` em toda representação de cartão:**
+
+O campo `card_token` passa a aparecer em **todas** as respostas e eventos de cartão — não apenas no `card.token_created`. Ele é o identificador do cartão salvo e continua sendo o valor enviado em `payment.card.card_token` ao criar uma cobrança.
+
+---
+
+## Webhooks: campo `webhook_version` no payload
+
+Todo webhook desta documentação passa a incluir o campo `webhook_version` no envelope, identificando o formato do payload:
+
+```json
+{
+  "type": "charge.canceled",
+  "id": "hook_a1b2c3d4e5f6",
+  "webhook_version": "v1",
+  "data": { ... }
+}
+```
+
+O valor é sempre `v1` para os eventos documentados aqui. É uma **adição** ao payload — nenhum campo existente mudou de nome ou de formato. Trate valores desconhecidos de forma tolerante para conviver com formatos futuros.
+
+---
+
+## Novo evento: `tax_invoice.issued`
+
+A emissão de nota fiscal agora notifica sua aplicação. O evento `tax_invoice.issued` é disparado quando **todas** as notas de um pedido são autorizadas, e traz os links públicos dos PDFs prontos para entregar ao cliente.
+
+```json Payload
+{
+  "type": "tax_invoice.issued",
+  "id": "hook_a1b2c3d4e5f6",
+  "webhook_version": "v1",
+  "data": {
+    "order_code": "ord_9f3c1b2a",
+    "email": "joao@exemplo.com.br",
+    "customer_name": "João Silva",
+    "corporate_name": "Minha Empresa LTDA",
+    "total_amount": "R$ 199,90",
+    "invoices": [
+      {
+        "model": "serviceInvoice",
+        "code": "000000123",
+        "pdf_url": "https://app.spedy.com.br/public/service-invoices/8f14e45f-ea1c-4f2b-9d61-3f2c7b8a1d05/pdf"
+      }
+    ],
+    "products": "Plano Mensal Premium",
+    "payment_method": "Cartão de Crédito"
+  }
+}
+```
+
+Consulte a [referência do evento](/pages/webhooks/events/tax-invoice) para a descrição completa dos campos.
+</Update>
+
 <Update label="16 de Jul, 2026">
-## Cartões salvos, tokenização e cobrança com `card_id`
+## Cartões salvos, tokenização e cobrança com `card_token`
 
 Novo conjunto de rotas para **gerenciar os cartões salvos de um cliente** e reutilizá-los nas cobranças, além de melhorias no `/charge`.
 
@@ -18,23 +96,23 @@ Novo conjunto de rotas para **gerenciar os cartões salvos de um cliente** e reu
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `POST` | `/v1/clients/{clientCode}/cards` | Cadastrar cartão do cliente |
+| `POST` | `/v1/clients/{clientCode}/cards/tokens` | Salvar cartão do cliente (tokenização assíncrona) |
 | `GET` | `/v1/clients/{clientCode}/cards` | Listar cartões do cliente |
 | `GET` | `/v1/clients/{clientCode}/cards/{cardId}` | Consultar cartão |
 | `PUT` | `/v1/clients/{clientCode}/cards/{cardId}` | Atualizar cartão (nome, tipo, bandeira, validade) |
 | `DELETE` | `/v1/clients/{clientCode}/cards/{cardId}` | Excluir cartão (soft delete) |
-| `POST` | `/v1/clients/{clientCode}/cards/{cardId}/tokens` | Gerar token do cartão nas adquirentes |
 
 **Cobrança com cartão salvo (`/charge`):**
 
-- Agora é possível enviar `payment.card.card_id` (o `id` retornado no cadastro do cartão) **no lugar dos dados completos do cartão**. Os campos `number`, `name`, `month`, `year` e `security_code` tornam-se opcionais quando `card_id` é enviado (continue enviando `installments`).
-- Toda cobrança com cartão passa a retornar o `card_id` em `data.orders[].charges[].payment.card_id` — tanto ao enviar `card_id` quanto os dados completos (nesse caso o cartão é salvo e o `card_id` é devolvido). Em pagamentos sem cartão (ex.: PIX), vem `null`.
+- Agora é possível enviar `payment.card.card_token` (o token retornado ao salvar o cartão / no evento `card.token_created`) **no lugar dos dados completos do cartão**. Os campos `number`, `name`, `month`, `year` e `security_code` tornam-se opcionais quando `card_token` é enviado (continue enviando `installments`).
+- Toda cobrança com cartão passa a retornar o `card_token` em `data.orders[].charges[].payment.card_token` — tanto ao enviar `card_token` quanto os dados completos (nesse caso o cartão é salvo e o `card_token` é devolvido). Em pagamentos sem cartão (ex.: PIX), vem `null`.
+- O billing address **não** é tokenizado: ao cobrar com `card_token`, informe o billing address (`client.address`) na requisição.
 
 **Segurança e comportamento:**
 
 - O número completo do cartão (PAN) e o CVV **nunca** são retornados — apenas `first_six_digits` e `last_four_digits`.
-- As rotas de cartão e o uso de `card_id` são **escopados por conta** — um `card_id` de outra conta é rejeitado com `422`.
-- **Tokenização multi-adquirência**: ao salvar um cartão, a tokenização é disparada de forma assíncrona nas adquirentes de cartão da conta; o endpoint `/tokens` permite gerar o token sob demanda (hoje suportado pela Pagarme).
+- As rotas de cartão e o uso de `card_token` são **escopados por conta** — um `card_token` de outra conta é rejeitado com `422`.
+- **Tokenização assíncrona por webhook**: ao salvar um cartão (`POST .../cards/tokens`), a resposta retorna imediatamente com `tokenization_status: "pending"` e o resultado é entregue por webhook. Novos eventos de cartão: `card.created`, `card.updated`, `card.deleted`, `card.expired`, `card.token_pending`, `card.token_created` e `card.token_failed`.
 - Exclusão é *soft delete* e é bloqueada (`409`) quando o cartão está vinculado a uma assinatura ativa.
 
 **Exemplo — cobrar com cartão salvo:**
@@ -56,7 +134,7 @@ account: {accountcode}
   ],
   "payment": {
     "type": "CreditCard",
-    "card": { "card_id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f", "installments": 1 }
+    "card": { "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f", "installments": 1 }
   }
 }
 ```

@@ -12,5 +12,9 @@ openapi: "POST /v1/charge"
 </Warning>
 
 <Tip>
-  Para cobrar um **cartão já salvo**, envie apenas `payment.card.card_id` (o `id` retornado no cadastro do cartão) no lugar dos dados completos do cartão. Continue enviando `payment.card.installments`. O `card_id` só é aceito para o cliente dono do cartão — mesmo `client.email`, mesma conta.
+  Para cobrar um **cartão já salvo**, envie apenas `payment.card.card_token` (o token retornado ao salvar o cartão / no evento `card.token_created`) no lugar dos dados completos do cartão. Continue enviando `payment.card.installments`. O `card_token` só é aceito para cartões da **mesma conta** da cobrança.
 </Tip>
+
+<Warning>
+  O billing address do cartão **não** é tokenizado. Ao cobrar com `card_token`, informe o billing address (`client.address`) na própria requisição.
+</Warning>

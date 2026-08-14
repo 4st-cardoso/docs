@@ -53,15 +53,21 @@ Todos os webhooks da 4Selet Pay seguem o mesmo envelope:
 {
   "type": "charge.canceled",
   "id": "hook_a1b2c3d4e5f6",
+  "webhook_version": "v1",
   "data": { ... }
 }
 ```
 
-| Campo  | Tipo   | Descrição                                             |
-|--------|--------|-------------------------------------------------------|
-| `type` | string | Identificador do evento em notação `entidade.ação`    |
-| `id`   | string | Código único da notificação enviada (`hook_...`)      |
-| `data` | object | Dados específicos do evento (veja cada evento abaixo) |
+| Campo             | Tipo   | Descrição                                                     |
+|-------------------|--------|---------------------------------------------------------------|
+| `type`            | string | Identificador do evento em notação `entidade.ação`            |
+| `id`              | string | Código único da notificação enviada (`hook_...`)              |
+| `webhook_version` | string | Versão do formato do payload — sempre `v1` nesta documentação |
+| `data`            | object | Dados específicos do evento (veja cada evento abaixo)         |
+
+<Note>
+  O campo `webhook_version` acompanha **todos** os eventos desta documentação com o valor `v1`. Ele identifica o formato do payload, para que o seu endpoint possa conviver com formatos futuros sem ambiguidade. Trate valores desconhecidos de forma tolerante.
+</Note>
 
 ---
 
@@ -71,6 +77,13 @@ Todos os webhooks da 4Selet Pay seguem o mesmo envelope:
 |------------------------------|-------------------------------------------------------------|
 | `charge.canceled`            | Uma cobrança foi cancelada                                  |
 | `charge.expired`             | Uma cobrança PIX expirou sem pagamento                      |
+| `card.created`               | Um cartão foi salvo                                         |
+| `card.updated`               | Um cartão foi atualizado                                    |
+| `card.deleted`               | Um cartão foi removido                                      |
+| `card.expired`               | Um cartão salvo atingiu o fim da validade                  |
+| `card.token_pending`         | A tokenização de um cartão foi iniciada                    |
+| `card.token_created`         | Um cartão foi tokenizado e está pronto para cobranças      |
+| `card.token_failed`          | Não foi possível tokenizar um cartão                       |
 | `order.failed`               | Um pedido falhou no processamento                           |
 | `order.unprocessed`          | Um pedido não pôde ser processado pelo gateway              |
 | `order.challenged`           | Um pedido requer confirmação adicional (OTP)                |
@@ -79,8 +92,13 @@ Todos os webhooks da 4Selet Pay seguem o mesmo envelope:
 | `subscription.canceled`      | Uma assinatura foi cancelada                                |
 | `subscription.delayed`       | Uma assinatura está com cobrança atrasada                   |
 | `subscription.regularized`   | Uma assinatura atrasada foi regularizada                    |
+| `tax_invoice.issued`         | A nota fiscal de um pedido foi emitida e autorizada         |
 
 Os payloads detalhados de cada evento estão na seção **Eventos** na barra lateral.
+
+<Note>
+  A tabela acima lista os eventos cujos payloads estão documentados nesta versão. A lista completa dos eventos que podem ser assinados — incluindo recebedores, KYC e saques — está em [Endpoints de Webhook → Eventos disponíveis](/pages/webhook-endpoints/reference#eventos-disponíveis).
+</Note>
 
 ---
 
