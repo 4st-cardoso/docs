@@ -12,6 +12,7 @@ Disparado quando uma assinatura é cancelada — manualmente pelo integrador ou 
 {
   "type": "subscription.canceled",
   "id": "hook_b2c3d4e5f6a1",
+  "webhook_version": "v1",
   "data": {
     "code": "sub_abc123xyz",
     "status": "RecurringCanceled",
@@ -42,6 +43,7 @@ Disparado quando uma assinatura entra em atraso — ou seja, uma fatura não foi
 {
   "type": "subscription.delayed",
   "id": "hook_c3d4e5f6a1b2",
+  "webhook_version": "v1",
   "data": {
     "code": "sub_xyz789abc",
     "status": "RecurringOverdue",
@@ -72,6 +74,7 @@ Disparado quando uma assinatura que estava em atraso é regularizada — após o
 {
   "type": "subscription.regularized",
   "id": "hook_d4e5f6a1b2c3",
+  "webhook_version": "v1",
   "data": {
     "code": "sub_xyz789abc",
     "status": "Recurring",

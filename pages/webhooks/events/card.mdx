@@ -55,8 +55,10 @@ Disparado quando um cartão é salvo.
 {
   "type": "card.created",
   "id": "hook_a1b2c3d4e5f6",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
@@ -66,8 +68,8 @@ Disparado quando um cartão é salvo.
     "type": "credit",
     "status": "active",
     "tokenization_status": "pending",
-    "created_at": "2026-05-27T10:00:00.000000Z",
-    "updated_at": "2026-05-27T10:00:00.000000Z"
+    "created_at": "2026-05-27T10:00:00-03:00",
+    "updated_at": "2026-05-27T10:00:00-03:00"
   }
 }
 ```
@@ -82,8 +84,10 @@ Disparado quando a tokenização do cartão é iniciada.
 {
   "type": "card.token_pending",
   "id": "hook_b2c3d4e5f6a1",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
@@ -93,8 +97,8 @@ Disparado quando a tokenização do cartão é iniciada.
     "type": "credit",
     "status": "active",
     "tokenization_status": "pending",
-    "created_at": "2026-05-27T10:00:00.000000Z",
-    "updated_at": "2026-05-27T10:00:00.000000Z"
+    "created_at": "2026-05-27T10:00:00-03:00",
+    "updated_at": "2026-05-27T10:00:00-03:00"
   }
 }
 ```
@@ -109,6 +113,7 @@ Disparado quando o cartão foi tokenizado e está pronto para cobranças.
 {
   "type": "card.token_created",
   "id": "hook_c3d4e5f6a1b2",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
@@ -121,8 +126,8 @@ Disparado quando o cartão foi tokenizado e está pronto para cobranças.
     "type": "credit",
     "status": "active",
     "tokenization_status": "tokenized",
-    "created_at": "2026-05-27T10:00:00.000000Z",
-    "updated_at": "2026-05-27T10:00:05.000000Z"
+    "created_at": "2026-05-27T10:00:00-03:00",
+    "updated_at": "2026-05-27T10:00:05-03:00"
   }
 }
 ```
@@ -141,8 +146,10 @@ Disparado quando não foi possível tokenizar o cartão.
 {
   "type": "card.token_failed",
   "id": "hook_d4e5f6a1b2c3",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
@@ -152,8 +159,8 @@ Disparado quando não foi possível tokenizar o cartão.
     "type": "credit",
     "status": "active",
     "tokenization_status": "failed",
-    "created_at": "2026-05-27T10:00:00.000000Z",
-    "updated_at": "2026-05-27T10:00:05.000000Z"
+    "created_at": "2026-05-27T10:00:00-03:00",
+    "updated_at": "2026-05-27T10:00:05-03:00"
   }
 }
 ```
@@ -168,8 +175,10 @@ Disparado quando um cartão é atualizado.
 {
   "type": "card.updated",
   "id": "hook_e5f6a1b2c3d4",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
@@ -179,8 +188,8 @@ Disparado quando um cartão é atualizado.
     "type": "credit",
     "status": "active",
     "tokenization_status": "tokenized",
-    "created_at": "2026-05-27T10:00:00.000000Z",
-    "updated_at": "2026-05-28T09:15:00.000000Z"
+    "created_at": "2026-05-27T10:00:00-03:00",
+    "updated_at": "2026-05-28T09:15:00-03:00"
   }
 }
 ```
@@ -195,8 +204,10 @@ Disparado quando um cartão é removido.
 {
   "type": "card.deleted",
   "id": "hook_f6a1b2c3d4e5",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
@@ -206,9 +217,9 @@ Disparado quando um cartão é removido.
     "type": "credit",
     "status": "deleted",
     "tokenization_status": "tokenized",
-    "created_at": "2026-05-27T10:00:00.000000Z",
-    "updated_at": "2026-06-01T14:00:00.000000Z",
-    "deleted_at": "2026-06-01T14:00:00.000000Z"
+    "created_at": "2026-05-27T10:00:00-03:00",
+    "updated_at": "2026-06-01T14:00:00-03:00",
+    "deleted_at": "2026-06-01T14:00:00-03:00"
   }
 }
 ```
@@ -223,8 +234,10 @@ Disparado quando um cartão salvo atinge o fim de sua validade.
 {
   "type": "card.expired",
   "id": "hook_a1b2c3d4e5f7",
+  "webhook_version": "v1",
   "data": {
     "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+    "card_token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
     "first_six_digits": "542501",
     "last_four_digits": "7793",
     "brand": "mastercard",
@@ -234,8 +247,8 @@ Disparado quando um cartão salvo atinge o fim de sua validade.
     "type": "credit",
     "status": "active",
     "tokenization_status": "tokenized",
-    "created_at": "2024-05-27T10:00:00.000000Z",
-    "updated_at": "2024-05-27T10:00:00.000000Z"
+    "created_at": "2024-05-27T10:00:00-03:00",
+    "updated_at": "2024-05-27T10:00:00-03:00"
   }
 }
 ```

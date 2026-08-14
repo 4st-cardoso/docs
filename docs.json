@@ -136,7 +136,8 @@
                   "pages/webhooks/events/card",
                   "pages/webhooks/events/order",
                   "pages/webhooks/events/invoice",
-                  "pages/webhooks/events/subscription"
+                  "pages/webhooks/events/subscription",
+                  "pages/webhooks/events/tax-invoice"
                 ]
               }
             ]
