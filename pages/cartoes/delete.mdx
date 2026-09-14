@@ -4,7 +4,7 @@ openapi: "DELETE /v1/clients/{clientCode}/cards/{cardId}"
 ---
 
 <Note>
-  Requer o header `account` com o código da conta. A exclusão é um soft delete: o cartão passa a ter `status` `deleted`, com `deleted_at` preenchido, e seus tokens por adquirente são removidos.
+  Requer o header `account` com o código da conta. A exclusão é um soft delete: o cartão passa a ter `status` `deleted`, com `deleted_at` preenchido, e seus tokens são removidos. Um evento `card.deleted` é emitido.
 </Note>
 
 <Warning>

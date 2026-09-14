@@ -39,78 +39,103 @@ account: acc_abc123xyz
 
 ## Eventos disponíveis
 
-Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que deseja monitorar:
+Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que deseja monitorar. A coluna **Payload** indica o formato do envelope entregue — o campo `webhook_version` do payload carrega esse mesmo valor.
+
+<Note>
+  Os payloads detalhados nesta documentação são os do formato **`v1`**, cujo envelope é `{ type, id, webhook_version, data }`. Os eventos marcados como `v2` são entregues com um envelope diferente — `{ id, type, webhook_version, created_at, data }` — e o campo `webhook_version` do próprio payload informa qual formato você recebeu. Use-o para rotear o processamento no seu endpoint.
+</Note>
 
 ### Pedidos
 
-| Evento               | Descrição                  |
-|----------------------|----------------------------|
-| `order.paid`         | Pedido pago                |
-| `order.failed`       | Pedido falhou              |
-| `order.refunded`     | Pedido reembolsado         |
-| `order.challenged`   | Pedido em contestação      |
-| `order.unprocessed`  | Pedido não processado      |
-| `order.chargeback`   | Pedido em chargeback       |
+| Evento               | Descrição                                                        | Payload    |
+|----------------------|------------------------------------------------------------------|------------|
+| `order.paid`         | Pedido totalmente pago                                           | `v2`       |
+| `order.failed`       | Pedido falhou e nenhuma cobrança foi concluída                   | `v1` e `v2` |
+| `order.refunded`     | Todas as cobranças do pedido foram estornadas                    | `v2`       |
+| `order.chargeback`   | Pedido sofreu chargeback                                         | `v2`       |
+| `order.challenged`   | Pedido entrou em contestação pelo antifraude                     | `v1`       |
+| `order.unprocessed`  | Pedido bloqueado antes do processamento                          | `v1`       |
 
 ### Cobranças
 
-| Evento                      | Descrição                             |
-|-----------------------------|---------------------------------------|
-| `charge.created`            | Cobrança criada                       |
-| `charge.pending`            | Cobrança pendente                     |
-| `charge.paid`               | Cobrança paga                         |
-| `charge.failed`             | Cobrança falhou                       |
-| `charge.reproved`           | Cobrança reprovada                    |
-| `charge.refunded`           | Cobrança estornada                    |
-| `charge.partial_refunded`   | Cobrança parcialmente estornada       |
-| `charge.expired`            | Cobrança expirada                     |
-| `charge.canceled`           | Cobrança cancelada                    |
-| `charge.challenged`         | Cobrança contestada                   |
-| `charge.chargeback`         | Cobrança em chargeback                |
+| Evento                      | Descrição                                        | Payload |
+|-----------------------------|--------------------------------------------------|---------|
+| `charge.created`            | Cobrança criada                                  | `v2`    |
+| `charge.pending`            | Cobrança aguardando pagamento                    | `v2`    |
+| `charge.paid`               | Cobrança paga                                    | `v2`    |
+| `charge.failed`             | Cobrança falhou                                  | `v2`    |
+| `charge.reproved`           | Cobrança reprovada pelo emissor                  | `v2`    |
+| `charge.refunded`           | Cobrança estornada por completo                  | `v2`    |
+| `charge.partial_refunded`   | Parte do valor da cobrança foi estornada         | `v2`    |
+| `charge.chargeback`         | Cobrança sofreu chargeback                       | `v2`    |
+| `charge.expired`            | Cobrança expirou sem pagamento                   | `v1`    |
+| `charge.canceled`           | Cobrança cancelada                               | `v1`    |
 
 ### Assinaturas
 
-| Evento                        | Descrição                   |
-|-------------------------------|-----------------------------|
-| `subscription.canceled`       | Assinatura cancelada        |
-| `subscription.delayed`        | Assinatura atrasada         |
-| `subscription.regularized`    | Assinatura regularizada     |
+| Evento                        | Descrição                              | Payload |
+|-------------------------------|----------------------------------------|---------|
+| `subscription.canceled`       | Assinatura cancelada                   | `v1`    |
+| `subscription.delayed`        | Assinatura em atraso                   | `v1`    |
+| `subscription.regularized`    | Assinatura em atraso regularizada      | `v1`    |
 
 ### Faturas
 
-| Evento            | Descrição         |
-|-------------------|-------------------|
-| `invoice.created` | Fatura criada     |
-| `invoice.paid`    | Fatura paga       |
-| `invoice.failed`  | Fatura falhou     |
+| Evento            | Descrição                                       | Payload |
+|-------------------|-------------------------------------------------|---------|
+| `invoice.created` | Fatura da assinatura criada                     | `v1`    |
+| `invoice.failed`  | Cobrança da fatura falhou                       | `v1`    |
 
-### PIX
+### Cartões
 
-| Evento           | Descrição     |
-|------------------|---------------|
-| `pix.generated`  | PIX gerado    |
+| Evento                | Descrição                                              | Payload |
+|-----------------------|--------------------------------------------------------|---------|
+| `card.created`        | Cartão salvo na conta                                  | `v1`    |
+| `card.updated`        | Cartão atualizado                                      | `v1`    |
+| `card.deleted`        | Cartão removido                                        | `v1`    |
+| `card.expired`        | Cartão salvo expirou                                   | `v1`    |
+| `card.token_pending`  | Tokenização do cartão ficou pendente                   | `v1`    |
+| `card.token_created`  | Token do cartão criado na adquirência                  | `v1`    |
+| `card.token_failed`   | Tokenização do cartão falhou                           | `v1`    |
+
+### Nota fiscal
+
+| Evento               | Descrição                                    | Payload |
+|----------------------|----------------------------------------------|---------|
+| `tax_invoice.issued` | Nota fiscal do pedido emitida e autorizada   | `v1`    |
+
+### Recebedores
+
+| Evento                                | Descrição                                                | Payload |
+|---------------------------------------|----------------------------------------------------------|---------|
+| `receiver.bank_data_ready`            | Dados bancários do recebedor ficaram prontos             | `v1`    |
+| `receiver.bank_data_failed`           | Cadastro dos dados bancários falhou                      | `v1`    |
+| `receiver.kyc_pending`                | KYC do recebedor ficou pendente                          | `v1`    |
+| `receiver.kyc_verified`               | KYC do recebedor verificado                              | `v1`    |
+| `receiver.kyc_failed`                 | KYC do recebedor falhou                                  | `v1`    |
+| `receiver.kyc_link_generated`         | Link de validação de identidade gerado                   | `v1`    |
+| `receiver.kyc_validation_approved`    | Validação de identidade aprovada                         | `v1`    |
+| `receiver.kyc_validation_rejected`    | Validação de identidade rejeitada                        | `v1`    |
+
+### Conta
+
+| Evento                  | Descrição                        | Payload |
+|-------------------------|----------------------------------|---------|
+| `account.kyc_pending`   | KYC da conta ficou pendente      | `v1`    |
+| `account.kyc_verified`  | KYC da conta verificado          | `v1`    |
+| `account.kyc_failed`    | KYC da conta falhou              | `v1`    |
 
 ### Saques
 
-| Evento                 | Descrição               |
-|------------------------|-------------------------|
-| `withdrawal.requested` | Solicitação de saque    |
+| Evento                                     | Descrição                                | Payload |
+|--------------------------------------------|------------------------------------------|---------|
+| `withdrawal.approved`                      | Saque aprovado                           | `v1`    |
+| `withdrawal.reproved`                      | Saque reprovado                          | `v1`    |
+| `withdrawal.awaiting_acquisition_balance`  | Saque aguardando saldo na adquirência    | `v1`    |
 
-### Conta e Usuário
-
-| Evento                  | Descrição                         |
-|-------------------------|-----------------------------------|
-| `account.bank.update`   | Dados bancários atualizados       |
-| `account.team.invite`   | Convite para time da conta        |
-| `welcome`               | Boas-vindas                       |
-| `email.confirmation`    | Confirmação de e-mail             |
-| `email.recovery`        | Recuperação de e-mail             |
-
-### Compras
-
-| Evento                  | Descrição                    |
-|-------------------------|------------------------------|
-| `purchase.many_failed`  | Múltiplas compras com falha  |
+<Warning>
+  Apenas os eventos listados acima são entregues aos endpoints da conta. Outros valores podem ser aceitos no cadastro, mas nunca resultarão em uma notificação — não construa sua integração em cima deles.
+</Warning>
 
 ---
 

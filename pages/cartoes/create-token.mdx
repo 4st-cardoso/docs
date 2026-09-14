@@ -1,16 +1,36 @@
 ---
-title: "Criar token Cartão"
-openapi: "POST /v1/clients/{clientCode}/cards/{cardId}/tokens"
+title: "Salvar Cartão"
+openapi: "POST /v1/clients/{clientCode}/cards/tokens"
 ---
 
 <Note>
-  Requer o header `account` com o código da conta. Gera o token do cartão salvo (identificado pelo `cardId`) junto às adquirentes de cartão configuradas na conta, e retorna o resultado por adquirente em `data.tokens`.
+  Requer o header `account` com o código da conta. O cartão é salvo para o cliente informado no `clientCode` e a tokenização é iniciada automaticamente.
 </Note>
 
-<Info>
-  A tokenização é feita de forma síncrona: a plataforma chama cada adquirente de cartão da conta (na ordem de prioridade), persiste o token em `card_acquisition_tokens` e devolve o status na resposta. Aceita o header opcional `Idempotency-Key`.
-</Info>
+<Tip>
+  A resposta retorna imediatamente com `tokenization_status: "pending"`. O resultado da tokenização é entregue de forma assíncrona por webhook — você **não** precisa fazer polling. Envie o header opcional `Idempotency-Key` para evitar cadastros duplicados em caso de retentativa.
+</Tip>
+
+## Ciclo de tokenização
+
+Acompanhe a disponibilidade do cartão pelos eventos de webhook:
+
+| Evento | Quando é disparado |
+|--------|--------------------|
+| `card.created` | Assim que o cartão é salvo. |
+| `card.token_created` | Quando o cartão foi tokenizado e está pronto para cobranças. |
+| `card.token_failed` | Quando não foi possível tokenizar o cartão. |
+
+Enquanto o `tokenization_status` estiver `pending`, o cartão ainda está sendo preparado. Aguarde o `card.token_created` antes de usá-lo em uma cobrança.
+
+## Usando o cartão salvo
+
+O campo `card_token` (presente na resposta e no evento `card.token_created`) é o identificador que você envia em `payment.card.card_token` ao criar uma cobrança ou pedido com o cartão salvo.
 
 <Warning>
-  Hoje apenas a **Pagarme** implementa a tokenização de cartão. Adquirentes que não suportam retornam o status `unsupported` (com `token` nulo). O número completo (PAN) e o CVV nunca são retornados.
+  **Billing Address** — o billing address do cartão **não** é tokenizado. Ao criar um pedido/cobrança com `card_token`, você **também precisa informar o billing address** (`client.address`) na requisição.
+</Warning>
+
+<Warning>
+  O número completo (PAN) e o código de segurança (CVV) nunca são retornados. A resposta expõe apenas `first_six_digits` e `last_four_digits`.
 </Warning>

@@ -12,6 +12,7 @@ Disparado quando um pedido falha no processamento pelo gateway de pagamento.
 {
   "type": "order.failed",
   "id": "hook_c3d4e5f6a1b2",
+  "webhook_version": "v1",
   "data": {
     "code": "ord_abc123xyz",
     "status": "Failed",
@@ -42,6 +43,7 @@ Disparado quando um pedido não pôde ser encaminhado para processamento — nor
 {
   "type": "order.unprocessed",
   "id": "hook_d4e5f6a1b2c3",
+  "webhook_version": "v1",
   "data": {
     "code": "ord_xyz789abc",
     "status": "Unprocessed",
@@ -70,6 +72,7 @@ Disparado quando um pedido requer confirmação adicional do pagador — geralme
 {
   "type": "order.challenged",
   "id": "hook_e5f6a1b2c3d4",
+  "webhook_version": "v1",
   "data": {
     "code": "ord_challenged123",
     "status": "Challenged",

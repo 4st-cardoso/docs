@@ -20,7 +20,7 @@ A v2 não é uma cópia da v1 com outro prefixo. Autenticação, formato de resp
 | Cliente                  | `client`                                                      | `customer`                                                       |
 | Tipo de pagamento        | `CreditCard`, `PIX`                                           | `card`, `pix`                                                    |
 | Dados do cartão          | `number`, `name`, `month`, `year`, `security_code`            | `number`, `holder_name`, `exp_month`, `exp_year`, `cvc`          |
-| Cartão salvo             | `payment.card.card_id`                                        | `card.token` (o `id` do [cartão](/pages/v2/cartoes/reference))   |
+| Cartão salvo             | `payment.card.card_token`                                     | `card.token` (o `id` do [cartão](/pages/v2/cartoes/reference))   |
 | Split                    | Configuração de split da v1                                   | Lista `split` por pagamento, com `receiver_code` e `amount` em centavos |
 | Pular análise de fraude  | `skip_fraud_analysis` e `is_upsell`                           | `fraud_analysis: { "skip": true, "reason": "..." }`              |
 | Intervalo da assinatura  | `interval` em dias                                            | `interval` (`day` ou `week`) + `interval_count`                  |
@@ -37,7 +37,7 @@ A v2 não é uma cópia da v1 com outro prefixo. Autenticação, formato de resp
 | `POST /v1/charge/refund/{code}`                                     | [`POST /v2/charges/{id}/refund`](/pages/v2/cobrancas/refund)            |
 | `POST /v1/orders/{order_code}/confirmations/{confirmation_id}/verify` | [`POST /v2/orders/{id}/confirm`](/pages/v2/pedidos/confirm)          |
 | `POST /v1/orders/{order_code}/confirmations/{confirmation_id}/resend` | [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation) |
-| `POST /v1/clients/{clientCode}/cards`                               | [`POST /v2/cards`](/pages/v2/cartoes/create)                            |
+| `POST /v1/clients/{clientCode}/cards/tokens`                        | [`POST /v2/cards`](/pages/v2/cartoes/create)                            |
 | `GET /v1/clients/{clientCode}/cards/{cardId}`                       | [`GET /v2/cards/{id}`](/pages/v2/cartoes/get)                           |
 | `POST /v1/subscriptions`                                            | [`POST /v2/subscriptions`](/pages/v2/assinaturas/create)                |
 | `PUT /v1/subscriptions/cancel/{subscription_code}`                  | [`POST /v2/subscriptions/{id}/cancel`](/pages/v2/assinaturas/cancel)    |

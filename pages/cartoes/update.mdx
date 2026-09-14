@@ -8,5 +8,5 @@ openapi: "PUT /v1/clients/{clientCode}/cards/{cardId}"
 </Note>
 
 <Warning>
-  O número do cartão e o código de segurança são imutáveis. Para trocá-los, cadastre um novo cartão. Ao alterar a validade, a tokenização junto às adquirentes é refeita automaticamente.
+  O número do cartão e o código de segurança são imutáveis. Para trocá-los, cadastre um novo cartão. Cada atualização emite um evento `card.updated`. Ao alterar a validade, a tokenização é reiniciada e o resultado é enviado por webhook (`card.token_created` / `card.token_failed`).
 </Warning>
