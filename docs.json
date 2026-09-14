@@ -159,12 +159,97 @@
       },
       {
         "version": "v2",
-        "tag": "Em breve",
+        "tag": "Nova",
         "tabs": [
           {
-            "tab": "API v2",
-            "pages": [
-              "pages/v2/coming-soon"
+            "tab": "Comece aqui",
+            "groups": [
+              {
+                "group": "Comece aqui",
+                "pages": [
+                  "pages/v2/start/welcome",
+                  "pages/v2/start/autenticacao",
+                  "pages/v2/start/erros",
+                  "pages/v2/start/idempotencia-e-limites",
+                  "pages/v2/start/migracao-v1"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Referência",
+            "groups": [
+              {
+                "group": "Pedidos",
+                "pages": [
+                  "pages/v2/pedidos/reference",
+                  "pages/v2/pedidos/create",
+                  "pages/v2/pedidos/get",
+                  "pages/v2/pedidos/capture",
+                  "pages/v2/pedidos/cancel",
+                  "pages/v2/pedidos/confirm",
+                  "pages/v2/pedidos/resend-confirmation"
+                ]
+              },
+              {
+                "group": "Cobranças",
+                "pages": [
+                  "pages/v2/cobrancas/reference",
+                  "pages/v2/cobrancas/get",
+                  "pages/v2/cobrancas/refund"
+                ]
+              },
+              {
+                "group": "Cartões",
+                "pages": [
+                  "pages/v2/cartoes/reference",
+                  "pages/v2/cartoes/create",
+                  "pages/v2/cartoes/get"
+                ]
+              },
+              {
+                "group": "Assinaturas",
+                "pages": [
+                  "pages/v2/assinaturas/reference",
+                  "pages/v2/assinaturas/create",
+                  "pages/v2/assinaturas/get",
+                  "pages/v2/assinaturas/cancel",
+                  "pages/v2/assinaturas/payment-method",
+                  "pages/v2/assinaturas/update-item",
+                  "pages/v2/assinaturas/next-billing-date",
+                  "pages/v2/assinaturas/invoices"
+                ]
+              },
+              {
+                "group": "Faturas",
+                "pages": [
+                  "pages/v2/faturas/reference",
+                  "pages/v2/faturas/get",
+                  "pages/v2/faturas/pay",
+                  "pages/v2/faturas/confirm",
+                  "pages/v2/faturas/resend-confirmation"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Webhooks",
+            "groups": [
+              {
+                "group": "Visão geral",
+                "pages": [
+                  "pages/v2/webhooks/reference"
+                ]
+              },
+              {
+                "group": "Eventos",
+                "pages": [
+                  "pages/v2/webhooks/events/order",
+                  "pages/v2/webhooks/events/charge",
+                  "pages/v2/webhooks/events/subscription",
+                  "pages/v2/webhooks/events/invoice"
+                ]
+              }
             ]
           }
         ]

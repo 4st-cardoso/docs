@@ -1,0 +1,24 @@
+---
+title: "Estornar cobrança"
+openapi: "POST /v2/charges/{id}/refund"
+---
+
+<Info>
+  Sem o campo `amount`, o estorno devolve **todo o saldo restante** da cobrança. Para um estorno parcial, envie `amount` em centavos (mínimo de `100`).
+</Info>
+
+<Warning>
+  O estorno é **assíncrono**. A resposta `200` traz `status: "refund_processing"`. O resultado final chega pelos webhooks `charge.refunded` ou `charge.partial_refunded`.
+</Warning>
+
+<Note>
+  Só uma cobrança paga pode ser estornada, e apenas um estorno por vez. A disponibilidade do estorno depende da **adquirente que processou a cobrança**, não da configuração da conta: quando ela não suporta a operação, a resposta é `422` (`refund_not_supported`).
+</Note>
+
+<Info>
+  Depois de um estorno parcial confirmado, a cobrança fica `partially_refunded`, e `amount_refunded` e `amount_refundable` mostram o valor estornado e o saldo restante.
+</Info>
+
+<Tip>
+  Envie o header `Idempotency-Key` para reenviar com segurança. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites).
+</Tip>

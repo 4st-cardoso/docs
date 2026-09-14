@@ -1,0 +1,16 @@
+---
+title: "Reenviar código de verificação da fatura"
+openapi: "POST /v2/invoices/{id}/confirm/resend"
+---
+
+<Info>
+  Reenvia o código de verificação ao comprador de uma fatura em `requires_action` por verificação. Se a fatura não estiver aguardando código, a resposta é `422` (`order_not_confirmable`).
+</Info>
+
+<Warning>
+  Esta rota aceita **5 requisições por minuto por IP de origem**. Se a sua plataforma atende várias contas a partir do mesmo servidor, **todas dividem esse limite**. Ao exceder, a resposta é `429` **fora do envelope de erro da v2** (`{ "message": "Too Many Attempts." }`), com o header `Retry-After`.
+</Warning>
+
+<Note>
+  Esta rota não usa `Idempotency-Key`.
+</Note>

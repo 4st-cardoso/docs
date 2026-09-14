@@ -50,6 +50,16 @@ tags:
     description: Criação e gerenciamento de links de pagamento com checkout pré-configurado
   - name: Análise de Fraude
     description: API de Risco — consulta o risco de fraude de uma transação (autenticada por chave de API)
+  - name: Pedidos (v2)
+    description: API v2 — pedidos com um ou mais meios de pagamento, captura, cancelamento e verificação por código
+  - name: Cobranças (v2)
+    description: API v2 — consulta e estorno de cobranças
+  - name: Cartões (v2)
+    description: API v2 — cadastro e consulta de cartões salvos
+  - name: Assinaturas (v2)
+    description: API v2 — criação e gerenciamento de assinaturas recorrentes
+  - name: Faturas (v2)
+    description: API v2 — consulta, pagamento e verificação por código das faturas de assinaturas
 
 paths:
 
@@ -2609,6 +2619,1904 @@ paths:
                   code: analysis_unavailable
                   message: The analysis could not be completed. Retry with the same Idempotency-Key.
 
+  # ─────────────────────────────────────────────────────────────────
+  # API V2
+  # ─────────────────────────────────────────────────────────────────
+
+  # ── Pedidos (v2) ──────────────────────────────────────────────────
+
+  /v2/orders:
+    post:
+      tags: [Pedidos (v2)]
+      summary: Criar pedido
+      description: >
+        Cria um pedido com um ou mais pagamentos (`payments`), como um cartão, dois cartões ou cartão + PIX.
+        A soma de `items[].amount × items[].quantity` precisa ser igual à soma de `payments[].amount`. Todos os
+        valores são em centavos.
+
+
+        **Captura.** Um pagamento com cartão sem `capture_method` usa `manual`: o valor é autorizado e o pedido
+        fica em `requires_capture` até você chamar `POST /v2/orders/{id}/capture`. Com `capture_method: automatic`,
+        a venda é direta, mas só em pedidos com um único pagamento. Em pedidos com dois ou mais pagamentos, todo
+        cartão é pré-autorizado. Em cartão + PIX, o cartão é capturado automaticamente quando o PIX é pago.
+
+
+        **201 não significa pago.** A resposta traz o resultado da autorização: `requires_capture`,
+        `requires_action` (QR Code PIX ou verificação por código em `next_action`), `processing` (venda aceita,
+        aguardando confirmação) ou `failed` (HTTP 402, com `failure_reason`). A confirmação do pagamento chega
+        por webhook (`order.paid`, `charge.paid`).
+
+
+        **Tudo ou nada.** Se um dos pagamentos for recusado, os pagamentos já autorizados são desfeitos e o
+        pedido falha.
+      operationId: v2CreateOrder
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2CreateOrderRequest'
+            examples:
+              cartao_captura_manual:
+                summary: Cartão com captura manual
+                value:
+                  currency: BRL
+                  customer:
+                    name: João Silva
+                    email: joao@exemplo.com.br
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "999999999"
+                    document:
+                      type: cpf
+                      number: "12345678909"
+                  payments:
+                    - type: card
+                      amount: 10000
+                      capture_method: manual
+                      card:
+                        number: "4111111111111111"
+                        holder_name: João Silva
+                        exp_month: "12"
+                        exp_year: "2030"
+                        cvc: "123"
+                        installments: 1
+                  items:
+                    - code: SKU-1
+                      description: Camiseta Premium
+                      quantity: 1
+                      amount: 10000
+                  metadata:
+                    pedido_loja: "1024"
+              pix:
+                summary: PIX
+                value:
+                  customer:
+                    name: João Silva
+                    email: joao@exemplo.com.br
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "999999999"
+                  payments:
+                    - type: pix
+                      amount: 5000
+                      pix_expiration: 3600
+                  items:
+                    - code: SKU-2
+                      description: Curso Online
+                      quantity: 1
+                      amount: 5000
+              cartao_e_pix:
+                summary: Cartão + PIX no mesmo pedido
+                value:
+                  customer:
+                    name: João Silva
+                    email: joao@exemplo.com.br
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "999999999"
+                  payments:
+                    - type: card
+                      amount: 7000
+                      card:
+                        number: "4111111111111111"
+                        holder_name: João Silva
+                        exp_month: "12"
+                        exp_year: "2030"
+                        cvc: "123"
+                        installments: 1
+                    - type: pix
+                      amount: 3000
+                      pix_expiration: 3600
+                  items:
+                    - code: SKU-1
+                      description: Camiseta Premium
+                      quantity: 1
+                      amount: 10000
+              cartao_salvo:
+                summary: Cartão salvo com split
+                value:
+                  customer:
+                    name: João Silva
+                    email: joao@exemplo.com.br
+                    phone:
+                      ddi: "55"
+                      ddd: "11"
+                      number: "999999999"
+                  payments:
+                    - type: card
+                      amount: 10000
+                      capture_method: automatic
+                      card:
+                        token: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+                        installments: 1
+                      split:
+                        - receiver_code: rec_abc123
+                          amount: 7000
+                          options:
+                            charge_processing_fee: true
+                            charge_remainder_fee: true
+                            liable: true
+                        - receiver_code: rec_xyz456
+                          amount: 3000
+                  items:
+                    - code: SKU-1
+                      description: Camiseta Premium
+                      quantity: 1
+                      amount: 10000
+      responses:
+        '201':
+          description: >
+            Pedido criado. Confira o `status`: `requires_capture` (cartão autorizado, aguardando captura),
+            `requires_action` (PIX aguardando pagamento ou verificação por código, veja `next_action`) ou
+            `processing` (venda aceita, aguardando confirmação). 201 não significa pago.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Order'
+              examples:
+                cartao_captura_manual:
+                  summary: Cartão autorizado, aguardando captura
+                  value:
+                    id: "482913"
+                    object: order
+                    status: requires_capture
+                    currency: brl
+                    amount: 10000
+                    payments:
+                      - id: cha_8Kq2Lm9XvB3nT7pZ
+                        object: payment_intent
+                        status: requires_capture
+                        amount: 10000
+                        amount_refunded: 0
+                        currency: brl
+                        payment_method_details:
+                          type: card
+                          card:
+                            brand: visa
+                            last_four: "1111"
+                            holder_name: João Silva
+                    next_action: null
+                pix:
+                  summary: PIX aguardando pagamento
+                  value:
+                    id: "482914"
+                    object: order
+                    status: requires_action
+                    currency: brl
+                    amount: 5000
+                    payments:
+                      - id: cha_Ry5Wc1Hd7Nf3Jk9A
+                        object: payment_intent
+                        status: requires_action
+                        amount: 5000
+                        amount_refunded: 0
+                        currency: brl
+                        payment_method_details:
+                          type: pix
+                          pix:
+                            qr_code: 00020126580014br.gov.bcb.pix0136a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                            qr_code_url: https://pix.exemplo.com.br/qr/cha_Ry5Wc1Hd7Nf3Jk9A
+                            expires_at: "2026-09-14T16:00:00.000000Z"
+                    next_action:
+                      type: pix_display_qr_code
+                      pix:
+                        qr_code: 00020126580014br.gov.bcb.pix0136a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        qr_code_url: https://pix.exemplo.com.br/qr/cha_Ry5Wc1Hd7Nf3Jk9A
+                        expires_at: "2026-09-14T16:00:00.000000Z"
+                cartao_e_pix:
+                  summary: Cartão autorizado + PIX aguardando pagamento
+                  value:
+                    id: "482915"
+                    object: order
+                    status: requires_action
+                    currency: brl
+                    amount: 10000
+                    payments:
+                      - id: cha_8Kq2Lm9XvB3nT7pZ
+                        object: payment_intent
+                        status: requires_capture
+                        amount: 7000
+                        amount_refunded: 0
+                        currency: brl
+                        payment_method_details:
+                          type: card
+                          card:
+                            brand: visa
+                            last_four: "1111"
+                            holder_name: João Silva
+                      - id: cha_Ry5Wc1Hd7Nf3Jk9A
+                        object: payment_intent
+                        status: requires_action
+                        amount: 3000
+                        amount_refunded: 0
+                        currency: brl
+                        payment_method_details:
+                          type: pix
+                          pix:
+                            qr_code: 00020126580014br.gov.bcb.pix0136a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                            qr_code_url: https://pix.exemplo.com.br/qr/cha_Ry5Wc1Hd7Nf3Jk9A
+                            expires_at: "2026-09-14T16:00:00.000000Z"
+                    next_action:
+                      type: pix_display_qr_code
+                      pix:
+                        qr_code: 00020126580014br.gov.bcb.pix0136a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        qr_code_url: https://pix.exemplo.com.br/qr/cha_Ry5Wc1Hd7Nf3Jk9A
+                        expires_at: "2026-09-14T16:00:00.000000Z"
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '402':
+          $ref: '#/components/responses/V2OrderPaymentFailed'
+        '403':
+          $ref: '#/components/responses/V2PurchaseBlocked'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Dados inválidos ou composição de pagamento não aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Campo inválido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The items must sum to the total amount of all payments.
+                      param: items
+                card_token_invalid:
+                  summary: Cartão salvo não encontrado nesta conta
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: card_token_invalid
+                      message: O cartão salvo informado não foi encontrado para esta conta.
+                      param: payments.0.card.token
+                split_error:
+                  summary: Split inválido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: split_error
+                      message: A configuração de split informada é inválida.
+                      param: split
+                fraud_bypass_not_allowed:
+                  summary: Conta sem permissão para pular a análise de fraude
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: fraud_bypass_not_allowed
+                      message: Esta conta não tem permissão para pular a análise de fraude.
+                unsupported_payment_method_combination:
+                  summary: Combinação de meios de pagamento não suportada
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: unsupported_payment_method_combination
+                      message: Esta combinação de meios de pagamento não é suportada.
+                acquirer_feature_not_supported:
+                  summary: Nenhuma adquirente da conta suporta a composição
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: acquirer_feature_not_supported
+                      message: Nenhuma adquirência habilitada para esta conta suporta esta composição de pagamentos.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2BuyerRateLimited'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/orders/{id}:
+    get:
+      tags: [Pedidos (v2)]
+      summary: Consultar pedido
+      description: >
+        Consulta um pedido pelo `id`. Só encontra pedidos criados pela API v2: um pedido criado pela v1
+        retorna 404.
+      operationId: v2RetrieveOrder
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Pedido encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Order'
+              example:
+                id: "482913"
+                object: order
+                status: requires_capture
+                currency: brl
+                amount: 10000
+                payments:
+                  - id: cha_8Kq2Lm9XvB3nT7pZ
+                    object: payment_intent
+                    status: requires_capture
+                    amount: 10000
+                    amount_refunded: 0
+                    currency: brl
+                    payment_method_details:
+                      type: card
+                      card:
+                        brand: visa
+                        last_four: "1111"
+                        holder_name: João Silva
+                next_action: null
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2OrderNotFound'
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  /v2/orders/{id}/capture:
+    post:
+      tags: [Pedidos (v2)]
+      summary: Capturar pedido
+      description: >
+        Captura os pagamentos com cartão autorizados de um pedido em `requires_capture`. Se a captura for aceita,
+        o pedido fica `paid`. Se uma captura for recusada, as demais são desfeitas e a resposta é 402 com
+        `failure_reason`. Em cartão + PIX, não chame esta rota: o cartão é capturado automaticamente quando o
+        PIX é pago.
+      operationId: v2CaptureOrder
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Pedido capturado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Order'
+              example:
+                id: "482913"
+                object: order
+                status: paid
+                currency: brl
+                amount: 10000
+                payments:
+                  - id: cha_8Kq2Lm9XvB3nT7pZ
+                    object: payment_intent
+                    status: paid
+                    amount: 10000
+                    amount_refunded: 0
+                    currency: brl
+                    payment_method_details:
+                      type: card
+                      card:
+                        brand: visa
+                        last_four: "1111"
+                        holder_name: João Silva
+                next_action: null
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '402':
+          $ref: '#/components/responses/V2OrderPaymentFailed'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2OrderNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: O pedido não está aguardando captura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                order_not_capturable:
+                  summary: Pedido fora de requires_capture
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: order_not_capturable
+                      message: Este pedido não pode ser capturado no estado atual.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  /v2/orders/{id}/cancel:
+    post:
+      tags: [Pedidos (v2)]
+      summary: Cancelar pedido
+      description: >
+        Cancela um pedido com cartão autorizado (`requires_capture`) ou aguardando o pagamento do PIX, desfazendo
+        as autorizações. Um pedido aguardando verificação por código (`next_action.type: otp_confirmation`) não
+        pode ser cancelado. Para devolver um pagamento já pago, use o estorno da cobrança.
+      operationId: v2CancelOrder
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Pedido cancelado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Order'
+              example:
+                id: "482913"
+                object: order
+                status: canceled
+                currency: brl
+                amount: 10000
+                payments:
+                  - id: cha_8Kq2Lm9XvB3nT7pZ
+                    object: payment_intent
+                    status: canceled
+                    amount: 10000
+                    amount_refunded: 0
+                    currency: brl
+                    payment_method_details:
+                      type: card
+                      card:
+                        brand: visa
+                        last_four: "1111"
+                        holder_name: João Silva
+                next_action: null
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2OrderNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: O pedido não pode ser cancelado no status atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                order_not_cancelable:
+                  summary: Status não permite cancelamento
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: order_not_cancelable
+                      message: Este pedido não pode ser cancelado no estado atual.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  /v2/orders/{id}/confirm:
+    post:
+      tags: [Pedidos (v2)]
+      summary: Confirmar código de verificação do pedido
+      description: >
+        Envia o código de verificação recebido pelo pagador quando o pedido está em `requires_action` com
+        `next_action.type: otp_confirmation`. Nada é cobrado até a confirmação. Com o código válido, o pedido
+        segue para o processamento do pagamento; se o pagamento for recusado, a resposta é 402 com
+        `failure_reason`. A verificação por código não gera webhook: ela aparece só na resposta.
+      operationId: v2ConfirmOrder
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2ConfirmRequest'
+      responses:
+        '200':
+          description: Código confirmado. Confira o `status` do pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Order'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '402':
+          $ref: '#/components/responses/V2OrderPaymentFailed'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2OrderNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Código ausente, inválido ou pedido sem verificação pendente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                parameter_missing:
+                  summary: Código não enviado
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: parameter_missing
+                      message: 'O parâmetro "code" é obrigatório.'
+                      param: code
+                confirmation_code_invalid:
+                  summary: Código inválido ou expirado
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: confirmation_code_invalid
+                      message: O código de confirmação é inválido ou expirou.
+                order_not_confirmable:
+                  summary: Pedido sem verificação pendente
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: order_not_confirmable
+                      message: Este pedido não está aguardando um código de confirmação.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/orders/{id}/confirm/resend:
+    post:
+      tags: [Pedidos (v2)]
+      summary: Reenviar código de verificação do pedido
+      description: >
+        Reenvia o código de verificação ao pagador de um pedido aguardando verificação. Limite de 5 requisições
+        por minuto, contadas por IP de origem: uma plataforma que atende várias contas a partir do mesmo servidor
+        divide esse limite entre todas elas.
+      operationId: v2ResendOrderConfirmation
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Código reenviado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Order'
+              example:
+                id: "482913"
+                object: order
+                status: requires_action
+                currency: brl
+                amount: 10000
+                payments:
+                  - id: cha_8Kq2Lm9XvB3nT7pZ
+                    object: payment_intent
+                    status: requires_action
+                    amount: 10000
+                    amount_refunded: 0
+                    currency: brl
+                    payment_method_details:
+                      type: card
+                next_action:
+                  type: otp_confirmation
+                  otp:
+                    confirmation_id: 5f1c2a9e-7b3d-4e8f-9a6c-1d2e3f4a5b6c
+                    expires_at: "2026-09-14T12:15:00.000000Z"
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2OrderNotFound'
+        '422':
+          description: O pedido não está aguardando verificação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              example:
+                error:
+                  type: invalid_request_error
+                  code: order_not_confirmable
+                  message: Este pedido não está aguardando um código de confirmação.
+        '429':
+          $ref: '#/components/responses/V2ResendThrottleExceeded'
+
+  # ── Cobranças (v2) ────────────────────────────────────────────────
+
+  /v2/charges/{id}:
+    get:
+      tags: [Cobranças (v2)]
+      summary: Consultar cobrança
+      description: >
+        Consulta a visão financeira de um pagamento: quanto foi pago, estornado e ainda pode ser estornado. O `id`
+        é o mesmo `id` do pagamento (`payments[].id`) no pedido ou na fatura.
+      operationId: v2RetrieveCharge
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Cobrança encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Charge'
+              example:
+                id: cha_8Kq2Lm9XvB3nT7pZ
+                object: charge
+                amount: 10000
+                currency: brl
+                status: paid
+                paid: true
+                captured: true
+                amount_refunded: 0
+                amount_refundable: 10000
+                payment_method_details:
+                  type: card
+                payment_intent: cha_8Kq2Lm9XvB3nT7pZ
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2ChargeNotFound'
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  /v2/charges/{id}/refund:
+    post:
+      tags: [Cobranças (v2)]
+      summary: Estornar cobrança
+      description: >
+        Estorna uma cobrança paga, total ou parcialmente. Sem `amount`, estorna todo o saldo restante. Um estorno
+        parcial precisa ser de pelo menos 100 centavos e só um estorno por vez pode estar em processamento.
+
+
+        **O estorno é assíncrono.** A resposta traz a cobrança em `refund_processing`. A conclusão chega pelos
+        webhooks `charge.refunded` ou `charge.partial_refunded`. O suporte a estorno, inclusive parcial, depende
+        da adquirente da cobrança: quando ela não suporta, a resposta é 422 (`refund_not_supported`).
+      operationId: v2RefundCharge
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2RefundChargeRequest'
+            examples:
+              total:
+                summary: Estorno total
+                value: {}
+              parcial:
+                summary: Estorno parcial de R$ 30,00
+                value:
+                  amount: 3000
+      responses:
+        '200':
+          description: Estorno solicitado. A cobrança fica em `refund_processing` até a confirmação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Charge'
+              example:
+                id: cha_8Kq2Lm9XvB3nT7pZ
+                object: charge
+                amount: 10000
+                currency: brl
+                status: refund_processing
+                paid: true
+                captured: true
+                amount_refunded: 0
+                amount_refundable: 0
+                payment_method_details:
+                  type: card
+                payment_intent: cha_8Kq2Lm9XvB3nT7pZ
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2ChargeNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Estorno não permitido ou valor inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                charge_not_refundable:
+                  summary: Cobrança não está paga
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: charge_not_refundable
+                      message: Somente uma cobrança paga pode ser estornada.
+                charge_already_refunded:
+                  summary: Cobrança já estornada por completo
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: charge_already_refunded
+                      message: Esta cobrança já foi estornada por completo.
+                charge_refund_in_progress:
+                  summary: Estorno anterior ainda em processamento
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: charge_refund_in_progress
+                      message: Um estorno desta cobrança ainda está em processamento. Tente novamente quando ele for concluído.
+                amount_too_large:
+                  summary: Valor maior que o saldo estornável
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: amount_too_large
+                      message: O valor excede os 6000 centavos que ainda podem ser estornados nesta cobrança.
+                      param: amount
+                amount_too_small:
+                  summary: Estorno parcial abaixo do mínimo
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: amount_too_small
+                      message: O estorno parcial deve ser de pelo menos 100 centavos.
+                      param: amount
+                refund_not_supported:
+                  summary: Adquirente não suporta o estorno
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: refund_not_supported
+                      message: A adquirente desta cobrança não suporta este estorno.
+                validation_error:
+                  summary: Valor inválido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The amount field must be at least 1.
+                      param: amount
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+        '502':
+          description: A adquirente não aceitou o estorno. A cobrança continua paga; tente novamente mais tarde
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              example:
+                error:
+                  type: api_error
+                  code: refund_failed
+                  message: A adquirente não aceitou o estorno. Tente novamente mais tarde.
+
+  # ── Cartões (v2) ──────────────────────────────────────────────────
+
+  /v2/cards:
+    post:
+      tags: [Cartões (v2)]
+      summary: Salvar cartão
+      description: >
+        Salva um cartão do comprador e inicia a tokenização nas adquirentes da conta. A resposta é sempre 202:
+        use o `id` devolvido como `card.token` em pedidos, assinaturas e faturas. O número completo e o código de
+        segurança nunca são devolvidos.
+
+
+        **A tokenização é assíncrona.** `tokenization_status` vem `pending` quando a tokenização foi iniciada, ou
+        `failed` na hora quando nenhuma adquirente da conta consegue tokenizar. Um cartão com `failed` ainda pode
+        ser usado em compras. O resultado final chega pelos webhooks `card.token_created` e `card.token_failed`,
+        que existem só no formato v1. Limite de 10 cartões por minuto por conta.
+      operationId: v2CreateCard
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2CreateCardRequest'
+            example:
+              customer:
+                name: João Silva
+                email: joao@exemplo.com.br
+                phone:
+                  ddi: 55
+                  ddd: 11
+                  number: "999999999"
+                document:
+                  type: cpf
+                  number: "12345678909"
+              card:
+                number: "4111111111111111"
+                holder_name: João Silva
+                exp_month: 12
+                exp_year: 2030
+                cvc: "123"
+      responses:
+        '202':
+          description: Cartão salvo, tokenização iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Card'
+              example:
+                id: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+                object: card
+                brand: visa
+                first_six: "411111"
+                last_four: "1111"
+                holder_name: João Silva
+                exp_month: 12
+                exp_year: 2030
+                type: credit
+                tokenization_status: pending
+                customer:
+                  name: João Silva
+                  email: joao@exemplo.com.br
+                created_at: "2026-09-14T12:00:00-03:00"
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2CardBlocked'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Dados inválidos ou cartão vencido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Cartão vencido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The card has expired.
+                      param: card.exp_year
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2CardRateLimited'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/cards/{id}:
+    get:
+      tags: [Cartões (v2)]
+      summary: Consultar cartão
+      description: >
+        Consulta um cartão salvo pelo `id`. Use para acompanhar o `tokenization_status`.
+      operationId: v2RetrieveCard
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Cartão encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Card'
+              example:
+                id: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+                object: card
+                brand: visa
+                first_six: "411111"
+                last_four: "1111"
+                holder_name: João Silva
+                exp_month: 12
+                exp_year: 2030
+                type: credit
+                tokenization_status: tokenized
+                customer:
+                  name: João Silva
+                  email: joao@exemplo.com.br
+                created_at: "2026-09-14T12:00:00-03:00"
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2CardNotFound'
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  # ── Assinaturas (v2) ──────────────────────────────────────────────
+
+  /v2/subscriptions:
+    post:
+      tags: [Assinaturas (v2)]
+      summary: Criar assinatura
+      description: >
+        Cria uma assinatura recorrente. Sem `start_at`, a primeira fatura é cobrada na criação e vem em
+        `latest_invoice`. Com `start_at` futuro, a assinatura fica `scheduled` e nada é cobrado agora. Se a
+        primeira fatura for recusada, a resposta é 402 e a assinatura fica `incomplete_expired`.
+
+
+        **Intervalo.** `interval` é `day` ou `week`, com `interval_count`. Não existe mês de calendário: uma
+        cobrança "mensal" é `day` × 30 e a data desliza em relação ao dia do mês. O intervalo total não pode
+        passar de 365 dias.
+
+
+        **Regras.** Valores fixos de `discounts` e `increments` são inteiros em centavos; descontos percentuais
+        vão até 100. `split` não pode ser combinado com descontos ou acréscimos. `minimum_price` é aceito e
+        devolvido, mas ainda não é aplicado na cobrança. Não existe webhook de assinatura criada: a primeira
+        fatura vem na própria resposta.
+      operationId: v2CreateSubscription
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2CreateSubscriptionRequest'
+            example:
+              code: plano-anual-123
+              description: Plano de teste
+              interval: week
+              interval_count: 2
+              max_invoices: 12
+              customer:
+                name: João Silva
+                email: joao@exemplo.com.br
+                phone:
+                  ddi: 55
+                  ddd: 11
+                  number: "999999999"
+                document:
+                  type: cpf
+                  number: "12345678909"
+              items:
+                - code: SKU-SUB
+                  description: Assinatura
+                  quantity: 1
+                  amount: 10000
+              payment:
+                type: card
+                card:
+                  number: "4111111111111111"
+                  holder_name: João Silva
+                  exp_month: "12"
+                  exp_year: "2030"
+                  cvc: "123"
+                  installments: 1
+              discounts:
+                - type: fixed
+                  value: 1000
+                  invoice_number: 1
+              increments:
+                - type: percentage
+                  value: 10
+                  invoice_number: 2
+      responses:
+        '201':
+          description: >
+            Assinatura criada. Com cobrança imediata, o status fica `incomplete` até a primeira fatura ser paga
+            (a confirmação chega por webhook `invoice.paid`). Com `start_at` futuro, fica `scheduled`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+              example:
+                id: sub_4Hn8Qw2Rt6Yp1Zx3
+                object: subscription
+                code: plano-anual-123
+                status: incomplete
+                currency: brl
+                description: Plano de teste
+                interval: week
+                interval_count: 2
+                billing_type: prepaid
+                amount: 10000
+                items:
+                  - code: SKU-SUB
+                    description: Assinatura
+                    quantity: 1
+                    amount: 10000
+                discounts:
+                  - type: fixed
+                    value: 1000
+                    invoice_number: 1
+                increments:
+                  - type: percentage
+                    value: 10
+                    invoice_number: 2
+                max_invoices: 12
+                invoices_paid: 0
+                minimum_price: null
+                payment_method:
+                  type: card
+                  installments: 1
+                  card:
+                    token: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+                    brand: visa
+                    last_four: "1111"
+                    holder_name: João Silva
+                statement_descriptor: null
+                start_at: "2026-09-14T00:00:00-03:00"
+                next_billing_at: "2026-09-28T00:00:00-03:00"
+                created_at: "2026-09-14T12:00:00-03:00"
+                customer:
+                  name: João Silva
+                  email: joao@exemplo.com.br
+                latest_invoice:
+                  id: "719305"
+                  object: invoice
+                  subscription: sub_4Hn8Qw2Rt6Yp1Zx3
+                  number: 1
+                  status: processing
+                  currency: brl
+                  amount: 9000
+                  attempts: 1
+                  items:
+                    - code: SKU-SUB
+                      description: Assinatura
+                      quantity: 1
+                      amount: 10000
+                  discounts:
+                    - type: fixed
+                      value: 1000
+                      invoice_number: 1
+                  increments: []
+                  payments:
+                    - id: cha_8Kq2Lm9XvB3nT7pZ
+                      object: payment_intent
+                      status: processing
+                      amount: 9000
+                      amount_refunded: 0
+                      currency: brl
+                      payment_method_details:
+                        type: card
+                        card:
+                          brand: visa
+                          last_four: "1111"
+                          holder_name: João Silva
+                  next_action: null
+                  created_at: "2026-09-14T12:00:00-03:00"
+                metadata: {}
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '402':
+          description: >
+            A primeira fatura foi recusada. Não é erro de requisição: o corpo traz a assinatura com
+            `status: incomplete_expired` e o motivo em `latest_invoice.failure_reason`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+        '403':
+          $ref: '#/components/responses/V2PurchaseBlocked'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Dados inválidos ou configuração não aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Intervalo acima do limite
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The billing interval cannot exceed 365 days.
+                      param: interval_count
+                card_token_invalid:
+                  summary: Cartão salvo não encontrado nesta conta
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: card_token_invalid
+                      message: O cartão salvo informado não foi encontrado para esta conta.
+                      param: payment.card.token
+                split_error:
+                  summary: Split inválido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: split_error
+                      message: A configuração de split informada é inválida.
+                      param: split
+                fraud_bypass_not_allowed:
+                  summary: Conta sem permissão para pular a análise de fraude
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: fraud_bypass_not_allowed
+                      message: Esta conta não tem permissão para pular a análise de fraude.
+                acquirer_feature_not_supported:
+                  summary: Nenhuma adquirente da conta suporta a assinatura
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: acquirer_feature_not_supported
+                      message: Nenhuma adquirência habilitada para esta conta suporta esta composição de pagamentos.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2BuyerRateLimited'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/subscriptions/{id}:
+    get:
+      tags: [Assinaturas (v2)]
+      summary: Consultar assinatura
+      description: Consulta uma assinatura pelo `id`, com a fatura mais recente em `latest_invoice`.
+      operationId: v2RetrieveSubscription
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Assinatura encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2SubscriptionNotFound'
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  /v2/subscriptions/{id}/cancel:
+    post:
+      tags: [Assinaturas (v2)]
+      summary: Cancelar assinatura
+      description: >
+        Cancela uma assinatura `active`, `past_due` ou `suspended`. Nenhuma nova fatura é gerada depois do
+        cancelamento.
+      operationId: v2CancelSubscription
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Assinatura cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2SubscriptionNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: A assinatura não pode ser cancelada no status atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                subscription_not_cancelable:
+                  summary: Status não permite cancelamento
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: subscription_not_cancelable
+                      message: Esta assinatura não pode ser cancelada no estado atual.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/subscriptions/{id}/payment-method:
+    post:
+      tags: [Assinaturas (v2)]
+      summary: Alterar meio de pagamento da assinatura
+      description: >
+        Troca o meio de pagamento das próximas faturas (cartão novo, cartão salvo ou PIX). Só assinaturas
+        `active` ou `past_due` podem ser alteradas.
+      operationId: v2UpdateSubscriptionPaymentMethod
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2SubscriptionPaymentRequest'
+            examples:
+              cartao_salvo:
+                summary: Cartão salvo
+                value:
+                  payment:
+                    type: card
+                    card:
+                      token: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+              pix:
+                summary: PIX
+                value:
+                  payment:
+                    type: pix
+      responses:
+        '200':
+          description: Meio de pagamento alterado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2SubscriptionNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Dados inválidos ou assinatura fora de um status que permite a alteração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Campo inválido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The payment.type field is required.
+                      param: payment.type
+                subscription_not_updatable:
+                  summary: Status não permite a alteração
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: subscription_not_updatable
+                      message: O meio de pagamento desta assinatura não pode ser alterado no estado atual.
+                card_token_invalid:
+                  summary: Cartão salvo não encontrado nesta conta
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: card_token_invalid
+                      message: O cartão salvo informado não foi encontrado para esta conta.
+                      param: payment.card.token
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/subscriptions/{id}/items/{code}:
+    post:
+      tags: [Assinaturas (v2)]
+      summary: Atualizar item da assinatura
+      description: >
+        Atualiza a quantidade, o valor unitário ou a descrição de um item da assinatura. Envie ao menos um dos
+        campos. A alteração vale para as próximas faturas.
+      operationId: v2UpdateSubscriptionItem
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/V2ItemCode'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2UpdateSubscriptionItemRequest'
+            example:
+              amount: 12000
+      responses:
+        '200':
+          description: Item atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          description: Assinatura ou item não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                subscription:
+                  summary: Assinatura não encontrada
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: resource_missing
+                      message: 'Recurso "subscription" não encontrado.'
+                subscription_item:
+                  summary: Item não encontrado na assinatura
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: resource_missing
+                      message: 'Recurso "subscription_item" não encontrado.'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Nenhum campo enviado
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: Send at least one of quantity, amount or description.
+                      param: quantity
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/subscriptions/{id}/next-billing-date:
+    post:
+      tags: [Assinaturas (v2)]
+      summary: Alterar data da próxima cobrança
+      description: >
+        Altera a data da próxima cobrança, a partir de amanhã. O calendário inteiro se move: as faturas seguintes
+        passam a contar a partir da nova data. Só é possível em uma assinatura ativa ou agendada e sem fatura em
+        andamento.
+      operationId: v2UpdateSubscriptionNextBillingDate
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2ChangeNextBillingDateRequest'
+      responses:
+        '200':
+          description: Data alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Subscription'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2SubscriptionNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Data inválida ou assinatura que não permite a alteração agora
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Data não enviada
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The next billing at field is required.
+                      param: next_billing_at
+                billing_date_not_updatable:
+                  summary: Assinatura não ativa ou com fatura em andamento
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: billing_date_not_updatable
+                      message: A data da próxima cobrança só pode ser alterada em uma assinatura ativa e sem fatura em andamento.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/subscriptions/{id}/invoices:
+    get:
+      tags: [Assinaturas (v2)]
+      summary: Listar faturas da assinatura
+      description: >
+        Lista as faturas da assinatura, da mais recente para a mais antiga. A listagem não tem cursor de
+        paginação: use `limit` (até 100) e confira `has_more`.
+      operationId: v2ListSubscriptionInvoices
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - name: status
+          in: query
+          required: false
+          description: Filtra as faturas pelo status
+          schema:
+            type: string
+            enum: [paid, failed, pending, canceled, refunded, partially_refunded, chargeback]
+        - name: limit
+          in: query
+          required: false
+          description: Quantidade máxima de faturas
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Lista de faturas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2InvoiceList'
+              example:
+                object: list
+                data:
+                  - id: "719305"
+                    object: invoice
+                    subscription: sub_4Hn8Qw2Rt6Yp1Zx3
+                    number: 1
+                    status: paid
+                    currency: brl
+                    amount: 9000
+                    attempts: 1
+                    items:
+                      - code: SKU-SUB
+                        description: Assinatura
+                        quantity: 1
+                        amount: 10000
+                    discounts:
+                      - type: fixed
+                        value: 1000
+                        invoice_number: 1
+                    increments: []
+                    payments:
+                      - id: cha_8Kq2Lm9XvB3nT7pZ
+                        object: payment_intent
+                        status: paid
+                        amount: 9000
+                        amount_refunded: 0
+                        currency: brl
+                        payment_method_details:
+                          type: card
+                          card:
+                            brand: visa
+                            last_four: "1111"
+                            holder_name: João Silva
+                    next_action: null
+                    created_at: "2026-09-14T12:00:00-03:00"
+                has_more: false
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2SubscriptionNotFound'
+        '422':
+          description: Filtro inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              example:
+                error:
+                  type: invalid_request_error
+                  code: validation_error
+                  message: The selected status is invalid.
+                  param: status
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  # ── Faturas (v2) ──────────────────────────────────────────────────
+
+  /v2/invoices/{id}:
+    get:
+      tags: [Faturas (v2)]
+      summary: Consultar fatura
+      description: >
+        Consulta uma fatura de assinatura pelo `id`. O status da fatura reflete o último pagamento: uma fatura
+        recusada pode ser paga de novo com `POST /v2/invoices/{id}/pay`.
+      operationId: v2RetrieveInvoice
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Fatura encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Invoice'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2InvoiceNotFound'
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+
+  /v2/invoices/{id}/pay:
+    post:
+      tags: [Faturas (v2)]
+      summary: Pagar fatura
+      description: >
+        Cobra uma fatura que ainda não foi paga, por exemplo uma fatura recusada ou em atraso, com um cartão novo,
+        um cartão salvo ou PIX. Se o pagamento for recusado, a resposta é 402 com `failure_reason`.
+      operationId: v2PayInvoice
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2SubscriptionPaymentRequest'
+            examples:
+              cartao_salvo:
+                summary: Cartão salvo
+                value:
+                  payment:
+                    type: card
+                    card:
+                      token: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+              pix:
+                summary: PIX
+                value:
+                  payment:
+                    type: pix
+      responses:
+        '200':
+          description: Pagamento processado. Confira o `status` da fatura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Invoice'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '402':
+          $ref: '#/components/responses/V2InvoicePaymentFailed'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2InvoiceNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Dados inválidos ou fatura que não pode ser paga
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                validation_error:
+                  summary: Campo inválido
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: validation_error
+                      message: The payment.type field is required.
+                      param: payment.type
+                invoice_not_payable:
+                  summary: Fatura não pode ser paga no status atual
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: invoice_not_payable
+                      message: Esta fatura não pode ser paga no estado atual.
+                card_token_invalid:
+                  summary: Cartão salvo não encontrado nesta conta
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: card_token_invalid
+                      message: O cartão salvo informado não foi encontrado para esta conta.
+                      param: payment.card.token
+                acquirer_feature_not_supported:
+                  summary: Nenhuma adquirente da conta suporta o pagamento
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: acquirer_feature_not_supported
+                      message: Nenhuma adquirência habilitada para esta conta suporta esta composição de pagamentos.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/invoices/{id}/confirm:
+    post:
+      tags: [Faturas (v2)]
+      summary: Confirmar código de verificação da fatura
+      description: >
+        Envia o código de verificação recebido pelo pagador quando a fatura está em `requires_action` com
+        `next_action.type: otp_confirmation`. Nada é cobrado até a confirmação. Se o pagamento for recusado, a
+        resposta é 402 com `failure_reason`.
+      operationId: v2ConfirmInvoice
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/V2ConfirmRequest'
+      responses:
+        '200':
+          description: Código confirmado. Confira o `status` da fatura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Invoice'
+        '400':
+          $ref: '#/components/responses/V2IdempotencyInvalid'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '402':
+          $ref: '#/components/responses/V2InvoicePaymentFailed'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2InvoiceNotFound'
+        '409':
+          $ref: '#/components/responses/V2IdempotencyInUse'
+        '422':
+          description: Código ausente, inválido ou fatura sem verificação pendente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              examples:
+                parameter_missing:
+                  summary: Código não enviado
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: parameter_missing
+                      message: 'O parâmetro "code" é obrigatório.'
+                      param: code
+                confirmation_code_invalid:
+                  summary: Código inválido ou expirado
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: confirmation_code_invalid
+                      message: O código de confirmação é inválido ou expirou.
+                order_not_confirmable:
+                  summary: Fatura sem verificação pendente
+                  value:
+                    error:
+                      type: invalid_request_error
+                      code: order_not_confirmable
+                      message: Este pedido não está aguardando um código de confirmação.
+                idempotency_key_conflict:
+                  summary: Idempotency-Key usada com outro corpo
+                  value:
+                    error:
+                      type: idempotency_error
+                      code: idempotency_key_conflict
+                      message: The Idempotency-Key has already been used with a different request body.
+        '429':
+          $ref: '#/components/responses/V2ThrottleExceeded'
+        '500':
+          $ref: '#/components/responses/V2ServerError'
+
+  /v2/invoices/{id}/confirm/resend:
+    post:
+      tags: [Faturas (v2)]
+      summary: Reenviar código de verificação da fatura
+      description: >
+        Reenvia o código de verificação ao pagador de uma fatura aguardando verificação. Limite de 5 requisições
+        por minuto, contadas por IP de origem: uma plataforma que atende várias contas a partir do mesmo servidor
+        divide esse limite entre todas elas.
+      operationId: v2ResendInvoiceConfirmation
+      security:
+        - secretKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/V2Id'
+      responses:
+        '200':
+          description: Código reenviado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Invoice'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2AccountBlocked'
+        '404':
+          $ref: '#/components/responses/V2InvoiceNotFound'
+        '422':
+          description: A fatura não está aguardando verificação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2Error'
+              example:
+                error:
+                  type: invalid_request_error
+                  code: order_not_confirmable
+                  message: Este pedido não está aguardando um código de confirmação.
+        '429':
+          $ref: '#/components/responses/V2ResendThrottleExceeded'
+
 components:
 
   securitySchemes:
@@ -2622,8 +4530,9 @@ components:
       scheme: bearer
       description: >
         Chave de API (secret key) da conta, no formato `sk_live_...` (produção) ou `sk_test_...` (Dev mode).
-        Envie no header `Authorization: Bearer <chave>`. Usada apenas nas rotas de Análise de Fraude.
-        Gere a sua no dashboard em Configurações → Chaves de API.
+        Envie no header `Authorization: Bearer <chave>`. Autentica todas as rotas da API v2 e as rotas de
+        Análise de Fraude. A chave identifica a conta, então a API v2 não usa o header `account`. Uma chave só
+        é aceita no ambiente em que foi criada. Gere a sua no dashboard em Configurações → Chaves de API.
 
   parameters:
     AccountHeader:
@@ -2651,6 +4560,36 @@ components:
         type: string
         format: uuid
         example: "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f"
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >
+        Chave de idempotência opcional e recomendada. Tem até 128 caracteres e vale por 24 horas, por conta.
+        A mesma chave com o mesmo corpo devolve a resposta original (mesmo status e mesmo corpo), sem processar
+        de novo. Só respostas 2xx ficam guardadas: depois de um erro, a mesma chave pode ser reutilizada. A mesma
+        chave com um corpo diferente retorna 422 (`idempotency_key_conflict`), uma requisição original ainda em
+        andamento retorna 409 (`idempotency_key_in_use`) e uma chave com mais de 128 caracteres retorna 400
+        (`idempotency_key_invalid`).
+      schema:
+        type: string
+        maxLength: 128
+        example: pedido-1024-tentativa-1
+    V2Id:
+      name: id
+      in: path
+      required: true
+      description: Identificador do recurso (o campo `id` devolvido pela API)
+      schema:
+        type: string
+    V2ItemCode:
+      name: code
+      in: path
+      required: true
+      description: Código do item da assinatura (o `code` enviado em `items[].code` ao criar a assinatura)
+      schema:
+        type: string
+        example: SKU-SUB
 
   responses:
     FraudUnauthorized:
@@ -2741,7 +4680,1456 @@ components:
             id: "00000000-0000-0000-0000-000000000000"
             data: []
 
+    # ── API v2 ─────────────────────────────────────────────────────
+
+    V2Unauthorized:
+      description: Chave de API ausente, inválida, revogada ou de outro ambiente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: authentication_error
+              code: invalid_api_secret
+              message: Invalid API secret.
+    V2AccountBlocked:
+      description: As requisições da conta estão bloqueadas. A resposta traz `customer_message`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: account_requests_blocked
+              message: As requisições desta conta estão bloqueadas.
+              customer_message: Não foi possível concluir sua transação. Tente novamente mais tarde.
+    V2PurchaseBlocked:
+      description: Conta, item ou comprador bloqueado. A resposta traz `customer_message` para exibir ao pagador
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          examples:
+            customer_blocked:
+              summary: Comprador bloqueado (e-mail, documento ou BIN do cartão)
+              value:
+                error:
+                  type: invalid_request_error
+                  code: customer_blocked
+                  message: Este comprador está bloqueado para novos pedidos.
+                  customer_message: Não foi possível concluir sua transação. Tente novamente mais tarde.
+            item_purchases_blocked:
+              summary: Venda de um dos itens bloqueada
+              value:
+                error:
+                  type: invalid_request_error
+                  code: item_purchases_blocked
+                  message: As compras de um dos itens deste pedido estão bloqueadas.
+                  customer_message: Não foi possível concluir sua transação. Tente novamente mais tarde.
+            account_requests_blocked:
+              summary: Conta bloqueada
+              value:
+                error:
+                  type: invalid_request_error
+                  code: account_requests_blocked
+                  message: As requisições desta conta estão bloqueadas.
+                  customer_message: Não foi possível concluir sua transação. Tente novamente mais tarde.
+    V2CardBlocked:
+      description: Conta ou comprador bloqueado (e-mail, documento ou BIN do cartão). A resposta traz `customer_message`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          examples:
+            customer_blocked:
+              summary: Comprador ou BIN do cartão bloqueado
+              value:
+                error:
+                  type: invalid_request_error
+                  code: customer_blocked
+                  message: Este comprador está bloqueado para novos pedidos.
+                  customer_message: Não foi possível concluir sua transação. Tente novamente mais tarde.
+            account_requests_blocked:
+              summary: Conta bloqueada
+              value:
+                error:
+                  type: invalid_request_error
+                  code: account_requests_blocked
+                  message: As requisições desta conta estão bloqueadas.
+                  customer_message: Não foi possível concluir sua transação. Tente novamente mais tarde.
+    V2OrderNotFound:
+      description: Pedido não encontrado nesta conta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: resource_missing
+              message: 'Recurso "order" não encontrado.'
+    V2ChargeNotFound:
+      description: Cobrança não encontrada nesta conta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: resource_missing
+              message: 'Recurso "charge" não encontrado.'
+    V2CardNotFound:
+      description: Cartão não encontrado nesta conta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: resource_missing
+              message: 'Recurso "card" não encontrado.'
+    V2SubscriptionNotFound:
+      description: Assinatura não encontrada nesta conta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: resource_missing
+              message: 'Recurso "subscription" não encontrado.'
+    V2InvoiceNotFound:
+      description: Fatura não encontrada nesta conta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: resource_missing
+              message: 'Recurso "invoice" não encontrado.'
+    V2ServerError:
+      description: Erro inesperado ao processar a requisição
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: api_error
+              code: internal_error
+              message: Ocorreu um erro inesperado ao processar a requisição.
+    V2IdempotencyInvalid:
+      description: O header `Idempotency-Key` tem mais de 128 caracteres
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: invalid_request_error
+              code: idempotency_key_invalid
+              message: Idempotency-Key must be 128 characters or fewer.
+    V2IdempotencyInUse:
+      description: Uma requisição com a mesma `Idempotency-Key` ainda está em andamento. Tente novamente em instantes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Error'
+          example:
+            error:
+              type: idempotency_error
+              code: idempotency_key_in_use
+              message: A request with this Idempotency-Key is still being processed. Retry shortly.
+    V2ThrottleExceeded:
+      description: >
+        Limite geral de requisições excedido (120 por minuto por chave de API e por conta). Esta resposta
+        não usa o envelope `error` da API v2.
+      headers:
+        X-RateLimit-Limit:
+          description: Limite de requisições da janela
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Requisições restantes na janela
+          schema:
+            type: integer
+        Retry-After:
+          description: Segundos até a próxima tentativa
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ThrottleError'
+          example:
+            message: Too Many Attempts.
+    V2ResendThrottleExceeded:
+      description: >
+        Limite de reenvio excedido (5 requisições por minuto, contadas por IP de origem) ou limite geral de
+        requisições. Uma plataforma que atende várias contas a partir do mesmo servidor divide o limite de
+        reenvio entre todas elas. Esta resposta não usa o envelope `error` da API v2.
+      headers:
+        X-RateLimit-Limit:
+          description: Limite de requisições da janela
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Requisições restantes na janela
+          schema:
+            type: integer
+        Retry-After:
+          description: Segundos até a próxima tentativa
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ThrottleError'
+          example:
+            message: Too Many Attempts.
+    V2BuyerRateLimited:
+      description: >
+        Muitas tentativas do mesmo comprador (e-mail ou documento) para os mesmos itens — resposta com o envelope
+        `error` e `customer_message` — ou limite geral de requisições excedido, com o corpo padrão
+        `{ "message": "Too Many Attempts." }`. As duas trazem o header `Retry-After`.
+      headers:
+        Retry-After:
+          description: Segundos até a próxima tentativa
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/V2Error'
+              - $ref: '#/components/schemas/V2ThrottleError'
+          examples:
+            rate_limit_exceeded:
+              summary: Muitas tentativas do mesmo comprador
+              value:
+                error:
+                  type: invalid_request_error
+                  code: rate_limit_exceeded
+                  message: Muitas tentativas de pedido para este comprador. Tente novamente mais tarde.
+                  customer_message: Não foi possível processar no momento devido a múltiplas tentativas. Tente novamente em instantes.
+            too_many_attempts:
+              summary: Limite geral de requisições
+              value:
+                message: Too Many Attempts.
+    V2CardRateLimited:
+      description: >
+        Muitos cartões salvos pela conta em pouco tempo (10 por minuto por conta) — resposta com o envelope
+        `error` — ou limite geral de requisições excedido, com o corpo padrão `{ "message": "Too Many Attempts." }`.
+        As duas trazem o header `Retry-After`.
+      headers:
+        Retry-After:
+          description: Segundos até a próxima tentativa
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/V2Error'
+              - $ref: '#/components/schemas/V2ThrottleError'
+          examples:
+            card_tokenization_rate_limited:
+              summary: Muitos cartões salvos pela conta
+              value:
+                error:
+                  type: invalid_request_error
+                  code: card_tokenization_rate_limited
+                  message: Muitos cartões foram salvos para esta conta em pouco tempo. Tente novamente mais tarde.
+            too_many_attempts:
+              summary: Limite geral de requisições
+              value:
+                message: Too Many Attempts.
+    V2OrderPaymentFailed:
+      description: >
+        Pagamento recusado. Não é erro de requisição: o corpo traz o pedido completo com `status: failed` e o
+        motivo em `failure_reason`. Exiba ao pagador o `customer_message`, nunca o `message`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Order'
+          example:
+            id: "482913"
+            object: order
+            status: failed
+            currency: brl
+            amount: 10000
+            payments:
+              - id: cha_8Kq2Lm9XvB3nT7pZ
+                object: payment_intent
+                status: failed
+                amount: 10000
+                amount_refunded: 0
+                currency: brl
+                payment_method_details:
+                  type: card
+                  card:
+                    brand: visa
+                    last_four: "1111"
+                    holder_name: João Silva
+            next_action: null
+            failure_reason:
+              code: insufficient_funds
+              message: O cartão não possui saldo suficiente para concluir o pagamento.
+              customer_message: Não foi possível concluir o pagamento. Revise os dados informados ou tente outro meio de pagamento.
+              merchant_message: O pagamento não foi concluído. Oriente o comprador a revisar os dados informados ou tentar outro meio de pagamento.
+    V2InvoicePaymentFailed:
+      description: >
+        Pagamento da fatura recusado. Não é erro de requisição: o corpo traz a fatura completa com
+        `status: failed` e o motivo em `failure_reason`. Exiba ao pagador o `customer_message`, nunca o `message`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2Invoice'
+          example:
+            id: "719305"
+            object: invoice
+            subscription: sub_4Hn8Qw2Rt6Yp1Zx3
+            number: 2
+            status: failed
+            currency: brl
+            amount: 10000
+            attempts: 1
+            items:
+              - code: SKU-SUB
+                description: Assinatura
+                quantity: 1
+                amount: 10000
+            discounts: []
+            increments: []
+            payments:
+              - id: cha_Ry5Wc1Hd7Nf3Jk9A
+                object: payment_intent
+                status: failed
+                amount: 10000
+                amount_refunded: 0
+                currency: brl
+                payment_method_details:
+                  type: card
+                  card:
+                    brand: visa
+                    last_four: "1111"
+                    holder_name: João Silva
+            next_action: null
+            created_at: "2026-09-14T12:00:00-03:00"
+            failure_reason:
+              code: card_declined
+              message: O cartão foi recusado pelo emissor.
+              customer_message: Não foi possível concluir o pagamento. Revise os dados informados ou tente outro meio de pagamento.
+              merchant_message: O pagamento não foi concluído. Oriente o comprador a revisar os dados informados ou tentar outro meio de pagamento.
+
   schemas:
+
+    # ── API v2 ─────────────────────────────────────────────────────
+
+    V2Error:
+      type: object
+      description: Envelope de erro da API v2
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [type, code, message]
+          properties:
+            type:
+              type: string
+              enum: [invalid_request_error, idempotency_error, authentication_error, api_error]
+              description: Categoria do erro
+            code:
+              type: string
+              description: Código estável do erro. Use este campo na sua lógica
+              example: validation_error
+            message:
+              type: string
+              description: Texto técnico, para log e depuração. Não exiba ao pagador
+              example: The payments field is required.
+            param:
+              type: string
+              description: Campo que causou o erro, em notação de ponto. Presente só quando se aplica
+              example: payments
+            customer_message:
+              type: string
+              description: Texto para exibir ao pagador. Presente só quando se aplica
+
+    V2ThrottleError:
+      type: object
+      description: >
+        Corpo padrão, fora do envelope `error`, do limite geral de requisições e do limite de reenvio do código
+        de verificação
+      properties:
+        message:
+          type: string
+          example: Too Many Attempts.
+
+    V2Customer:
+      type: object
+      description: >
+        Dados do comprador. A API v2 não tem recurso de cliente: envie o comprador em cada requisição.
+      required: [name, email, phone]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@exemplo.com.br
+        phone:
+          type: object
+          required: [ddi, ddd, number]
+          properties:
+            ddi:
+              type: string
+              description: Código do país
+              example: "55"
+            ddd:
+              type: string
+              description: Código de área
+              example: "11"
+            number:
+              type: string
+              example: "999999999"
+        document:
+          type: object
+          description: Documento do comprador (opcional no pedido)
+          properties:
+            type:
+              type: string
+              description: Tipo do documento
+              example: cpf
+            number:
+              type: string
+              example: "12345678909"
+
+    V2CustomerWithDocument:
+      type: object
+      description: >
+        Dados do comprador, com documento obrigatório. A API v2 não tem recurso de cliente: envie o comprador
+        em cada requisição.
+      required: [name, email, phone, document]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@exemplo.com.br
+        phone:
+          type: object
+          required: [ddi, ddd, number]
+          properties:
+            ddi:
+              type: integer
+              description: Código do país
+              example: 55
+            ddd:
+              type: integer
+              description: Código de área
+              example: 11
+            number:
+              type: string
+              maxLength: 20
+              example: "999999999"
+        document:
+          type: object
+          required: [type, number]
+          properties:
+            type:
+              type: string
+              enum: [cpf, cnpj, passport]
+              example: cpf
+            number:
+              type: string
+              maxLength: 50
+              example: "12345678909"
+
+    V2SubscriptionCustomer:
+      description: Dados do comprador da assinatura
+      allOf:
+        - $ref: '#/components/schemas/V2CustomerWithDocument'
+        - type: object
+          properties:
+            ip:
+              type: string
+              description: Endereço IP do comprador (IPv4 ou IPv6)
+              example: 189.10.20.30
+            gender:
+              type: string
+              enum: [male, female, other]
+            birthdate:
+              type: string
+              format: date
+              description: Data de nascimento (YYYY-MM-DD)
+              example: "1990-05-20"
+            address:
+              type: object
+              description: Endereço. Quando enviado, `zip_code`, `street`, `number`, `neighborhood`, `city` e `state` são obrigatórios
+              required: [zip_code, street, number, neighborhood, city, state]
+              properties:
+                zip_code:
+                  type: string
+                  maxLength: 20
+                  example: "01310100"
+                street:
+                  type: string
+                  maxLength: 255
+                  example: Avenida Paulista
+                number:
+                  type: integer
+                  example: 1000
+                neighborhood:
+                  type: string
+                  maxLength: 255
+                  example: Bela Vista
+                city:
+                  type: string
+                  maxLength: 255
+                  example: São Paulo
+                state:
+                  type: string
+                  maxLength: 2
+                  example: SP
+                complement:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+                country:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+
+    V2FraudAnalysis:
+      type: object
+      description: >
+        Pula a análise de fraude. Exige permissão da conta — sem ela, a requisição retorna 422
+        (`fraud_bypass_not_allowed`). Todo pulo precisa de um motivo, que fica registrado.
+      required: [skip]
+      properties:
+        skip:
+          type: boolean
+          example: true
+        reason:
+          type: string
+          enum: [upsell, one_click, trusted_customer, external_analysis]
+          description: >
+            Obrigatório quando `skip` é `true`. `upsell`: compra complementar em uma sessão já analisada.
+            `one_click`: cliente recorrente pagando com cartão salvo. `trusted_customer`: cliente confiável
+            para você. `external_analysis`: você fez a sua própria análise de fraude.
+          example: upsell
+
+    V2SplitRecipient:
+      type: object
+      required: [receiver_code, amount]
+      properties:
+        receiver_code:
+          type: string
+          description: Código do recebedor da sua conta
+          example: rec_abc123
+        amount:
+          type: integer
+          minimum: 1
+          description: Valor deste recebedor, em centavos
+          example: 7000
+        options:
+          type: object
+          properties:
+            charge_processing_fee:
+              type: boolean
+              description: Este recebedor paga a taxa de processamento
+            charge_remainder_fee:
+              type: boolean
+              description: Este recebedor fica com o restante da divisão
+            liable:
+              type: boolean
+              description: Este recebedor é responsável pelo risco da transação (chargeback)
+
+    V2OrderCardInput:
+      type: object
+      description: >
+        Envie `token` (o `id` de um cartão salvo) ou os dados completos do cartão (`number`, `holder_name`,
+        `exp_month`, `exp_year` e `cvc`).
+      properties:
+        token:
+          type: string
+          maxLength: 64
+          description: O `id` de um cartão salvo da sua conta. Dispensa os demais dados do cartão
+          example: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+        number:
+          type: string
+          minLength: 13
+          description: Número do cartão. Obrigatório sem `token`
+          example: "4111111111111111"
+        holder_name:
+          type: string
+          description: Nome impresso no cartão. Obrigatório sem `token`
+          example: João Silva
+        exp_month:
+          type: string
+          description: Mês de validade. Obrigatório sem `token`
+          example: "12"
+        exp_year:
+          type: string
+          description: Ano de validade. Obrigatório sem `token`
+          example: "2030"
+        cvc:
+          type: string
+          description: Código de segurança. Obrigatório sem `token`
+          example: "123"
+        installments:
+          type: integer
+          minimum: 1
+          description: Número de parcelas
+          example: 1
+
+    V2OrderPayment:
+      type: object
+      description: Um meio de pagamento do pedido
+      required: [amount]
+      properties:
+        type:
+          type: string
+          enum: [card, pix]
+          default: card
+          description: Meio de pagamento. Sem `type`, o pagamento é tratado como cartão
+        amount:
+          type: integer
+          minimum: 1
+          description: Valor deste pagamento, em centavos
+          example: 10000
+        capture_method:
+          type: string
+          enum: [automatic, manual]
+          default: manual
+          description: >
+            Só para cartão. `manual` (padrão) autoriza o valor e deixa o pedido em `requires_capture` até
+            `POST /v2/orders/{id}/capture`. `automatic` faz a venda direta, mas só em pedidos com um único
+            pagamento: em pedidos com dois ou mais pagamentos, todo cartão é pré-autorizado. Em cartão + PIX,
+            o cartão é capturado automaticamente quando o PIX é pago.
+        card:
+          $ref: '#/components/schemas/V2OrderCardInput'
+        pix_expiration:
+          type: integer
+          minimum: 1
+          description: >
+            Só para PIX. Tempo de expiração do QR Code, em segundos. Quando o pedido também tem cartão, o máximo é
+            86400 (24 horas), porque o cartão fica pré-autorizado até o PIX ser pago.
+          example: 3600
+        split:
+          type: array
+          description: >
+            Divisão deste pagamento entre recebedores. A soma de `split[].amount` precisa ser igual ao `amount`
+            deste pagamento. Uma configuração de split inválida retorna 422 (`split_error`).
+          items:
+            $ref: '#/components/schemas/V2SplitRecipient'
+
+    V2OrderItem:
+      type: object
+      required: [description, quantity, amount]
+      properties:
+        code:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Código do item na sua conta
+          example: SKU-1
+        description:
+          type: string
+          maxLength: 255
+          example: Camiseta Premium
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+        amount:
+          type: integer
+          minimum: 1
+          description: Valor unitário, em centavos
+          example: 10000
+        category:
+          type: string
+          maxLength: 255
+          nullable: true
+
+    V2CreateOrderRequest:
+      type: object
+      description: >
+        A soma de `items[].amount × items[].quantity` precisa ser igual à soma de `payments[].amount`.
+        Todos os valores são em centavos.
+      required: [customer, payments, items]
+      properties:
+        currency:
+          type: string
+          enum: [BRL, USD]
+          default: BRL
+        customer:
+          $ref: '#/components/schemas/V2Customer'
+        payments:
+          type: array
+          minItems: 1
+          description: Um ou mais meios de pagamento. Todos são processados juntos, no mesmo pedido
+          items:
+            $ref: '#/components/schemas/V2OrderPayment'
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/V2OrderItem'
+        fraud_analysis:
+          $ref: '#/components/schemas/V2FraudAnalysis'
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Dados livres da sua integração
+          example:
+            pedido_loja: "1024"
+
+    V2Pix:
+      type: object
+      properties:
+        qr_code:
+          type: string
+          description: Código PIX copia e cola
+          example: 00020126580014br.gov.bcb.pix0136a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        qr_code_url:
+          type: string
+          description: Link do QR Code
+          example: https://pix.exemplo.com.br/qr/cha_8Kq2Lm9XvB3nT7pZ
+        expires_at:
+          type: string
+          description: Data e hora de expiração do QR Code
+          example: "2026-09-14T16:00:00.000000Z"
+
+    V2PaymentIntent:
+      type: object
+      description: >
+        Um meio de pagamento dentro de um pedido ou fatura. O `id` é o mesmo da cobrança
+        (`GET /v2/charges/{id}`).
+      properties:
+        id:
+          type: string
+          example: cha_8Kq2Lm9XvB3nT7pZ
+        object:
+          type: string
+          enum: [payment_intent]
+        status:
+          type: string
+          enum: [requires_action, requires_capture, processing, paid, failed, canceled, refund_processing, partially_refunded, refunded, chargeback]
+          description: >
+            `requires_action`: PIX aguardando pagamento ou verificação por código. `requires_capture`: cartão
+            autorizado, aguardando captura. `processing`: em processamento. `paid`: pago. `failed`: recusado.
+            `canceled`: cancelado. `refund_processing`: estorno em processamento. `partially_refunded` e
+            `refunded`: estornado em parte ou totalmente. `chargeback`: contestado pelo portador.
+        amount:
+          type: integer
+          description: Valor em centavos
+          example: 10000
+        amount_refunded:
+          type: integer
+          description: Valor estornado, em centavos
+          example: 0
+        currency:
+          type: string
+          example: brl
+        payment_method_details:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [card, pix, boleto]
+            card:
+              type: object
+              description: Presente em pagamentos com cartão
+              properties:
+                brand:
+                  type: string
+                  example: visa
+                last_four:
+                  type: string
+                  example: "1111"
+                holder_name:
+                  type: string
+                  example: João Silva
+            pix:
+              $ref: '#/components/schemas/V2Pix'
+
+    V2NextAction:
+      type: object
+      description: >
+        O que precisa acontecer para o pagamento seguir. `pix_display_qr_code`: exiba o QR Code para o pagador.
+        `otp_confirmation`: a análise de fraude pediu verificação — nada é cobrado até o código ser confirmado
+        na rota `/confirm`.
+      properties:
+        type:
+          type: string
+          enum: [pix_display_qr_code, otp_confirmation]
+        pix:
+          $ref: '#/components/schemas/V2Pix'
+        otp:
+          type: object
+          description: Presente quando `type` é `otp_confirmation`
+          properties:
+            confirmation_id:
+              type: string
+              example: 5f1c2a9e-7b3d-4e8f-9a6c-1d2e3f4a5b6c
+            expires_at:
+              type: string
+              description: Data e hora de expiração do código
+              example: "2026-09-14T12:15:00.000000Z"
+
+    V2FailureReason:
+      type: object
+      description: Motivo da recusa. Presente só quando o status é `failed`
+      required: [code, message, customer_message, merchant_message]
+      properties:
+        code:
+          type: string
+          enum: [card_declined, insufficient_funds, expired_card, incorrect_cvc, incorrect_number, card_not_supported, fraud_suspected, invalid_request, acquirer_error, processing_error]
+        message:
+          type: string
+          description: Texto técnico. Não exiba ao pagador
+          example: O cartão não possui saldo suficiente para concluir o pagamento.
+        customer_message:
+          type: string
+          description: Texto para exibir ao pagador
+          example: Não foi possível concluir o pagamento. Revise os dados informados ou tente outro meio de pagamento.
+        merchant_message:
+          type: string
+          description: Texto para você ou a sua equipe de atendimento
+          example: O pagamento não foi concluído. Oriente o comprador a revisar os dados informados ou tentar outro meio de pagamento.
+
+    V2Order:
+      type: object
+      description: >
+        Pedido. O `status` é a agregação dos seus pagamentos. `processing`: em processamento.
+        `requires_capture`: cartão autorizado, aguardando captura. `requires_action`: PIX aguardando pagamento
+        ou verificação por código (veja `next_action`). `paid`: pago. `failed`: recusado (veja `failure_reason`).
+        `canceled`: cancelado. `refunded` e `partially_refunded`: estornado. `chargeback`: contestado.
+      properties:
+        id:
+          type: string
+          description: Código do pedido
+          example: "482913"
+        object:
+          type: string
+          enum: [order]
+        status:
+          type: string
+          enum: [processing, requires_capture, requires_action, paid, failed, canceled, refunded, partially_refunded, chargeback]
+        currency:
+          type: string
+          example: brl
+        amount:
+          type: integer
+          description: Valor total, em centavos
+          example: 10000
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2PaymentIntent'
+        next_action:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/V2NextAction'
+        failure_reason:
+          $ref: '#/components/schemas/V2FailureReason'
+
+    V2Charge:
+      type: object
+      description: Visão financeira de um pagamento
+      properties:
+        id:
+          type: string
+          example: cha_8Kq2Lm9XvB3nT7pZ
+        object:
+          type: string
+          enum: [charge]
+        amount:
+          type: integer
+          description: Valor em centavos
+          example: 10000
+        currency:
+          type: string
+          example: brl
+        status:
+          type: string
+          enum: [pending, paid, refund_processing, partially_refunded, refunded, chargeback, failed]
+          description: >
+            `failed` também cobre cobranças canceladas e expiradas. `refund_processing`: um estorno foi pedido
+            e aguarda confirmação.
+        paid:
+          type: boolean
+          description: A cobrança foi paga (inclusive se depois foi estornada)
+        captured:
+          type: boolean
+          description: A cobrança foi capturada (mesmo valor de `paid`)
+        amount_refunded:
+          type: integer
+          description: Valor já estornado, em centavos
+          example: 0
+        amount_refundable:
+          type: integer
+          description: Valor que ainda pode ser estornado, em centavos
+          example: 10000
+        payment_method_details:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [card, pix, boleto]
+        payment_intent:
+          type: string
+          description: O `id` do pagamento correspondente no pedido ou na fatura
+          example: cha_8Kq2Lm9XvB3nT7pZ
+
+    V2RefundChargeRequest:
+      type: object
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+          description: >
+            Valor a estornar, em centavos. Sem `amount`, estorna todo o saldo restante. Um estorno parcial precisa
+            ser de pelo menos 100 centavos.
+          example: 3000
+
+    V2Card:
+      type: object
+      description: Cartão salvo. O número completo e o código de segurança nunca são devolvidos
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Use este valor como `card.token` em pedidos, assinaturas e faturas
+          example: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+        object:
+          type: string
+          enum: [card]
+        brand:
+          type: string
+          example: visa
+        first_six:
+          type: string
+          example: "411111"
+        last_four:
+          type: string
+          example: "1111"
+        holder_name:
+          type: string
+          example: João Silva
+        exp_month:
+          type: integer
+          example: 12
+        exp_year:
+          type: integer
+          example: 2030
+        type:
+          type: string
+          enum: [credit, debit]
+          nullable: true
+        tokenization_status:
+          type: string
+          enum: [pending, tokenized, failed]
+          description: >
+            `pending`: tokenização em andamento. `tokenized`: concluída. `failed`: nenhuma adquirente conseguiu
+            tokenizar. Um cartão com `failed` ainda pode ser usado em compras.
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+              example: João Silva
+            email:
+              type: string
+              example: joao@exemplo.com.br
+        created_at:
+          type: string
+          example: "2026-09-14T12:00:00-03:00"
+
+    V2CreateCardRequest:
+      type: object
+      required: [customer, card]
+      properties:
+        customer:
+          $ref: '#/components/schemas/V2CustomerWithDocument'
+        card:
+          type: object
+          required: [number, holder_name, exp_month, exp_year, cvc]
+          properties:
+            number:
+              type: string
+              description: Número do cartão (validado pelo dígito verificador)
+              example: "4111111111111111"
+            holder_name:
+              type: string
+              maxLength: 255
+              example: João Silva
+            exp_month:
+              type: integer
+              minimum: 1
+              maximum: 12
+              example: 12
+            exp_year:
+              type: integer
+              description: Ano de validade, com 2 ou 4 dígitos. Um cartão vencido retorna 422 com `param` `card.exp_year`
+              example: 2030
+            cvc:
+              type: string
+              pattern: '^\d{3,4}$'
+              example: "123"
+            type:
+              type: string
+              enum: [credit, debit]
+
+    V2SubscriptionItem:
+      type: object
+      required: [code, description, quantity, amount]
+      properties:
+        code:
+          type: string
+          maxLength: 255
+          example: SKU-SUB
+        description:
+          type: string
+          maxLength: 255
+          example: Assinatura
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+        amount:
+          type: integer
+          minimum: 1
+          description: Valor unitário, em centavos
+          example: 10000
+
+    V2SubscriptionAdjustment:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          type: string
+          enum: [fixed, percentage]
+        value:
+          type: number
+          exclusiveMinimum: 0
+          description: >
+            Em `fixed`, valor inteiro em centavos. Em `percentage`, percentual (em descontos, no máximo 100).
+          example: 1000
+        invoice_number:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Número da fatura a que o ajuste se aplica. Sem valor, vale para todas as faturas
+          example: 1
+
+    V2SubscriptionCardInput:
+      type: object
+      description: >
+        Obrigatório quando `payment.type` é `card`. Envie `token` (o `id` de um cartão salvo) ou os dados
+        completos do cartão (`number`, `holder_name`, `exp_month`, `exp_year` e `cvc`).
+      properties:
+        token:
+          type: string
+          maxLength: 64
+          description: O `id` de um cartão salvo da sua conta
+          example: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+        number:
+          type: string
+          minLength: 13
+          example: "4111111111111111"
+        holder_name:
+          type: string
+          maxLength: 255
+          example: João Silva
+        exp_month:
+          type: string
+          example: "12"
+        exp_year:
+          type: string
+          example: "2030"
+        cvc:
+          type: string
+          example: "123"
+
+    V2SubscriptionPaymentInput:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [card, pix]
+        card:
+          allOf:
+            - $ref: '#/components/schemas/V2SubscriptionCardInput'
+            - type: object
+              properties:
+                installments:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  description: Número de parcelas de cada fatura
+                  example: 1
+        pix_expiration:
+          type: integer
+          minimum: 1
+          description: Tempo de expiração do QR Code, em segundos
+          example: 3600
+
+    V2CreateSubscriptionRequest:
+      type: object
+      required: [interval, interval_count, customer, items, payment]
+      properties:
+        code:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Código da assinatura na sua integração
+          example: plano-anual-123
+        description:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: Plano de teste
+        currency:
+          type: string
+          enum: [BRL, USD]
+          default: BRL
+        international:
+          type: boolean
+        interval:
+          type: string
+          enum: [day, week]
+          description: >
+            Unidade do intervalo entre cobranças. Não existe mês de calendário: para uma cobrança mensal, use
+            `day` com `interval_count: 30` — a data desliza em relação ao dia do mês.
+          example: week
+        interval_count:
+          type: integer
+          minimum: 1
+          description: Quantidade de unidades entre cobranças. O intervalo total não pode passar de 365 dias
+          example: 2
+        billing_type:
+          type: string
+          enum: [prepaid]
+          default: prepaid
+        start_at:
+          type: string
+          format: date
+          nullable: true
+          description: >
+            Data da primeira cobrança, a partir de amanhã. Sem `start_at`, a primeira fatura é cobrada na criação.
+          example: "2026-09-20"
+        max_invoices:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Número máximo de faturas. Ao pagar a última, a assinatura fica `completed`
+          example: 12
+        minimum_price:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Aceito e devolvido pela API, mas ainda não é aplicado na cobrança
+        statement_descriptor:
+          type: string
+          maxLength: 50
+          nullable: true
+          description: Texto na fatura do cartão
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+        customer:
+          $ref: '#/components/schemas/V2SubscriptionCustomer'
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/V2SubscriptionItem'
+        payment:
+          $ref: '#/components/schemas/V2SubscriptionPaymentInput'
+        discounts:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        increments:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        split:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: >
+            Divisão de cada fatura entre recebedores. A soma de `split[].amount` precisa ser igual ao total dos
+            itens. Exatamente um recebedor com `options.charge_processing_fee: true`, ao menos um com
+            `options.charge_remainder_fee: true` e ao menos um com `options.liable: true`. Cada `receiver_code`
+            (até 32 caracteres) precisa pertencer à conta e estar ativo ou com ativação pendente. Não pode ser
+            combinado com `discounts` ou `increments`.
+          items:
+            $ref: '#/components/schemas/V2SplitRecipient'
+        fraud_analysis:
+          $ref: '#/components/schemas/V2FraudAnalysis'
+
+    V2SubscriptionPaymentRequest:
+      type: object
+      required: [payment]
+      properties:
+        payment:
+          type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [card, pix]
+            card:
+              $ref: '#/components/schemas/V2SubscriptionCardInput'
+        statement_descriptor:
+          type: string
+          maxLength: 50
+          nullable: true
+          description: Texto na fatura do cartão
+
+    V2UpdateSubscriptionItemRequest:
+      type: object
+      description: Envie ao menos um dos campos
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        amount:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          description: Valor unitário, em centavos
+          example: 12000
+        description:
+          type: string
+          maxLength: 255
+          example: Assinatura Premium
+
+    V2ChangeNextBillingDateRequest:
+      type: object
+      required: [next_billing_at]
+      properties:
+        next_billing_at:
+          type: string
+          format: date
+          description: Nova data da próxima cobrança, a partir de amanhã. O horário é descartado
+          example: "2026-10-01"
+
+    V2ConfirmRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Código de verificação recebido pelo pagador
+          example: "482019"
+
+    V2Subscription:
+      type: object
+      description: >
+        Assinatura. `incomplete`: a primeira fatura ainda não foi paga. `incomplete_expired`: a primeira fatura
+        foi recusada. `scheduled`: a primeira cobrança está agendada (`start_at`). `active`: em dia. `past_due`:
+        fatura em atraso. `suspended`: suspensa. `canceled`: cancelada. `completed`: todas as faturas previstas
+        foram pagas.
+      properties:
+        id:
+          type: string
+          example: sub_4Hn8Qw2Rt6Yp1Zx3
+        object:
+          type: string
+          enum: [subscription]
+        code:
+          type: string
+          nullable: true
+          example: plano-anual-123
+        status:
+          type: string
+          enum: [incomplete, incomplete_expired, scheduled, active, past_due, suspended, canceled, completed]
+        currency:
+          type: string
+          example: brl
+        description:
+          type: string
+          nullable: true
+        interval:
+          type: string
+          enum: [day, week]
+        interval_count:
+          type: integer
+        billing_type:
+          type: string
+          enum: [prepaid]
+        amount:
+          type: integer
+          description: Total dos itens, em centavos, sem descontos ou acréscimos
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2SubscriptionItem'
+        discounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        increments:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        max_invoices:
+          type: integer
+          nullable: true
+        invoices_paid:
+          type: integer
+          description: Quantidade de faturas pagas
+        minimum_price:
+          type: integer
+          nullable: true
+          description: Aceito e devolvido pela API, mas ainda não é aplicado na cobrança
+        payment_method:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [card, pix]
+            installments:
+              type: integer
+              description: Presente quando `type` é `card`
+            card:
+              type: object
+              nullable: true
+              description: Presente quando `type` é `card`
+              properties:
+                token:
+                  type: string
+                  description: O `id` do cartão salvo, para reutilizar em outras compras
+                  example: 9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f
+                brand:
+                  type: string
+                  example: visa
+                last_four:
+                  type: string
+                  example: "1111"
+                holder_name:
+                  type: string
+                  example: João Silva
+        statement_descriptor:
+          type: string
+          nullable: true
+        start_at:
+          type: string
+          nullable: true
+        next_billing_at:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+        latest_invoice:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/V2Invoice'
+        metadata:
+          type: object
+          additionalProperties: true
+
+    V2Invoice:
+      type: object
+      description: >
+        Fatura de um ciclo da assinatura. `processing`: em processamento. `requires_action`: PIX aguardando
+        pagamento ou verificação por código (veja `next_action`). `paid`: paga. `failed`: recusada (veja
+        `failure_reason`). `canceled`: cancelada. `refunded` e `partially_refunded`: estornada. `chargeback`:
+        contestada.
+      properties:
+        id:
+          type: string
+          example: "719305"
+        object:
+          type: string
+          enum: [invoice]
+        subscription:
+          type: string
+          example: sub_4Hn8Qw2Rt6Yp1Zx3
+        number:
+          type: integer
+          description: Número da fatura na assinatura
+          example: 1
+        status:
+          type: string
+          enum: [processing, requires_action, paid, failed, canceled, refunded, partially_refunded, chargeback]
+        currency:
+          type: string
+          example: brl
+        amount:
+          type: integer
+          description: Valor da fatura, em centavos, já com descontos e acréscimos
+          example: 9000
+        attempts:
+          type: integer
+          description: Tentativas de cobrança
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2SubscriptionItem'
+        discounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        increments:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2PaymentIntent'
+        next_action:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/V2NextAction'
+        created_at:
+          type: string
+        failure_reason:
+          $ref: '#/components/schemas/V2FailureReason'
+
+    V2InvoiceList:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/V2Invoice'
+        has_more:
+          type: boolean
+          description: Existem mais faturas além do `limit`. A listagem não tem cursor de paginação
 
     # ── Análise de Fraude ─────────────────────────────────────────
 

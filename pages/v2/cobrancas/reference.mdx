@@ -1,0 +1,152 @@
+---
+title: "Cobranças"
+description: "Consulte cobranças e faça estornos totais ou parciais na API v2."
+icon: "money-bill"
+---
+
+## Visão geral
+
+A **cobrança** (`charge`) é a visão financeira de um pagamento. Cada pagamento de um [pedido](/pages/v2/pedidos/reference) ou de uma [fatura](/pages/v2/faturas/reference) tem uma cobrança, e o `id` do pagamento (`payment_intent`) é o mesmo `id` da cobrança.
+
+Use as rotas de cobrança para saber quanto foi pago e estornado, e para estornar um pagamento.
+
+| Método | Rota                       | O que faz                          |
+|--------|----------------------------|------------------------------------|
+| `GET`  | `/v2/charges/{id}`         | Consulta uma cobrança              |
+| `POST` | `/v2/charges/{id}/refund`  | Estorna uma cobrança (total ou parcial) |
+
+---
+
+## O objeto cobrança
+
+```json Resposta (HTTP 200)
+{
+  "id": "cha_8Kq2Lm9XvB3nT7pZ",
+  "object": "charge",
+  "amount": 10000,
+  "currency": "brl",
+  "status": "paid",
+  "paid": true,
+  "captured": true,
+  "amount_refunded": 0,
+  "amount_refundable": 10000,
+  "payment_method_details": {
+    "type": "card"
+  },
+  "payment_intent": "cha_8Kq2Lm9XvB3nT7pZ"
+}
+```
+
+| Campo                         | Tipo    | Descrição                                                          |
+|-------------------------------|---------|--------------------------------------------------------------------|
+| `id`                          | string  | Identificador da cobrança                                          |
+| `object`                      | string  | Sempre `charge`                                                    |
+| `amount`                      | integer | Valor da cobrança, em centavos                                     |
+| `currency`                    | string  | Moeda, em minúsculas (`brl`, `usd`)                                |
+| `status`                      | string  | Status da cobrança (veja abaixo)                                   |
+| `paid`                        | boolean | `true` se a cobrança foi paga, mesmo que depois estornada          |
+| `captured`                    | boolean | Mesmo valor de `paid`                                              |
+| `amount_refunded`             | integer | Total já estornado, em centavos                                    |
+| `amount_refundable`           | integer | Quanto ainda pode ser estornado, em centavos. `0` se a cobrança não estiver paga |
+| `payment_method_details.type` | string  | `card`, `pix` ou `boleto`                                          |
+| `payment_intent`              | string  | `id` do pagamento correspondente no pedido ou na fatura            |
+
+---
+
+## Status da cobrança
+
+| Status               | Descrição                                                   |
+|----------------------|-------------------------------------------------------------|
+| `pending`            | Ainda não paga (aguardando pagamento, autorização ou captura) |
+| `paid`               | Paga                                                        |
+| `refund_processing`  | Estorno solicitado, aguardando a confirmação                |
+| `partially_refunded` | Estornada parcialmente                                      |
+| `refunded`           | Estornada totalmente                                        |
+| `chargeback`         | Contestada pelo portador do cartão                          |
+| `failed`             | Recusada, cancelada, desfeita ou expirada                   |
+
+<Note>
+  O status da cobrança é mais resumido que o status do pagamento dentro do pedido. Para saber se um pagamento está aguardando captura ou uma ação do cliente, consulte o [pedido](/pages/v2/pedidos/reference#pagamentos).
+</Note>
+
+---
+
+## Estorno
+
+Envie `POST /v2/charges/{id}/refund` para devolver o valor ao cliente.
+
+| Campo    | Tipo    | Req. | Descrição                                                            |
+|----------|---------|------|----------------------------------------------------------------------|
+| `amount` | integer | Não  | Valor a estornar, em centavos (mín. `1`). Se omitido, estorna todo o saldo restante |
+
+```json Estorno parcial de R$ 30,00
+{
+  "amount": 3000
+}
+```
+
+### Regras
+
+- Só uma cobrança **paga** (`paid` ou `partially_refunded`) pode ser estornada.
+- Um estorno parcial precisa ser de pelo menos **100 centavos** (R$ 1,00).
+- O valor não pode passar de `amount_refundable`.
+- Só um estorno por vez: enquanto um estorno estiver em `refund_processing`, outro pedido de estorno é recusado.
+- A disponibilidade do estorno depende da **adquirente que processou a cobrança**, não da configuração da conta. Quando ela não suporta a operação, a resposta é `422` com `refund_not_supported`.
+
+### O estorno é assíncrono
+
+A resposta de sucesso (`200`) traz a cobrança com `status: "refund_processing"`. O estorno termina quando a adquirente confirma. Você recebe o resultado pelos webhooks `charge.refunded` ou `charge.partial_refunded`.
+
+```
+POST /v2/charges/{id}/refund → 200 (status: refund_processing)
+    │
+    └─ Confirmação da adquirente
+          ├─ Estorno total   → status: refunded           → webhook charge.refunded
+          └─ Estorno parcial → status: partially_refunded → webhook charge.partial_refunded
+```
+
+Depois de um estorno parcial de R$ 30,00 em uma cobrança de R$ 100,00, a cobrança fica assim:
+
+```json
+{
+  "id": "cha_8Kq2Lm9XvB3nT7pZ",
+  "object": "charge",
+  "status": "partially_refunded",
+  "amount": 10000,
+  "amount_refunded": 3000,
+  "amount_refundable": 7000
+}
+```
+
+<Tip>
+  Envie o header `Idempotency-Key` no estorno para reenviar a requisição sem risco de estornar duas vezes. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites).
+</Tip>
+
+---
+
+## Erros específicos
+
+| Status | `code`                      | Quando acontece                                                   |
+|--------|-----------------------------|-------------------------------------------------------------------|
+| `404`  | `resource_missing`          | A cobrança não existe ou pertence a outra conta                   |
+| `422`  | `validation_error`          | `amount` inválido (por exemplo, `0`)                              |
+| `422`  | `charge_not_refundable`     | A cobrança não está paga                                          |
+| `422`  | `charge_already_refunded`   | A cobrança já foi totalmente estornada                            |
+| `422`  | `charge_refund_in_progress` | Já existe um estorno em processamento                             |
+| `422`  | `amount_too_large`          | O valor é maior que o saldo estornável (`param`: `amount`)        |
+| `422`  | `amount_too_small`          | O estorno parcial é menor que 100 centavos (`param`: `amount`)    |
+| `422`  | `refund_not_supported`      | A adquirente da cobrança não suporta este estorno                 |
+| `502`  | `refund_failed`             | A adquirente não aceitou o estorno. A cobrança continua paga      |
+
+```json Resposta (HTTP 422)
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "amount_too_large",
+    "message": "O valor excede os 7000 centavos que ainda podem ser estornados nesta cobrança.",
+    "param": "amount"
+  }
+}
+```
+
+Veja o catálogo completo em [Erros](/pages/v2/start/erros).

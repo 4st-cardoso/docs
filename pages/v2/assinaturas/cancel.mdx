@@ -1,0 +1,16 @@
+---
+title: "Cancelar assinatura"
+openapi: "POST /v2/subscriptions/{id}/cancel"
+---
+
+<Warning>
+  O cancelamento interrompe as próximas cobranças e **não pode ser desfeito**: não existe rota para reativar uma assinatura cancelada.
+</Warning>
+
+<Note>
+  É possível cancelar uma assinatura em andamento (`scheduled`, `incomplete` ou `active`), em atraso (`past_due`) ou suspensa (`suspended`). Uma assinatura já `canceled` ou `completed` retorna `422` (`subscription_not_cancelable`).
+</Note>
+
+<Info>
+  Assinaturas criadas pela v2 disparam o webhook [`subscription.canceled`](/pages/v2/webhooks/events/subscription).
+</Info>

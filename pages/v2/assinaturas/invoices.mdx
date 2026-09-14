@@ -1,0 +1,16 @@
+---
+title: "Listar faturas da assinatura"
+openapi: "GET /v2/subscriptions/{id}/invoices"
+---
+
+<Info>
+  As faturas vêm da **mais recente para a mais antiga**. Use `limit` (padrão `10`, máximo `100`) e o filtro opcional `status`.
+</Info>
+
+<Warning>
+  A listagem **não tem paginação por cursor**. A resposta traz apenas as primeiras `limit` faturas e o campo `has_more`, que indica se existem outras além delas. Não há como buscar a página seguinte.
+</Warning>
+
+<Note>
+  O filtro `status` aceita `paid`, `failed`, `pending`, `canceled`, `refunded`, `partially_refunded` e `chargeback`. O valor `pending` reúne as faturas em andamento, exibidas como `processing` ou `requires_action`.
+</Note>

@@ -9,6 +9,49 @@ Este changelog é atualizado continuamente com melhorias, novas funcionalidades 
 
 ## Atualizações Recentes
 
+<Update label="14 de Set, 2026">
+## API v2
+
+Lançamento da **API v2**: pedidos com vários meios de pagamento, assinaturas, faturas e cartões salvos, com autenticação por chave de API e respostas planas. Selecione a versão **v2** no topo da documentação.
+
+**Novos endpoints:**
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/v2/orders` | Criar pedido com um ou mais pagamentos |
+| `GET` | `/v2/orders/{id}` | Consultar pedido |
+| `POST` | `/v2/orders/{id}/capture` | Capturar pedido autorizado |
+| `POST` | `/v2/orders/{id}/cancel` | Cancelar pedido |
+| `POST` | `/v2/orders/{id}/confirm` | Confirmar código de verificação |
+| `POST` | `/v2/orders/{id}/confirm/resend` | Reenviar código de verificação |
+| `GET` | `/v2/charges/{id}` | Consultar cobrança |
+| `POST` | `/v2/charges/{id}/refund` | Estornar cobrança |
+| `POST` | `/v2/cards` | Salvar cartão |
+| `GET` | `/v2/cards/{id}` | Consultar cartão |
+| `POST` | `/v2/subscriptions` | Criar assinatura |
+| `GET` | `/v2/subscriptions/{id}` | Consultar assinatura |
+| `POST` | `/v2/subscriptions/{id}/cancel` | Cancelar assinatura |
+| `POST` | `/v2/subscriptions/{id}/payment-method` | Alterar meio de pagamento |
+| `POST` | `/v2/subscriptions/{id}/items/{code}` | Atualizar item |
+| `POST` | `/v2/subscriptions/{id}/next-billing-date` | Alterar data da próxima cobrança |
+| `GET` | `/v2/subscriptions/{id}/invoices` | Listar faturas |
+| `GET` | `/v2/invoices/{id}` | Consultar fatura |
+| `POST` | `/v2/invoices/{id}/pay` | Pagar fatura |
+| `POST` | `/v2/invoices/{id}/confirm` | Confirmar código de verificação da fatura |
+| `POST` | `/v2/invoices/{id}/confirm/resend` | Reenviar código de verificação da fatura |
+
+**Principais mudanças em relação à v1:**
+
+- **Autenticação por chave de API** (`Authorization: Bearer sk_...`), sem header `account`.
+- **Valores em centavos** inteiros em todos os campos.
+- **Vários pagamentos no mesmo pedido** — dois cartões ou cartão + PIX, com split por pagamento.
+- **Erros padronizados** no envelope `{ "error": { "type", "code", "message" } }` e pagamento recusado como `402` com `failure_reason`.
+- **Idempotência** com o header `Idempotency-Key`.
+- **Webhooks no formato v2** para recursos criados pela v2, identificados por `webhook_version`.
+
+A API v1 continua disponível. Consulte o guia [Migrando da v1](/pages/v2/start/migracao-v1) para planejar a mudança.
+</Update>
+
 <Update label="16 de Jul, 2026">
 ## Cartões salvos, tokenização e cobrança com `card_id`
 

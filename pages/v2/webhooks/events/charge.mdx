@@ -1,0 +1,113 @@
+---
+title: "Eventos de cobrança"
+description: "Eventos charge.* no formato v2 e o payload de cobrança."
+icon: "money-bill"
+---
+
+Os eventos de cobrança são enviados para as cobranças de pedidos criados por `POST /v2/orders` e de assinaturas criadas por `POST /v2/subscriptions`.
+
+| Evento                    | Quando acontece                                   |
+|---------------------------|---------------------------------------------------|
+| `charge.created`          | A cobrança foi criada                             |
+| `charge.pending`          | A cobrança está pendente                          |
+| `charge.paid`             | A cobrança foi paga                               |
+| `charge.failed`           | A cobrança falhou                                 |
+| `charge.reproved`         | A cobrança foi reprovada                          |
+| `charge.refunded`         | A cobrança foi totalmente estornada               |
+| `charge.partial_refunded` | A cobrança foi parcialmente estornada             |
+| `charge.chargeback`       | A cobrança recebeu chargeback                     |
+| `charge.expired`          | A cobrança expirou (por exemplo, PIX não pago)    |
+| `charge.canceled`         | A cobrança foi cancelada                          |
+
+<Note>
+  Em uma **assinatura**, a cobrança paga de uma fatura gera [`invoice.paid`](/pages/v2/webhooks/events/invoice), e não `charge.paid`. O estorno de uma cobrança de fatura gera `charge.refunded` ou `charge.partial_refunded`.
+</Note>
+
+<Info>
+  `charge.challenged` não existe no formato v2. Ele é entregue no formato v1, mesmo para cobranças de recursos criados pela v2.
+</Info>
+
+---
+
+## Payload
+
+Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o objeto de `GET /v2/charges/{id}`. Ele traz um payload próprio, com dados do cliente, do cartão e da transação:
+
+```json charge.paid
+{
+  "id": "hook_Lm3Nb7Vc1Xz5Qw9e",
+  "type": "charge.paid",
+  "webhook_version": "v2",
+  "created_at": "2026-09-14T15:04:05Z",
+  "data": {
+    "id": "5d1c9a7e-2b4f-4e8a-9c3d-7f6e5a4b3c2d",
+    "code": "cha_8Kq2Lm9XvB3nT7pZ",
+    "status": "paid",
+    "amount": 10000,
+    "currency": "brl",
+    "payment_method": "credit_card",
+    "installments": 1,
+    "created_at": "2026-09-14T15:00:00Z",
+    "order": {
+      "id": "8a7b6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c5d",
+      "code": "482913"
+    },
+    "customer": {
+      "id": "3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e0f",
+      "code": "cli_abc123",
+      "name": "João Silva",
+      "email": "joao@exemplo.com.br"
+    },
+    "card": {
+      "brand": "visa",
+      "last_four": "1111",
+      "holder_name": "João Silva"
+    },
+    "transaction": {
+      "nsu": "123456",
+      "tid": "10017348980735271001",
+      "acquirer_message": "Transação autorizada"
+    }
+  }
+}
+```
+
+| Campo                          | Tipo           | Descrição                                                                 |
+|--------------------------------|----------------|---------------------------------------------------------------------------|
+| `id`                           | string         | Identificador interno da cobrança                                         |
+| `code`                         | string         | Identificador da cobrança na API. Use em [`GET /v2/charges/{id}`](/pages/v2/cobrancas/get) |
+| `status`                       | string         | Status da cobrança no webhook (veja abaixo)                               |
+| `amount`                       | integer        | Valor em centavos                                                         |
+| `currency`                     | string         | Moeda, em minúsculas                                                      |
+| `payment_method`               | string         | `credit_card`, `pix` ou `boleto`                                          |
+| `installments`                 | integer        | Número de parcelas                                                        |
+| `created_at`                   | string         | Data de criação da cobrança (ISO 8601, UTC)                               |
+| `order.id`                     | string         | Identificador interno do pedido                                           |
+| `order.code`                   | string         | Identificador do pedido na API. Use em [`GET /v2/orders/{id}`](/pages/v2/pedidos/get) ou [`GET /v2/invoices/{id}`](/pages/v2/faturas/get) |
+| `customer`                     | object \| null | `id`, `code`, `name` e `email` do cliente                                 |
+| `card`                         | object \| null | `brand`, `last_four` e `holder_name`. `null` em pagamentos sem cartão     |
+| `transaction.nsu`              | string \| null | NSU da transação                                                          |
+| `transaction.tid`              | string \| null | TID da transação                                                          |
+| `transaction.acquirer_message` | string \| null | Mensagem retornada pela adquirente, quando houver                         |
+
+<Warning>
+  O vocabulário do webhook de cobrança é diferente do da API: aqui o método é `credit_card` (na API, `card`) e o estorno parcial é `partial_refunded` (na API, `partially_refunded`).
+</Warning>
+
+### Status da cobrança no webhook
+
+| `status`           | Significado                           |
+|--------------------|---------------------------------------|
+| `created`          | Criada                                |
+| `pending`          | Pendente                              |
+| `processing`       | Em processamento                      |
+| `authorized`       | Autorizada, aguardando captura        |
+| `challenged`       | Aguardando verificação por código     |
+| `paid`             | Paga                                  |
+| `failed`           | Falhou ou foi reprovada               |
+| `expired`          | Expirada                              |
+| `canceled`         | Cancelada                             |
+| `voided`           | Autorização desfeita                  |
+| `refunded`         | Totalmente estornada                  |
+| `partial_refunded` | Parcialmente estornada                |
+| `chargeback`       | Chargeback                            |

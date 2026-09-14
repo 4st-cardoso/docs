@@ -1,0 +1,189 @@
+---
+title: "Cartões"
+description: "Salve cartões de clientes e use o id nas compras da API v2."
+icon: "wallet"
+---
+
+## Visão geral
+
+A rota de **cartões** salva o cartão de um cliente para compras futuras. O `id` devolvido é usado como `card.token` em [pedidos](/pages/v2/pedidos/reference), [assinaturas](/pages/v2/assinaturas/reference) e [faturas](/pages/v2/faturas/reference), sem reenviar os dados do cartão.
+
+| Método | Rota             | O que faz                  |
+|--------|------------------|----------------------------|
+| `POST` | `/v2/cards`      | Salva um cartão do cliente |
+| `GET`  | `/v2/cards/{id}` | Consulta um cartão salvo   |
+
+<Note>
+  A v2 não lista, edita nem exclui cartões. Para essas operações, use as rotas de [Cartões da v1](/pages/cartoes/reference).
+</Note>
+
+---
+
+## Salvar um cartão
+
+A v2 não tem recurso de cliente. Envie os dados do comprador em `customer`: o cartão fica vinculado ao cliente com o mesmo e-mail na sua conta.
+
+### Campos do cliente
+
+| Campo                      | Tipo    | Req. | Descrição                                   |
+|----------------------------|---------|------|---------------------------------------------|
+| `customer.name`            | string  | Sim  | Nome completo (máx. 255)                    |
+| `customer.email`           | string  | Sim  | E-mail do cliente                           |
+| `customer.phone.ddi`       | integer | Sim  | Código do país (ex.: `55`)                  |
+| `customer.phone.ddd`       | integer | Sim  | Código de área (ex.: `11`)                  |
+| `customer.phone.number`    | string  | Sim  | Número do telefone (máx. 20)                |
+| `customer.document.type`   | string  | Sim  | `cpf`, `cnpj` ou `passport`                 |
+| `customer.document.number` | string  | Sim  | Número do documento (máx. 50)               |
+
+### Campos do cartão
+
+| Campo              | Tipo    | Req. | Descrição                                          |
+|--------------------|---------|------|----------------------------------------------------|
+| `card.number`      | string  | Sim  | Número do cartão (validado)                        |
+| `card.holder_name` | string  | Sim  | Nome impresso no cartão (máx. 255)                 |
+| `card.exp_month`   | integer | Sim  | Mês de validade (`1` a `12`)                       |
+| `card.exp_year`    | integer | Sim  | Ano de validade (`2030` ou `30`)                   |
+| `card.cvc`         | string  | Sim  | Código de segurança (3 ou 4 dígitos)               |
+| `card.type`        | string  | Não  | `credit` ou `debit`                                |
+
+```json Request
+{
+  "customer": {
+    "name": "Maria Santos",
+    "email": "maria@exemplo.com.br",
+    "phone": { "ddi": 55, "ddd": 11, "number": "999999999" },
+    "document": { "type": "cpf", "number": "12345678909" }
+  },
+  "card": {
+    "number": "4111111111111111",
+    "holder_name": "Maria Santos",
+    "exp_month": 12,
+    "exp_year": 2030,
+    "cvc": "123"
+  }
+}
+```
+
+```json Resposta (HTTP 202)
+{
+  "id": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+  "object": "card",
+  "brand": "visa",
+  "first_six": "411111",
+  "last_four": "1111",
+  "holder_name": "Maria Santos",
+  "exp_month": 12,
+  "exp_year": 2030,
+  "type": "credit",
+  "tokenization_status": "pending",
+  "customer": {
+    "name": "Maria Santos",
+    "email": "maria@exemplo.com.br"
+  },
+  "created_at": "2026-09-14T10:00:00-03:00"
+}
+```
+
+<Warning>
+  A resposta **nunca** traz o número completo do cartão nem o código de segurança. Apenas `first_six` e `last_four`.
+</Warning>
+
+---
+
+## O objeto cartão
+
+| Campo                 | Tipo    | Descrição                                                    |
+|-----------------------|---------|--------------------------------------------------------------|
+| `id`                  | string  | UUID do cartão. Use como `card.token` nas compras            |
+| `object`              | string  | Sempre `card`                                                |
+| `brand`               | string  | Bandeira do cartão                                           |
+| `first_six`           | string  | 6 primeiros dígitos                                          |
+| `last_four`           | string  | 4 últimos dígitos                                            |
+| `holder_name`         | string  | Nome impresso no cartão                                      |
+| `exp_month`           | integer | Mês de validade                                              |
+| `exp_year`            | integer | Ano de validade                                              |
+| `type`                | string  | `credit` ou `debit`                                          |
+| `tokenization_status` | string  | Situação da tokenização (veja abaixo)                        |
+| `customer.name`       | string  | Nome do cliente dono do cartão                               |
+| `customer.email`      | string  | E-mail do cliente dono do cartão                             |
+| `created_at`          | string  | Data de cadastro (ISO 8601)                                  |
+
+---
+
+## Tokenização
+
+Ao salvar o cartão, a 4SeletPay gera o token nas adquirentes de cartão habilitadas para a sua conta. Esse processo é **assíncrono**. Por isso, `POST /v2/cards` sempre responde `202 Accepted`.
+
+| `tokenization_status` | Descrição                                                                 |
+|-----------------------|---------------------------------------------------------------------------|
+| `pending`             | A tokenização foi iniciada e ainda não terminou                           |
+| `tokenized`           | O cartão foi tokenizado                                                   |
+| `failed`              | A tokenização falhou. Vem `failed` na hora quando a conta não tem nenhuma adquirente capaz de tokenizar |
+
+Consulte o resultado com [`GET /v2/cards/{id}`](/pages/v2/cartoes/get).
+
+<Note>
+  Um cartão com `tokenization_status` igual a `pending` ou `failed` **continua podendo ser usado** em compras com `card.token`.
+</Note>
+
+<Info>
+  Os eventos de webhook de cartão (`card.created`, `card.token_created`, `card.token_failed` e outros) existem apenas no **formato v1**. Veja [Endpoints de webhook](/pages/webhook-endpoints/reference).
+</Info>
+
+---
+
+## Usar o cartão salvo
+
+Envie o `id` do cartão em `card.token`, no lugar dos dados do cartão:
+
+```json Pagamento de um pedido com cartão salvo
+"payments": [
+  {
+    "type": "card",
+    "amount": 10000,
+    "card": {
+      "token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+      "installments": 1
+    }
+  }
+]
+```
+
+<Warning>
+  O `card.token` só é aceito na **mesma conta** em que o cartão foi salvo. Um cartão de outra conta, ou inexistente, retorna `422` (`card_token_invalid`).
+</Warning>
+
+<Tip>
+  Os pedidos da v2 não salvam cartão. O `id` de um cartão salvo vem de `POST /v2/cards`, de uma [assinatura](/pages/v2/assinaturas/reference) (em `payment_method.card.token`) ou de um cartão salvo no checkout da v1.
+</Tip>
+
+---
+
+## Limites e bloqueios
+
+- `POST /v2/cards` aceita até **10 cartões por minuto por conta**. Acima disso, a resposta é `429` (`card_tokenization_rate_limited`) com o header `Retry-After`.
+- Um cartão cujo BIN (6 primeiros dígitos), e-mail ou documento esteja bloqueado retorna `403` (`customer_blocked`).
+
+---
+
+## Erros específicos
+
+| Status | `code`                           | Quando acontece                                                        |
+|--------|----------------------------------|------------------------------------------------------------------------|
+| `422`  | `validation_error`               | Algum campo é inválido. Cartão vencido retorna `param` `card.exp_year` |
+| `403`  | `customer_blocked`               | Cliente ou cartão bloqueado                                            |
+| `404`  | `resource_missing`               | O cartão não existe ou pertence a outra conta (na consulta)            |
+| `429`  | `card_tokenization_rate_limited` | Muitos cartões salvos pela conta em pouco tempo                        |
+| `500`  | `internal_error`                 | Erro inesperado. Tente novamente mais tarde                            |
+
+```json Resposta (HTTP 429)
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "card_tokenization_rate_limited",
+    "message": "Muitos cartões foram salvos para esta conta em pouco tempo. Tente novamente mais tarde."
+  }
+}
+```
+
+Veja o catálogo completo em [Erros](/pages/v2/start/erros).

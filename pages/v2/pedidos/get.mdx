@@ -1,0 +1,16 @@
+---
+title: "Consultar pedido"
+openapi: "GET /v2/orders/{id}"
+---
+
+<Warning>
+  Esta rota só encontra pedidos **criados pela API v2**. Um pedido criado pela v1 retorna `404` (`resource_missing`). Faturas de assinatura também não aparecem aqui: use [`GET /v2/invoices/{id}`](/pages/v2/faturas/get).
+</Warning>
+
+<Info>
+  A resposta traz todos os pagamentos do pedido em `payments`, o `next_action` quando o cliente precisa agir e o `failure_reason` quando o pedido falhou.
+</Info>
+
+<Note>
+  Um pedido de outra conta retorna `404` (`resource_missing`).
+</Note>

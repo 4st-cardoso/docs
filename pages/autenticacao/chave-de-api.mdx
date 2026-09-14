@@ -1,18 +1,17 @@
 ---
 title: "Chave de API (secret key)"
-description: "Como gerar, usar e revogar a chave que autentica na API de Análise de Fraude."
+description: "Como gerar, usar e revogar a chave que autentica na API v2 e na API de Análise de Fraude."
 icon: "key"
 ---
 
 <Warning>
-  A autenticação por **chave de API (secret key)** ainda está **em desenvolvimento**. No momento, ela
-  funciona **apenas nas rotas de Análise de Fraude**. As demais rotas da API continuam usando o
-  [token de login](/pages/autenticacao/reference) (`Authorization: Bearer <token JWT>`).
+  A **chave de API (secret key)** autentica **todas as rotas da API v2** e as **rotas de Análise de Fraude** da v1.
+  As demais rotas da v1 continuam usando o [token de login](/pages/autenticacao/reference) (`Authorization: Bearer <token JWT>`).
 </Warning>
 
 ## O que é
 
-A **chave de API** (secret key) é a credencial que autentica as chamadas à API de Análise de Fraude. Ela pertence à sua conta e vai no header `Authorization` de cada requisição:
+A **chave de API** (secret key) é a credencial que autentica as chamadas à [API v2](/pages/v2/start/autenticacao) e à API de Análise de Fraude. Ela pertence à sua conta e vai no header `Authorization` de cada requisição:
 
 ```http
 Authorization: Bearer sk_live_ab12cd34ef56_XxYyZzAaBbCc...

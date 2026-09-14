@@ -1,0 +1,16 @@
+---
+title: "Alterar data da próxima cobrança"
+openapi: "POST /v2/subscriptions/{id}/next-billing-date"
+---
+
+<Info>
+  Envie `next_billing_at` com uma data **a partir de amanhã**. Só o dia é considerado. Uma data de hoje ou do passado retorna `422` (`validation_error`).
+</Info>
+
+<Warning>
+  A alteração move **todo o calendário** da assinatura: as faturas seguintes passam a ser contadas a partir da nova data, somando o intervalo da assinatura. O `start_at` da resposta continua mostrando o início original.
+</Warning>
+
+<Note>
+  A assinatura precisa estar em andamento (`scheduled` ou `active`) e **sem fatura em andamento** (pendente, autorizada ou aguardando ação). Em qualquer outro caso, incluindo `past_due` e `suspended`, a resposta é `422` (`billing_date_not_updatable`).
+</Note>

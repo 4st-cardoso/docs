@@ -1,0 +1,456 @@
+---
+title: "Pedidos"
+description: "Crie pedidos com um ou mais meios de pagamento, capture, cancele e confirme na API v2."
+icon: "receipt"
+---
+
+## Visão geral
+
+O **pedido** (`order`) é a compra do cliente na API v2. Ele reúne os itens e **um ou mais pagamentos**: você pode cobrar um cartão, um PIX, dois cartões ou cartão + PIX no mesmo pedido.
+
+| Método | Rota                             | O que faz                                    |
+|--------|----------------------------------|----------------------------------------------|
+| `POST` | `/v2/orders`                     | Cria um pedido                               |
+| `GET`  | `/v2/orders/{id}`                | Consulta um pedido                           |
+| `POST` | `/v2/orders/{id}/capture`        | Captura os pagamentos com cartão autorizados |
+| `POST` | `/v2/orders/{id}/cancel`         | Cancela um pedido ainda não concluído        |
+| `POST` | `/v2/orders/{id}/confirm`        | Confirma o código de verificação do cliente  |
+| `POST` | `/v2/orders/{id}/confirm/resend` | Reenvia o código de verificação              |
+
+```
+Pedido (order)
+ ├─ items[]      → o que está sendo vendido
+ └─ payments[]   → um pagamento (payment_intent) por meio de pagamento
+       └─ cada pagamento tem uma cobrança (charge) com o mesmo id
+```
+
+<Warning>
+  **`201 Created` não significa pago.** A resposta traz o resultado da autorização. Um pagamento com cartão aceito pode ficar em `processing` até a confirmação da adquirente. Use os webhooks [`order.paid` e `charge.paid`](/pages/v2/webhooks/events/order) para saber quando o pedido foi pago.
+</Warning>
+
+---
+
+## Criar um pedido
+
+### Campos principais
+
+| Campo            | Tipo   | Req. | Descrição                                                        |
+|------------------|--------|------|------------------------------------------------------------------|
+| `currency`       | string | Não  | `BRL` ou `USD`. Padrão: `BRL`                                    |
+| `customer`       | object | Sim  | Dados do comprador (veja abaixo)                                 |
+| `payments`       | array  | Sim  | Um ou mais pagamentos (veja abaixo)                              |
+| `items`          | array  | Sim  | Um ou mais itens (veja abaixo)                                   |
+| `fraud_analysis` | object | Não  | Pular a análise de fraude (veja abaixo)                          |
+| `metadata`       | object | Não  | Dados livres da sua integração                                   |
+
+### Campos do cliente
+
+A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
+
+| Campo                      | Tipo   | Req. | Descrição                         |
+|----------------------------|--------|------|-----------------------------------|
+| `customer.name`            | string | Sim  | Nome completo (máx. 255)          |
+| `customer.email`           | string | Sim  | E-mail do comprador               |
+| `customer.phone.ddi`       | string | Sim  | Código do país (ex.: `55`)        |
+| `customer.phone.ddd`       | string | Sim  | Código de área (ex.: `11`)        |
+| `customer.phone.number`    | string | Sim  | Número do telefone                |
+| `customer.document.type`   | string | Não  | Tipo do documento (ex.: `cpf`)    |
+| `customer.document.number` | string | Não  | Número do documento               |
+
+### Campos do pagamento (`payments[]`)
+
+| Campo            | Tipo    | Req.   | Descrição                                                                 |
+|------------------|---------|--------|---------------------------------------------------------------------------|
+| `type`           | string  | Não    | `card` ou `pix`. Padrão: `card`                                           |
+| `amount`         | integer | Sim    | Valor deste pagamento, em centavos (mín. `1`)                             |
+| `capture_method` | string  | Não    | `manual` ou `automatic`, só para cartão. Padrão: `manual`. Veja [Captura](#captura) |
+| `card`           | object  | Cartão | Dados do cartão ou cartão salvo (veja abaixo)                             |
+| `pix_expiration` | integer | Não    | Validade do QR Code PIX, em segundos (mín. `1`)                           |
+| `split`          | array   | Não    | Divisão do valor deste pagamento entre recebedores (veja abaixo)          |
+
+### Campos do cartão (`payments[].card`)
+
+| Campo               | Tipo    | Req.  | Descrição                                                         |
+|---------------------|---------|-------|-------------------------------------------------------------------|
+| `token`             | string  | Não¹  | `id` de um [cartão salvo](/pages/v2/cartoes/reference)            |
+| `number`            | string  | Sim²  | Número do cartão (mín. 13 dígitos)                                |
+| `holder_name`       | string  | Sim²  | Nome impresso no cartão                                           |
+| `exp_month`         | string  | Sim²  | Mês de validade                                                   |
+| `exp_year`          | string  | Sim²  | Ano de validade                                                   |
+| `cvc`               | string  | Sim²  | Código de segurança                                               |
+| `installments`      | integer | Não   | Número de parcelas (mín. `1`)                                     |
+
+¹ Alternativa aos dados do cartão.
+² Obrigatório quando `token` **não** é enviado.
+
+### Campos do split (`payments[].split[]`)
+
+| Campo                           | Tipo    | Req. | Descrição                                                        |
+|---------------------------------|---------|------|------------------------------------------------------------------|
+| `receiver_code`                 | string  | Sim  | Código do recebedor                                              |
+| `amount`                        | integer | Sim  | Valor destinado ao recebedor, em centavos (mín. `1`)             |
+| `options.charge_processing_fee` | boolean | Não  | Marca o recebedor de cujo valor saem as taxas de processamento   |
+| `options.charge_remainder_fee`  | boolean | Não  | Opção de restante do recebedor                                   |
+| `options.liable`                | boolean | Não  | Opção de responsabilidade do recebedor                           |
+
+### Campos dos itens (`items[]`)
+
+| Campo         | Tipo    | Req. | Descrição                                   |
+|---------------|---------|------|---------------------------------------------|
+| `code`        | string  | Não  | Código do item na sua conta (máx. 255)      |
+| `description` | string  | Sim  | Descrição do item (máx. 255)                |
+| `quantity`    | integer | Sim  | Quantidade (mín. `1`)                       |
+| `amount`      | integer | Sim  | Valor unitário, em centavos (mín. `1`)      |
+| `category`    | string  | Não  | Categoria do item (máx. 255)                |
+
+### Análise de fraude (`fraud_analysis`)
+
+| Campo    | Tipo    | Req.        | Descrição                                                                   |
+|----------|---------|-------------|-----------------------------------------------------------------------------|
+| `skip`   | boolean | Sim         | `true` para pular a análise de fraude                                       |
+| `reason` | string  | Se `skip`   | `upsell`, `one_click`, `trusted_customer` ou `external_analysis`            |
+
+| `reason`            | Quando usar                                                         |
+|---------------------|---------------------------------------------------------------------|
+| `upsell`            | Compra adicional em uma sessão que já passou pela análise           |
+| `one_click`         | Cliente recorrente pagando com cartão salvo                          |
+| `trusted_customer`  | Cliente de confiança da sua operação                                 |
+| `external_analysis` | Você já fez a própria análise de fraude                              |
+
+<Warning>
+  Pular a análise de fraude exige permissão na sua conta. Sem ela, a resposta é `422` (`fraud_bypass_not_allowed`).
+</Warning>
+
+### Regras de validação
+
+- A soma de `items[].amount × items[].quantity` precisa ser igual à soma de `payments[].amount`.
+- Um pagamento com cartão precisa de `card.token` **ou** de todos os dados do cartão.
+- Quando o pedido tem cartão, o `pix_expiration` de um pagamento PIX pode ser de no máximo **86400 segundos** (24 horas). O cartão fica pré-autorizado enquanto o PIX não é pago.
+- A soma de `split[].amount` precisa ser igual ao `amount` do pagamento.
+- No split, **exatamente um** recebedor precisa ter `options.charge_processing_fee: true`, e o valor dele precisa cobrir as taxas de processamento. Pelo menos um recebedor precisa ter `options.charge_remainder_fee: true` e pelo menos um precisa ter `options.liable: true`. Um split que não pode ser aplicado retorna `422` (`split_error`).
+
+---
+
+## Exemplos
+
+### Cartão com captura manual
+
+```json Request
+{
+  "currency": "BRL",
+  "customer": {
+    "name": "Maria Santos",
+    "email": "maria@exemplo.com.br",
+    "phone": { "ddi": "55", "ddd": "11", "number": "999999999" },
+    "document": { "type": "cpf", "number": "12345678909" }
+  },
+  "payments": [
+    {
+      "type": "card",
+      "amount": 10000,
+      "capture_method": "manual",
+      "card": {
+        "number": "4111111111111111",
+        "holder_name": "Maria Santos",
+        "exp_month": "12",
+        "exp_year": "2030",
+        "cvc": "123",
+        "installments": 1
+      }
+    }
+  ],
+  "items": [
+    { "code": "SKU-1", "description": "Curso online", "quantity": 1, "amount": 10000 }
+  ],
+  "metadata": { "pedido_loja": "1024" }
+}
+```
+
+```json Resposta (HTTP 201)
+{
+  "id": "482913",
+  "object": "order",
+  "status": "requires_capture",
+  "currency": "brl",
+  "amount": 10000,
+  "payments": [
+    {
+      "id": "cha_8Kq2Lm9XvB3nT7pZ",
+      "object": "payment_intent",
+      "status": "requires_capture",
+      "amount": 10000,
+      "amount_refunded": 0,
+      "currency": "brl",
+      "payment_method_details": {
+        "type": "card",
+        "card": { "brand": "visa", "last_four": "1111", "holder_name": "Maria Santos" }
+      }
+    }
+  ],
+  "next_action": null
+}
+```
+
+### PIX
+
+```json Pagamento
+"payments": [
+  { "type": "pix", "amount": 5000, "pix_expiration": 3600 }
+]
+```
+
+```json Resposta (HTTP 201)
+{
+  "id": "730215",
+  "object": "order",
+  "status": "requires_action",
+  "currency": "brl",
+  "amount": 5000,
+  "payments": [
+    {
+      "id": "cha_Rt6Yp1Zx3Hn8Qw2K",
+      "object": "payment_intent",
+      "status": "requires_action",
+      "amount": 5000,
+      "amount_refunded": 0,
+      "currency": "brl",
+      "payment_method_details": {
+        "type": "pix",
+        "pix": {
+          "qr_code": "00020126580014br.gov.bcb.pix...",
+          "qr_code_url": "https://...",
+          "expires_at": "2026-09-14T11:00:00.000000Z"
+        }
+      }
+    }
+  ],
+  "next_action": {
+    "type": "pix_display_qr_code",
+    "pix": {
+      "qr_code": "00020126580014br.gov.bcb.pix...",
+      "qr_code_url": "https://...",
+      "expires_at": "2026-09-14T11:00:00.000000Z"
+    }
+  }
+}
+```
+
+### Cartão + PIX
+
+Envie dois itens em `payments`. O pedido é criado com dois pagamentos e fica em `requires_action` com o QR Code em `next_action`. O cartão fica em `requires_capture` e é **capturado automaticamente** quando o PIX é pago.
+
+```json Pagamentos
+"payments": [
+  {
+    "type": "card",
+    "amount": 5000,
+    "card": { "token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f", "installments": 1 }
+  },
+  { "type": "pix", "amount": 5000, "pix_expiration": 3600 }
+]
+```
+
+---
+
+## Captura
+
+Um pagamento com cartão pode ser só **autorizado** (o limite fica reservado) ou **capturado** (a venda é concluída).
+
+| Situação                                         | O que acontece                                                                 |
+|--------------------------------------------------|--------------------------------------------------------------------------------|
+| Um pagamento com cartão, sem `capture_method`    | Captura manual: o pedido fica em `requires_capture`. Chame [`/capture`](/pages/v2/pedidos/capture) |
+| Um pagamento com cartão, `capture_method: "manual"` | Igual ao anterior                                                           |
+| Um pagamento com cartão, `capture_method: "automatic"` | Venda direta, sem captura manual                                       |
+| Dois ou mais cartões                             | Todos os cartões são pré-autorizados, mesmo com `automatic`. Chame `/capture`  |
+| Cartão + PIX                                     | O cartão é pré-autorizado e capturado **automaticamente** quando o PIX é pago. Não chame `/capture` |
+
+<Warning>
+  Um pedido com vários pagamentos é **tudo ou nada**. Se um pagamento for recusado, os que já foram autorizados são desfeitos e o pedido falha. O mesmo vale para a captura: se a adquirente recusar a captura de um cartão, os demais são desfeitos e o pedido fica `failed`, com o motivo em `failure_reason`.
+</Warning>
+
+---
+
+## O objeto pedido
+
+| Campo            | Tipo    | Descrição                                                              |
+|------------------|---------|------------------------------------------------------------------------|
+| `id`             | string  | Identificador do pedido                                                |
+| `object`         | string  | Sempre `order`                                                         |
+| `status`         | string  | Status do pedido (veja abaixo)                                         |
+| `currency`       | string  | Moeda, em minúsculas (`brl`, `usd`)                                    |
+| `amount`         | integer | Valor total, em centavos                                               |
+| `payments`       | array   | Pagamentos do pedido (veja [Pagamentos](#pagamentos))                  |
+| `next_action`    | object  | Ação que o cliente precisa fazer, ou `null`                            |
+| `failure_reason` | object  | Presente apenas quando `status` é `failed`. Veja [Pagamento recusado](/pages/v2/start/erros#pagamento-recusado-402) |
+
+### Status do pedido
+
+O status do pedido é calculado a partir de **todos** os pagamentos, não apenas do primeiro.
+
+| Status               | Descrição                                                              |
+|----------------------|------------------------------------------------------------------------|
+| `processing`         | Em processamento. Aguarde o webhook de confirmação                     |
+| `requires_capture`   | Cartão autorizado, aguardando [captura](/pages/v2/pedidos/capture)     |
+| `requires_action`    | O cliente precisa agir: pagar o PIX ou confirmar o código de verificação |
+| `paid`               | Pago                                                                   |
+| `failed`             | Recusado. Veja `failure_reason`                                        |
+| `canceled`           | Cancelado                                                              |
+| `refunded`           | Estornado                                                              |
+| `partially_refunded` | Estornado parcialmente                                                 |
+| `chargeback`         | Contestado pelo portador do cartão                                     |
+
+---
+
+## Pagamentos
+
+Cada item de `payments` é um objeto `payment_intent`. O `id` do pagamento é o mesmo `id` da [cobrança](/pages/v2/cobrancas/reference): use-o em `GET /v2/charges/{id}` e no estorno.
+
+| Campo                            | Tipo    | Descrição                                                   |
+|----------------------------------|---------|-------------------------------------------------------------|
+| `id`                             | string  | Identificador do pagamento (igual ao da cobrança)           |
+| `object`                         | string  | Sempre `payment_intent`                                     |
+| `status`                         | string  | Status do pagamento (veja abaixo)                           |
+| `amount`                         | integer | Valor, em centavos                                          |
+| `amount_refunded`                | integer | Total estornado, em centavos                                |
+| `currency`                       | string  | Moeda, em minúsculas                                        |
+| `payment_method_details.type`    | string  | `card`, `pix` ou `boleto`                                   |
+| `payment_method_details.card`    | object  | Só para cartão: `brand`, `last_four`, `holder_name`         |
+| `payment_method_details.pix`     | object  | Só para PIX: `qr_code`, `qr_code_url`, `expires_at`         |
+
+### Status do pagamento
+
+| Status               | Descrição                                                        |
+|----------------------|------------------------------------------------------------------|
+| `processing`         | Em processamento                                                 |
+| `requires_action`    | PIX aguardando pagamento ou código de verificação pendente       |
+| `requires_capture`   | Cartão autorizado, aguardando captura                            |
+| `paid`               | Pago                                                             |
+| `refund_processing`  | Estorno em processamento                                         |
+| `partially_refunded` | Estornado parcialmente                                           |
+| `refunded`           | Estornado                                                        |
+| `chargeback`         | Contestado pelo portador do cartão                               |
+| `canceled`           | Cancelado ou autorização desfeita                                |
+| `failed`             | Recusado                                                         |
+
+---
+
+## Próxima ação (`next_action`)
+
+Quando o cliente precisa fazer algo, o pedido traz um `next_action`. Se nada for necessário, o campo vem `null`.
+
+### QR Code PIX
+
+```json
+"next_action": {
+  "type": "pix_display_qr_code",
+  "pix": {
+    "qr_code": "00020126580014br.gov.bcb.pix...",
+    "qr_code_url": "https://...",
+    "expires_at": "2026-09-14T11:00:00.000000Z"
+  }
+}
+```
+
+Exiba o `qr_code` (código copia e cola) ou a imagem de `qr_code_url` para o cliente.
+
+### Código de verificação
+
+A análise de fraude pode pedir que o cliente confirme um código antes do pagamento:
+
+```json
+"next_action": {
+  "type": "otp_confirmation",
+  "otp": {
+    "confirmation_id": "5f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f",
+    "expires_at": "2026-09-14T10:15:00.000000Z"
+  }
+}
+```
+
+1. Peça ao cliente o código que ele recebeu.
+2. Envie o código em [`POST /v2/orders/{id}/confirm`](/pages/v2/pedidos/confirm).
+3. Se o código expirar, gere outro com [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation).
+
+<Note>
+  Nenhum pagamento é cobrado antes da confirmação. O código de verificação tem prioridade sobre o QR Code PIX. A verificação por código **não** gera webhook: acompanhe pelo `next_action` da resposta.
+</Note>
+
+<Warning>
+  O reenvio do código aceita **5 requisições por minuto por IP de origem**. O limite não é separado por conta: se a sua plataforma atende várias contas a partir do mesmo servidor, todas dividem os mesmos 5 reenvios por minuto. Ao exceder, a resposta é `429` fora do envelope de erro da v2 (`{ "message": "Too Many Attempts." }`).
+</Warning>
+
+---
+
+## Fluxo de um pedido
+
+```
+POST /v2/orders
+    │
+    ├─ Bloqueios de conta, item ou cliente (403)
+    ├─ Limite por comprador (429)
+    ├─ Validação (422)
+    ├─ Análise de fraude
+    │     ├─ Negado          → 402 (failure_reason.code: fraud_suspected)
+    │     └─ Verificação     → 201 requires_action (otp_confirmation) → /confirm
+    │
+    ├─ [PIX]              → 201 requires_action (pix_display_qr_code) → webhook order.paid
+    ├─ [Cartão manual]    → 201 requires_capture → /capture → paid
+    ├─ [Cartão automático]→ 201 processing ou paid → webhook order.paid
+    ├─ [Cartão + PIX]     → 201 requires_action → PIX pago → cartão capturado → paid
+    └─ Recusado           → 402 failed (failure_reason)
+```
+
+---
+
+## Limites e bloqueios
+
+- **Por comprador:** `POST /v2/orders` aceita no máximo 2 tentativas por minuto do mesmo comprador (e-mail ou documento) para os mesmos itens. Acima disso, a resposta é `429` (`rate_limit_exceeded`) com `customer_message` e `Retry-After`.
+- **Bloqueios:** conta, item ou cliente bloqueado (e-mail, documento ou BIN do cartão, inclusive de cartão salvo) retorna `403` com `customer_message`.
+
+Veja todos os limites em [Idempotência e limites](/pages/v2/start/idempotencia-e-limites#limites-de-requisições).
+
+---
+
+## Pontos de atenção
+
+- `GET /v2/orders/{id}` só encontra pedidos **criados pela API v2**. Pedidos da v1 retornam `404`.
+- Os pedidos da v2 não têm o campo `international`.
+- Os pedidos da v2 não salvam cartão. O `id` de um cartão salvo vem de [`POST /v2/cards`](/pages/v2/cartoes/create), de uma [assinatura](/pages/v2/assinaturas/reference) ou de um cartão salvo no checkout da v1.
+
+---
+
+## Erros específicos
+
+| Rota                          | Status | `code`                                   | Quando acontece                                               |
+|-------------------------------|--------|------------------------------------------|---------------------------------------------------------------|
+| `POST /v2/orders`             | `422`  | `validation_error`                       | Algum campo é inválido (veja `param`)                         |
+|                               | `422`  | `card_token_invalid`                     | Cartão salvo inexistente na conta (`param`: `payments.N.card.token`) |
+|                               | `422`  | `split_error`                            | O split não pode ser aplicado (`param`: `split`)              |
+|                               | `422`  | `fraud_bypass_not_allowed`               | A conta não pode pular a análise de fraude                    |
+|                               | `422`  | `unsupported_payment_method_combination` | Combinação de meios de pagamento não suportada                |
+|                               | `422`  | `acquirer_feature_not_supported`         | Nenhuma adquirente da conta suporta esta composição           |
+|                               | `403`  | `account_requests_blocked`, `item_purchases_blocked`, `customer_blocked` | Bloqueio de conta, item ou cliente |
+|                               | `429`  | `rate_limit_exceeded`                    | Muitas tentativas do mesmo comprador                          |
+|                               | `402`  | —                                        | Pagamento recusado (pedido com `failure_reason`)              |
+| `POST /v2/orders/{id}/capture`| `422`  | `order_not_capturable`                   | O pedido não está em `requires_capture`                       |
+|                               | `402`  | —                                        | Captura recusada (pedido com `failure_reason`)                |
+| `POST /v2/orders/{id}/cancel` | `422`  | `order_not_cancelable`                   | O pedido não está em `requires_capture` ou `requires_action`  |
+| `POST /v2/orders/{id}/confirm`| `422`  | `parameter_missing`                      | O campo `code` não foi enviado (`param`: `code`)              |
+|                               | `422`  | `confirmation_code_invalid`              | Código inválido ou expirado                                   |
+|                               | `422`  | `order_not_confirmable`                  | O pedido não aguarda código de verificação                    |
+|                               | `402`  | —                                        | Pagamento recusado após a confirmação                         |
+| `POST /v2/orders/{id}/confirm/resend` | `422` | `order_not_confirmable`         | O pedido não aguarda código de verificação                    |
+| Todas com `{id}`              | `404`  | `resource_missing`                       | O pedido não existe, é de outra conta ou foi criado pela v1   |
+
+```json Resposta (HTTP 422)
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "card_token_invalid",
+    "message": "O cartão salvo informado não foi encontrado para esta conta.",
+    "param": "payments.0.card.token"
+  }
+}
+```
+
+Veja o catálogo completo em [Erros](/pages/v2/start/erros).

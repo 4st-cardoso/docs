@@ -1,0 +1,57 @@
+---
+title: "Autenticação"
+description: "Autentique as chamadas da API v2 com a chave de API da sua conta."
+icon: "key"
+---
+
+Todas as rotas da API v2 são autenticadas pela **chave de API** (secret key) da sua conta, enviada no header `Authorization`:
+
+```http
+Authorization: Bearer sk_live_ab12cd34ef56_XxYyZzAaBbCc...
+```
+
+A chave identifica a conta. Por isso, a v2 **não** usa o header `account` nem o token de login (`POST /v1/login`).
+
+<Card title="Como gerar sua chave de API" icon="key" href="/pages/autenticacao/chave-de-api">
+  Passo a passo para criar, guardar e revogar a sua chave no dashboard.
+</Card>
+
+---
+
+## Exemplo
+
+```bash cURL
+curl https://app.4seletpay.com.br/api/v2/orders/482913 \
+  -H "Authorization: Bearer sk_live_ab12cd34ef56_XxYyZzAaBbCc..."
+```
+
+---
+
+## Dev mode e produção
+
+| Prefixo    | Ambiente | Onde funciona                         |
+|------------|----------|---------------------------------------|
+| `sk_test_` | Dev mode | Somente no ambiente de Dev mode       |
+| `sk_live_` | Produção | Somente no ambiente de produção       |
+
+Uma chave só é aceita no ambiente em que foi criada. Uma chave `sk_test_` enviada para produção retorna `401`, e o contrário também.
+
+---
+
+## Erro de autenticação
+
+Uma chave ausente, inválida, revogada ou de outro ambiente retorna `401`:
+
+```json Resposta (HTTP 401)
+{
+  "error": {
+    "type": "authentication_error",
+    "code": "invalid_api_secret",
+    "message": "Invalid API secret."
+  }
+}
+```
+
+<Warning>
+  Use a chave de API **apenas no seu servidor**. Nunca a exponha no front-end, em aplicativos ou em repositórios de código.
+</Warning>

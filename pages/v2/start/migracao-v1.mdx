@@ -1,0 +1,73 @@
+---
+title: "Migrando da v1"
+description: "O que muda da API v1 para a API v2 e onde fica cada rota."
+icon: "arrow-right-arrow-left"
+---
+
+A v2 não é uma cópia da v1 com outro prefixo. Autenticação, formato de resposta, valores e nomes de campos mudaram. Use esta página como guia de migração.
+
+---
+
+## Principais diferenças
+
+| Tema                     | API v1                                                        | API v2                                                           |
+|--------------------------|---------------------------------------------------------------|------------------------------------------------------------------|
+| Autenticação             | Token de login (`POST /v1/login`) + header `account`          | [Chave de API](/pages/v2/start/autenticacao) no `Authorization`, sem header `account` |
+| Resposta de sucesso      | Envelope `{ "mensagem", "erro", "data", ... }`                | Objeto plano, com o campo `object` indicando o tipo              |
+| Resposta de erro         | Envelope `{ "mensagem", "erro": true, "mensagenserro", ... }` | `{ "error": { "type", "code", "message" } }` — veja [Erros](/pages/v2/start/erros) |
+| Valores                  | Reais com decimais (`97.90`)                                  | **Centavos** inteiros (`9790`)                                   |
+| Meios por compra         | Um meio de pagamento por cobrança                             | Um pedido com **vários pagamentos** (ex.: dois cartões, cartão + PIX) |
+| Cliente                  | `client`                                                      | `customer`                                                       |
+| Tipo de pagamento        | `CreditCard`, `PIX`                                           | `card`, `pix`                                                    |
+| Dados do cartão          | `number`, `name`, `month`, `year`, `security_code`            | `number`, `holder_name`, `exp_month`, `exp_year`, `cvc`          |
+| Cartão salvo             | `payment.card.card_id`                                        | `card.token` (o `id` do [cartão](/pages/v2/cartoes/reference))   |
+| Split                    | Configuração de split da v1                                   | Lista `split` por pagamento, com `receiver_code` e `amount` em centavos |
+| Pular análise de fraude  | `skip_fraud_analysis` e `is_upsell`                           | `fraud_analysis: { "skip": true, "reason": "..." }`              |
+| Intervalo da assinatura  | `interval` em dias                                            | `interval` (`day` ou `week`) + `interval_count`                  |
+| Webhooks                 | Payload da v1                                                 | Envelope com `webhook_version: "v2"` e o objeto da API em `data` |
+
+---
+
+## Equivalência de rotas
+
+| API v1                                                              | API v2                                                                 |
+|---------------------------------------------------------------------|------------------------------------------------------------------------|
+| `POST /v1/charge`                                                   | [`POST /v2/orders`](/pages/v2/pedidos/create)                           |
+| `GET /v1/charge/{code}`                                             | [`GET /v2/orders/{id}`](/pages/v2/pedidos/get) e [`GET /v2/charges/{id}`](/pages/v2/cobrancas/get) |
+| `POST /v1/charge/refund/{code}`                                     | [`POST /v2/charges/{id}/refund`](/pages/v2/cobrancas/refund)            |
+| `POST /v1/orders/{order_code}/confirmations/{confirmation_id}/verify` | [`POST /v2/orders/{id}/confirm`](/pages/v2/pedidos/confirm)          |
+| `POST /v1/orders/{order_code}/confirmations/{confirmation_id}/resend` | [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation) |
+| `POST /v1/clients/{clientCode}/cards`                               | [`POST /v2/cards`](/pages/v2/cartoes/create)                            |
+| `GET /v1/clients/{clientCode}/cards/{cardId}`                       | [`GET /v2/cards/{id}`](/pages/v2/cartoes/get)                           |
+| `POST /v1/subscriptions`                                            | [`POST /v2/subscriptions`](/pages/v2/assinaturas/create)                |
+| `PUT /v1/subscriptions/cancel/{subscription_code}`                  | [`POST /v2/subscriptions/{id}/cancel`](/pages/v2/assinaturas/cancel)    |
+| `PUT /v1/subscriptions/change-card/{subscription_code}` e `PUT /v1/subscriptions/change-payment-method/{subscription_code}` | [`POST /v2/subscriptions/{id}/payment-method`](/pages/v2/assinaturas/payment-method) |
+| `PUT /v1/subscriptions/{subscription_code}/items/{item_code}`       | [`POST /v2/subscriptions/{id}/items/{code}`](/pages/v2/assinaturas/update-item) |
+| `GET /v1/subscriptions/{subscription_code}/invoices`                | [`GET /v2/subscriptions/{id}/invoices`](/pages/v2/assinaturas/invoices) |
+| `POST /v1/invoices/{invoice_code}/pay-overdue`                      | [`POST /v2/invoices/{id}/pay`](/pages/v2/faturas/pay)                   |
+
+### Novidades da v2
+
+- [`POST /v2/orders/{id}/capture`](/pages/v2/pedidos/capture) e [`POST /v2/orders/{id}/cancel`](/pages/v2/pedidos/cancel) — captura manual e cancelamento de pedidos autorizados.
+- [`POST /v2/subscriptions/{id}/next-billing-date`](/pages/v2/assinaturas/next-billing-date) — altera a data da próxima cobrança.
+- [`GET /v2/subscriptions/{id}`](/pages/v2/assinaturas/get) e [`GET /v2/invoices/{id}`](/pages/v2/faturas/get) — consulta direta de assinatura e fatura.
+
+### Continua na v1
+
+Links de pagamento, Análise de Fraude, gestão de endpoints de webhook e a listagem, edição e exclusão de cartões não têm rota na v2. Use a API v1 para esses recursos.
+
+---
+
+## Pontos de atenção
+
+<Warning>
+  Um pedido criado pela v1 **não** é encontrado em `GET /v2/orders/{id}`. Consulte pela v2 os pedidos criados pela v2.
+</Warning>
+
+<Note>
+  O formato do webhook depende de **onde o recurso foi criado**: pedidos e assinaturas criados pela v2 geram webhooks no formato v2; os criados pela v1 continuam no formato v1. O mesmo endpoint pode receber os dois formatos. Veja [Webhooks](/pages/v2/webhooks/reference).
+</Note>
+
+<Tip>
+  A v2 não tem recurso de cliente. Envie os dados do comprador em `customer` a cada pedido, assinatura ou cartão.
+</Tip>

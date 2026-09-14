@@ -1,0 +1,20 @@
+---
+title: "Confirmar pedido"
+openapi: "POST /v2/orders/{id}/confirm"
+---
+
+<Info>
+  Use esta rota quando o pedido vier com `next_action.type` igual a `otp_confirmation`. Envie em `code` o código de verificação que o cliente recebeu. Nenhum pagamento é cobrado antes dessa confirmação.
+</Info>
+
+<Note>
+  Com o código correto, o pedido segue para o pagamento e a resposta traz o novo status (`processing`, `requires_capture`, `requires_action` ou `paid`). Se o pagamento for recusado, a resposta é `402` com `failure_reason`.
+</Note>
+
+<Warning>
+  Código inválido ou expirado retorna `422` (`confirmation_code_invalid`). Sem o campo `code`, a resposta é `422` (`parameter_missing`). Um pedido que não aguarda código retorna `422` (`order_not_confirmable`).
+</Warning>
+
+<Tip>
+  Se o código expirou, gere outro com [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation). A verificação por código não gera webhook: acompanhe pelo `next_action` da resposta.
+</Tip>

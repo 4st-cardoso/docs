@@ -1,0 +1,16 @@
+---
+title: "Consultar fatura"
+openapi: "GET /v2/invoices/{id}"
+---
+
+<Note>
+  O `id` da fatura é um código numérico de 6 dígitos, como `482913`. Ele aparece em `latest_invoice.id` da assinatura e na [listagem de faturas](/pages/v2/assinaturas/invoices).
+</Note>
+
+<Info>
+  Esta rota encontra apenas faturas de assinaturas. O identificador de um pedido avulso retorna `404` (`resource_missing`). Para pedidos, use [Consultar pedido](/pages/v2/pedidos/get).
+</Info>
+
+<Tip>
+  Quando `status` é `failed`, a resposta traz o motivo em `failure_reason`. Quando o cliente precisa agir, `next_action` traz o QR Code PIX ou os dados do código de verificação.
+</Tip>

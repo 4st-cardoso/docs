@@ -1,0 +1,28 @@
+---
+title: "Criar assinatura"
+openapi: "POST /v2/subscriptions"
+---
+
+<Warning>
+  **`201` não significa pago.** Sem `start_at`, a primeira fatura é cobrada na criação e volta em `latest_invoice`. Com cartão, ela costuma ficar em `processing` até a confirmação; com PIX, fica em `requires_action` com o QR Code em `latest_invoice.next_action`. Se a primeira fatura for recusada, a resposta é `402` com a assinatura em `incomplete_expired` e o motivo em `latest_invoice.failure_reason`.
+</Warning>
+
+<Info>
+  Todos os valores são em **centavos** (`10000` = R$ 100,00). O intervalo é `interval` (`day` ou `week`) × `interval_count`, com no máximo **365 dias**. Não existe mês de calendário: uma assinatura "mensal" é `day` × `30` e a data de cobrança desliza em relação ao calendário. Veja [Intervalo de cobrança](/pages/v2/assinaturas/reference#intervalo-de-cobrança).
+</Info>
+
+<Note>
+  Com `start_at` (a partir de amanhã), a assinatura nasce `scheduled` e **nada é cobrado** na criação.
+</Note>
+
+<Tip>
+  Para usar um cartão salvo, envie `payment.card.token` com o `id` retornado por [`POST /v2/cards`](/pages/v2/cartoes/create). Sem token, envie `number`, `holder_name`, `exp_month`, `exp_year` e `cvc`.
+</Tip>
+
+<Warning>
+  O campo `minimum_price` é aceito e devolvido, mas **não é aplicado** na cobrança das faturas.
+</Warning>
+
+<Note>
+  Esta rota passa pelo bloqueio de clientes (`403` `customer_blocked`) e pelo limite por comprador (`429` `rate_limit_exceeded`). Envie o header `Idempotency-Key` para reenviar com segurança. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites).
+</Note>

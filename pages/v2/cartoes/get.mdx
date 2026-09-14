@@ -1,0 +1,16 @@
+---
+title: "Consultar cartão"
+openapi: "GET /v2/cards/{id}"
+---
+
+<Info>
+  Use esta rota para acompanhar o `tokenization_status` depois de salvar o cartão.
+</Info>
+
+<Note>
+  O `id` precisa ser o UUID do cartão. Um cartão de outra conta, ou inexistente, retorna `404` (`resource_missing`).
+</Note>
+
+<Warning>
+  A resposta nunca traz o número completo do cartão nem o código de segurança.
+</Warning>

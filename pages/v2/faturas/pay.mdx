@@ -1,0 +1,20 @@
+---
+title: "Pagar fatura"
+openapi: "POST /v2/invoices/{id}/pay"
+---
+
+<Info>
+  Cria uma nova cobrança para uma fatura em aberto, com o meio de pagamento que você enviar em `payment` (cartão ou PIX). Cobranças ainda pendentes da fatura são canceladas antes da nova tentativa.
+</Info>
+
+<Note>
+  Só é possível pagar uma fatura **pendente** ou **recusada** de uma assinatura que não esteja cancelada nem concluída (`active`, `past_due` e `suspended` são aceitas). Faturas pagas, canceladas, estornadas ou aguardando código de verificação retornam `422` (`invoice_not_payable`).
+</Note>
+
+<Warning>
+  A resposta é `200` com a fatura atualizada, ou `402` quando a nova cobrança é recusada (com o motivo em `failure_reason`). `200` não significa pago: com cartão, a fatura costuma ficar em `processing` até a confirmação; com PIX, fica em `requires_action` com o QR Code em `next_action`.
+</Warning>
+
+<Tip>
+  Outros erros possíveis: `422` `card_token_invalid` (cartão salvo de outra conta) e `422` `acquirer_feature_not_supported` (a conta não tem adquirente para o meio escolhido). Envie `Idempotency-Key` para evitar cobrança duplicada em reenvios.
+</Tip>

@@ -1,0 +1,116 @@
+---
+title: "Visão geral da API v2"
+description: "Conceitos, recursos e convenções da API v2 da 4SeletPay."
+icon: "rocket"
+---
+
+A **API v2** é a nova API REST da 4SeletPay para criar pedidos com um ou mais meios de pagamento, assinaturas recorrentes e cartões salvos. Ela usa JSON, autentica com a sua **chave de API** e responde com objetos planos, sem envelope.
+
+```http
+https://app.4seletpay.com.br/api/v2
+```
+
+<Info>
+  A API v1 continua disponível. Veja [Migrando da v1](/pages/v2/start/migracao-v1) para entender o que muda.
+</Info>
+
+---
+
+## Convenções
+
+| Convenção              | Como funciona na v2                                                                 |
+|------------------------|--------------------------------------------------------------------------------------|
+| Autenticação           | `Authorization: Bearer sk_...` com a sua [chave de API](/pages/v2/start/autenticacao). Não existe header `account` |
+| Valores                | Sempre em **centavos**, como inteiro (R$ 10,00 = `1000`)                            |
+| Moeda                  | Enviada como `BRL` ou `USD`; devolvida em minúsculas (`brl`)                         |
+| Datas                  | ISO 8601                                                                              |
+| Erros                  | Envelope `{ "error": { ... } }` — veja [Erros](/pages/v2/start/erros)                |
+| Reenvio seguro         | Header `Idempotency-Key` — veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites) |
+
+---
+
+## Conceitos
+
+<CardGroup cols={2}>
+  <Card title="Pedido (order)" icon="receipt" href="/pages/v2/pedidos/reference">
+    A compra do cliente. Reúne os itens e **um ou mais pagamentos** (por exemplo, dois cartões ou cartão + PIX).
+  </Card>
+  <Card title="Pagamento (payment_intent)" icon="credit-card" href="/pages/v2/pedidos/reference#pagamentos">
+    Cada meio de pagamento dentro de um pedido ou fatura. O `id` do pagamento é o mesmo `id` da cobrança.
+  </Card>
+  <Card title="Cobrança (charge)" icon="money-bill" href="/pages/v2/cobrancas/reference">
+    A visão financeira de um pagamento: quanto foi pago, estornado e ainda pode ser estornado.
+  </Card>
+  <Card title="Cartão (card)" icon="wallet" href="/pages/v2/cartoes/reference">
+    Um cartão salvo do cliente. Use o `id` como `card.token` em pedidos, assinaturas e faturas.
+  </Card>
+  <Card title="Assinatura (subscription)" icon="repeat" href="/pages/v2/assinaturas/reference">
+    Cobrança recorrente. Cada ciclo gera uma **fatura**.
+  </Card>
+  <Card title="Fatura (invoice)" icon="file-invoice" href="/pages/v2/faturas/reference">
+    Uma cobrança de um ciclo da assinatura, com os próprios pagamentos e status.
+  </Card>
+</CardGroup>
+
+---
+
+## Recursos e rotas
+
+| Recurso      | Método | Rota                                         |
+|--------------|--------|----------------------------------------------|
+| Pedidos      | `POST` | `/v2/orders`                                 |
+|              | `GET`  | `/v2/orders/{id}`                            |
+|              | `POST` | `/v2/orders/{id}/capture`                    |
+|              | `POST` | `/v2/orders/{id}/cancel`                     |
+|              | `POST` | `/v2/orders/{id}/confirm`                    |
+|              | `POST` | `/v2/orders/{id}/confirm/resend`             |
+| Cobranças    | `GET`  | `/v2/charges/{id}`                           |
+|              | `POST` | `/v2/charges/{id}/refund`                    |
+| Cartões      | `POST` | `/v2/cards`                                  |
+|              | `GET`  | `/v2/cards/{id}`                             |
+| Assinaturas  | `POST` | `/v2/subscriptions`                          |
+|              | `GET`  | `/v2/subscriptions/{id}`                     |
+|              | `POST` | `/v2/subscriptions/{id}/cancel`              |
+|              | `POST` | `/v2/subscriptions/{id}/payment-method`      |
+|              | `POST` | `/v2/subscriptions/{id}/items/{code}`        |
+|              | `POST` | `/v2/subscriptions/{id}/next-billing-date`   |
+|              | `GET`  | `/v2/subscriptions/{id}/invoices`            |
+| Faturas      | `GET`  | `/v2/invoices/{id}`                          |
+|              | `POST` | `/v2/invoices/{id}/pay`                      |
+|              | `POST` | `/v2/invoices/{id}/confirm`                  |
+|              | `POST` | `/v2/invoices/{id}/confirm/resend`           |
+
+---
+
+## Como um pagamento acontece
+
+1. Você cria o pedido com `POST /v2/orders`.
+2. A resposta traz o `status` do pedido e, quando o cliente precisa agir, um `next_action` (QR Code PIX ou código de verificação).
+3. A confirmação final chega por [webhook](/pages/v2/webhooks/reference) (`order.paid`, `charge.paid`).
+
+<Warning>
+  **`201 Created` não significa pago.** A resposta traz o resultado da autorização: `requires_capture`, `requires_action`, `processing` ou `failed`. Um cartão aprovado pode ficar em `processing` até a confirmação. Use os webhooks para saber quando o pedido foi pago.
+</Warning>
+
+<Note>
+  Uma resposta `402` também traz o recurso completo, com `status: "failed"` e o motivo em `failure_reason`. Veja [Pagamento recusado](/pages/v2/start/erros#pagamento-recusado-402).
+</Note>
+
+---
+
+## Próximos passos
+
+<CardGroup cols={2}>
+  <Card title="Autenticação" icon="key" href="/pages/v2/start/autenticacao">
+    Envie a sua chave de API em todas as chamadas.
+  </Card>
+  <Card title="Criar pedido" icon="cart-shopping" href="/pages/v2/pedidos/create">
+    Cobre com cartão, PIX ou os dois no mesmo pedido.
+  </Card>
+  <Card title="Erros" icon="triangle-exclamation" href="/pages/v2/start/erros">
+    Formato de erro e catálogo de códigos.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/pages/v2/webhooks/reference">
+    Receba a confirmação dos pagamentos.
+  </Card>
+</CardGroup>

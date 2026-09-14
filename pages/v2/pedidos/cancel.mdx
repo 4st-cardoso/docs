@@ -1,0 +1,20 @@
+---
+title: "Cancelar pedido"
+openapi: "POST /v2/orders/{id}/cancel"
+---
+
+<Info>
+  Só é aceito quando o pedido está em `requires_capture` ou `requires_action`. Em outro status, a resposta é `422` (`order_not_cancelable`).
+</Info>
+
+<Note>
+  O cancelamento desfaz as autorizações de cartão e invalida o QR Code PIX pendente, que deixa de poder ser pago. O pedido fica com `status: "canceled"`.
+</Note>
+
+<Warning>
+  Para devolver o valor de um pedido já pago, use o [estorno da cobrança](/pages/v2/cobrancas/refund).
+</Warning>
+
+<Tip>
+  Envie o header `Idempotency-Key` para reenviar com segurança. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites).
+</Tip>

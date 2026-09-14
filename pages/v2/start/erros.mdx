@@ -1,0 +1,207 @@
+---
+title: "Erros"
+description: "Formato de erro, pagamentos recusados e catálogo de códigos da API v2."
+icon: "triangle-exclamation"
+---
+
+A API v2 usa os códigos HTTP para indicar o resultado e devolve os erros em um envelope `error`:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "card_token_invalid",
+    "message": "O cartão salvo informado não foi encontrado para esta conta.",
+    "param": "payments.0.card.token"
+  }
+}
+```
+
+| Campo              | Sempre presente | Descrição                                                                 |
+|--------------------|-----------------|---------------------------------------------------------------------------|
+| `type`             | Sim             | Categoria do erro (veja abaixo)                                           |
+| `code`             | Sim             | Código estável do erro. **Use este campo na sua lógica**                  |
+| `message`          | Sim             | Texto técnico, para log e depuração. Não mostre ao pagador                |
+| `param`            | Não             | Campo que causou o erro, em notação de ponto (ex.: `payments.0.amount`)   |
+| `customer_message` | Não             | Texto pronto para exibir ao pagador                                       |
+
+<Tip>
+  Trate os erros pelo `code`. O texto de `message` pode mudar sem aviso.
+</Tip>
+
+---
+
+## Tipos de erro
+
+| `type`                  | Quando acontece                                                        |
+|-------------------------|------------------------------------------------------------------------|
+| `invalid_request_error` | Dados inválidos, recurso inexistente ou operação não permitida no estado atual |
+| `authentication_error`  | Chave de API ausente ou inválida                                       |
+| `idempotency_error`     | Conflito no uso do header `Idempotency-Key`                             |
+| `api_error`             | Falha do nosso lado ou da adquirente ao processar a operação           |
+
+---
+
+## Erro de validação
+
+Quando algum campo é inválido, a resposta é `422` com `code: "validation_error"`. O `param` aponta o **primeiro** campo inválido e o `message` descreve o problema:
+
+```json Resposta (HTTP 422)
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "validation_error",
+    "message": "The payments field is required.",
+    "param": "payments"
+  }
+}
+```
+
+---
+
+## Pagamento recusado (402)
+
+Um `402` **não** é erro de requisição. Ele indica que o pagamento foi processado e recusado. A resposta traz o recurso completo (pedido, assinatura ou fatura) com `status: "failed"` e o motivo em `failure_reason`:
+
+```json Resposta (HTTP 402)
+{
+  "id": "482913",
+  "object": "order",
+  "status": "failed",
+  "currency": "brl",
+  "amount": 10000,
+  "payments": [ ... ],
+  "next_action": null,
+  "failure_reason": {
+    "code": "insufficient_funds",
+    "message": "O cartão não possui saldo suficiente para concluir o pagamento.",
+    "customer_message": "Não foi possível concluir o pagamento. Revise os dados informados ou tente outro meio de pagamento.",
+    "merchant_message": "O pagamento não foi concluído. Oriente o comprador a revisar os dados informados ou tentar outro meio de pagamento."
+  }
+}
+```
+
+| Campo              | Para quem                                                                   |
+|--------------------|-----------------------------------------------------------------------------|
+| `code`             | Sua integração — código estável do motivo                                   |
+| `message`          | Log técnico. **Não mostre ao pagador**                                      |
+| `customer_message` | O pagador — sempre presente                                                 |
+| `merchant_message` | Você ou a sua equipe de atendimento — sempre presente                       |
+
+<Warning>
+  Nunca exiba o `message` para o pagador. Em uma recusa por fraude, ele descreve o motivo técnico. Use o `customer_message`.
+</Warning>
+
+### Motivos de recusa (`failure_reason.code`)
+
+| Código               | Significado                                          |
+|----------------------|------------------------------------------------------|
+| `card_declined`      | Cartão recusado pelo emissor                         |
+| `insufficient_funds` | Saldo ou limite insuficiente                         |
+| `expired_card`       | Cartão vencido                                       |
+| `incorrect_cvc`      | Código de segurança incorreto                        |
+| `incorrect_number`   | Número do cartão incorreto                           |
+| `card_not_supported` | Cartão não aceito para este tipo de pagamento        |
+| `fraud_suspected`    | Pagamento bloqueado pela análise de fraude           |
+| `invalid_request`    | A adquirente recusou a requisição como inválida      |
+| `acquirer_error`     | Falha da adquirente ao processar o pagamento         |
+| `processing_error`   | Erro ao processar o pagamento                        |
+
+As rotas que podem responder `402` são: `POST /v2/orders`, `POST /v2/orders/{id}/capture`, `POST /v2/orders/{id}/confirm`, `POST /v2/subscriptions`, `POST /v2/invoices/{id}/pay` e `POST /v2/invoices/{id}/confirm`.
+
+---
+
+## Catálogo de códigos
+
+### `400` — Requisição inválida
+
+| `code`                    | Quando acontece                                        |
+|---------------------------|--------------------------------------------------------|
+| `idempotency_key_invalid` | O header `Idempotency-Key` tem mais de 128 caracteres  |
+
+### `401` — Não autenticado
+
+| `code`               | Quando acontece                                             |
+|----------------------|-------------------------------------------------------------|
+| `invalid_api_secret` | Chave de API ausente, inválida, revogada ou de outro ambiente |
+
+### `403` — Bloqueado
+
+Estes erros trazem `customer_message` para exibir ao pagador.
+
+| `code`                     | Quando acontece                                              |
+|----------------------------|--------------------------------------------------------------|
+| `account_requests_blocked` | As requisições da conta estão bloqueadas                     |
+| `item_purchases_blocked`   | A venda de um dos itens do pedido está bloqueada             |
+| `customer_blocked`         | O cliente (e-mail, documento ou cartão) está bloqueado       |
+
+### `404` — Não encontrado
+
+| `code`             | Quando acontece                                                         |
+|--------------------|-------------------------------------------------------------------------|
+| `resource_missing` | O recurso não existe ou pertence a outra conta. O `message` indica qual |
+
+### `409` — Conflito
+
+| `code`                   | Quando acontece                                                        |
+|--------------------------|------------------------------------------------------------------------|
+| `idempotency_key_in_use` | Uma requisição com a mesma `Idempotency-Key` ainda está em andamento   |
+
+### `422` — Não processável
+
+| `code`                                   | Quando acontece                                                                 |
+|------------------------------------------|---------------------------------------------------------------------------------|
+| `validation_error`                       | Algum campo é inválido (veja `param`)                                           |
+| `parameter_missing`                      | Um parâmetro obrigatório não foi enviado (veja `param`)                         |
+| `idempotency_key_conflict`               | A `Idempotency-Key` já foi usada com outro corpo de requisição                  |
+| `card_token_invalid`                     | O cartão salvo (`card.token`) não existe nesta conta                            |
+| `split_error`                            | A configuração de split é inválida                                              |
+| `fraud_bypass_not_allowed`               | A conta não tem permissão para pular a análise de fraude                        |
+| `unsupported_payment_method_combination` | A combinação de meios de pagamento não é suportada                              |
+| `acquirer_feature_not_supported`         | Nenhuma adquirente da conta suporta esta composição de pagamento               |
+| `order_not_capturable`                   | O pedido não está aguardando captura                                            |
+| `order_not_cancelable`                   | O pedido não pode ser cancelado no status atual                                 |
+| `order_not_confirmable`                  | O pedido ou a fatura não está aguardando código de verificação                  |
+| `confirmation_code_invalid`              | O código de verificação é inválido ou expirou                                   |
+| `charge_not_refundable`                  | Só uma cobrança paga pode ser estornada                                         |
+| `charge_already_refunded`                | A cobrança já foi totalmente estornada                                          |
+| `charge_refund_in_progress`              | Já existe um estorno em processamento para esta cobrança                        |
+| `amount_too_large`                       | O valor do estorno é maior que o saldo estornável                               |
+| `amount_too_small`                       | O estorno parcial é menor que o mínimo de 100 centavos                          |
+| `refund_not_supported`                   | A adquirente da cobrança não suporta este estorno                               |
+| `subscription_not_cancelable`            | A assinatura não pode ser cancelada no status atual                             |
+| `subscription_not_updatable`             | O meio de pagamento da assinatura não pode ser alterado no status atual         |
+| `billing_date_not_updatable`             | A data da próxima cobrança não pode ser alterada agora                          |
+| `invoice_not_payable`                    | A fatura não pode ser paga no status atual                                      |
+
+### `429` — Muitas requisições
+
+Estes erros trazem o header `Retry-After` com os segundos até a próxima tentativa.
+
+| `code`                           | Quando acontece                                                   |
+|----------------------------------|-------------------------------------------------------------------|
+| `rate_limit_exceeded`            | Muitas tentativas do mesmo comprador. Traz `customer_message`     |
+| `card_tokenization_rate_limited` | Muitos cartões salvos pela conta em pouco tempo                   |
+
+### `500` e `502` — Falha no processamento
+
+| Status | `code`           | `type`      | Quando acontece                                        |
+|--------|------------------|-------------|--------------------------------------------------------|
+| `500`  | `internal_error` | `api_error` | Erro inesperado. Tente novamente mais tarde            |
+| `502`  | `refund_failed`  | `api_error` | A adquirente não aceitou o estorno. Tente mais tarde   |
+
+---
+
+## Respostas fora do envelope
+
+Algumas respostas de infraestrutura **não** usam o envelope `error`:
+
+| Status | Quando acontece                                                                       | Corpo                                  |
+|--------|---------------------------------------------------------------------------------------|----------------------------------------|
+| `429`  | Limite geral de requisições da chave ou da conta, ou limite de reenvio do código de verificação | `{ "message": "Too Many Attempts." }` |
+| `404`  | Rota inexistente                                                                      | `{ "message": "..." }`                 |
+| `405`  | Método HTTP não aceito na rota                                                        | `{ "message": "..." }`                 |
+
+<Tip>
+  Trate essas respostas pelo **status HTTP**. Em um `429`, respeite o header `Retry-After`. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites#limites-de-requisições).
+</Tip>

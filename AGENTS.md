@@ -34,7 +34,6 @@
 
 - Do not reference AbacatePay or any competitor
 - Do not document internal admin features
-- API base URL is always `https://app.4seletpay.com.br/api/v1`
+- API base URL is always `https://app.4seletpay.com.br/api/v1` for v1 and `https://app.4seletpay.com.br/api/v2` for v2
 - Dashboard URL is always `https://app.4seletpay.com.br`
 - Support email is always `suporte@4selet.com.br`
-- API v2 is under development — only reference it in the v2 coming-soon page

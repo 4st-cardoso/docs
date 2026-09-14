@@ -1,0 +1,396 @@
+---
+title: "Assinaturas"
+description: "Cobranças recorrentes com cartão ou PIX na API v2."
+icon: "arrows-rotate"
+---
+
+## Visão geral
+
+Uma **assinatura** cobra o cliente automaticamente a cada ciclo. Cada ciclo gera uma [fatura](/pages/v2/faturas/reference), com os próprios pagamentos e status.
+
+| Método | Rota                                        | O que faz                                   |
+|--------|---------------------------------------------|---------------------------------------------|
+| `POST` | `/v2/subscriptions`                         | [Cria a assinatura](/pages/v2/assinaturas/create) |
+| `GET`  | `/v2/subscriptions/{id}`                    | [Consulta a assinatura](/pages/v2/assinaturas/get) |
+| `POST` | `/v2/subscriptions/{id}/cancel`             | [Cancela a assinatura](/pages/v2/assinaturas/cancel) |
+| `POST` | `/v2/subscriptions/{id}/payment-method`     | [Altera o meio de pagamento](/pages/v2/assinaturas/payment-method) |
+| `POST` | `/v2/subscriptions/{id}/items/{code}`       | [Atualiza um item](/pages/v2/assinaturas/update-item) |
+| `POST` | `/v2/subscriptions/{id}/next-billing-date`  | [Altera a data da próxima cobrança](/pages/v2/assinaturas/next-billing-date) |
+| `GET`  | `/v2/subscriptions/{id}/invoices`           | [Lista as faturas](/pages/v2/assinaturas/invoices) |
+
+Todos os valores são em **centavos** (R$ 100,00 = `10000`). O `id` da assinatura tem o formato `sub_...`.
+
+---
+
+## Intervalo de cobrança
+
+O ciclo é definido por `interval` × `interval_count`:
+
+| `interval` | Duração de cada unidade | Exemplo                                           |
+|------------|-------------------------|---------------------------------------------------|
+| `day`      | 1 dia                   | `interval_count: 30` → cobra a cada 30 dias       |
+| `week`     | 7 dias                  | `interval_count: 2` → cobra a cada 14 dias        |
+
+O intervalo total pode ter no máximo **365 dias**. Acima disso, a resposta é `422` com `param: "interval_count"`.
+
+<Warning>
+  **Não existe mês de calendário.** Uma assinatura "mensal" é `interval: "day"` com `interval_count: 30`, e a data de cobrança desliza em relação ao calendário (30 dias nem sempre caem no mesmo dia do mês).
+</Warning>
+
+---
+
+## Campos da assinatura
+
+| Campo                  | Tipo    | Req. | Descrição                                                                 |
+|------------------------|---------|------|---------------------------------------------------------------------------|
+| `interval`             | string  | Sim  | `day` ou `week`                                                           |
+| `interval_count`       | integer | Sim  | Quantidade de unidades por ciclo (mín. `1`)                               |
+| `code`                 | string  | Não  | Código definido por você (máx. 255)                                       |
+| `description`          | string  | Não  | Descrição da assinatura (máx. 255)                                        |
+| `currency`             | string  | Não  | `BRL` ou `USD` (padrão `BRL`). Na resposta, vem em minúsculas             |
+| `international`        | boolean | Não  | Indica se é uma transação internacional (padrão `false`)                  |
+| `billing_type`         | string  | Não  | Apenas `prepaid`                                                          |
+| `start_at`             | date    | Não  | Início da cobrança, a partir de amanhã. Sem ele, a primeira fatura é cobrada na criação |
+| `max_invoices`         | integer | Não  | Número máximo de faturas (mín. `1`). Sem ele, a assinatura não tem fim    |
+| `minimum_price`        | integer | Não  | Aceito e devolvido, mas **não é aplicado** na cobrança                    |
+| `statement_descriptor` | string  | Não  | Texto na fatura do cartão (máx. 50)                                       |
+| `metadata`             | object  | Não  | Dados livres para a sua integração                                        |
+
+### Cliente (`customer`)
+
+| Campo                           | Tipo    | Req. | Descrição                                          |
+|---------------------------------|---------|------|----------------------------------------------------|
+| `customer.name`                 | string  | Sim  | Nome completo (máx. 255)                           |
+| `customer.email`                | string  | Sim  | E-mail                                             |
+| `customer.phone.ddi`            | integer | Sim  | Código do país                                     |
+| `customer.phone.ddd`            | integer | Sim  | Código de área                                     |
+| `customer.phone.number`         | string  | Sim  | Número (máx. 20)                                   |
+| `customer.document.type`        | string  | Sim  | `cpf`, `cnpj` ou `passport`                        |
+| `customer.document.number`      | string  | Sim  | Número do documento (máx. 50)                      |
+| `customer.ip`                   | string  | Não  | IP do comprador                                    |
+| `customer.gender`               | string  | Não  | `male`, `female` ou `other`                        |
+| `customer.birthdate`            | date    | Não  | Data de nascimento (`YYYY-MM-DD`)                  |
+| `customer.address`              | object  | Não  | Endereço. Se enviado, `zip_code`, `street`, `number` (inteiro), `neighborhood`, `city` e `state` (2 letras) são obrigatórios; `complement` e `country` são opcionais |
+
+### Itens (`items`)
+
+| Campo                 | Tipo    | Req. | Descrição                                               |
+|-----------------------|---------|------|---------------------------------------------------------|
+| `items[].code`        | string  | Sim  | Código do item. É usado para [atualizar o item](/pages/v2/assinaturas/update-item) |
+| `items[].description` | string  | Sim  | Descrição (máx. 255)                                    |
+| `items[].quantity`    | integer | Sim  | Quantidade (mín. `1`)                                   |
+| `items[].amount`      | integer | Sim  | Valor unitário em centavos (mín. `1`)                   |
+
+### Pagamento (`payment`)
+
+| Campo                       | Tipo    | Req.     | Descrição                                                    |
+|-----------------------------|---------|----------|--------------------------------------------------------------|
+| `payment.type`              | string  | Sim      | `card` ou `pix`                                              |
+| `payment.card.token`        | string  | Não      | `id` de um [cartão salvo](/pages/v2/cartoes/reference). Dispensa os dados do cartão |
+| `payment.card.number`       | string  | Cartão¹  | Número do cartão                                             |
+| `payment.card.holder_name`  | string  | Cartão¹  | Nome impresso no cartão                                      |
+| `payment.card.exp_month`    | string  | Cartão¹  | Mês de validade                                              |
+| `payment.card.exp_year`     | string  | Cartão¹  | Ano de validade                                              |
+| `payment.card.cvc`          | string  | Cartão¹  | Código de segurança                                          |
+| `payment.card.installments` | integer | Não      | Parcelas por fatura, de `1` a `12`                           |
+| `payment.pix_expiration`    | integer | Não      | Expiração do PIX em segundos (mín. `1`)                      |
+
+¹ Obrigatório quando `payment.type` é `card` e `payment.card.token` não é enviado.
+
+---
+
+## Descontos e acréscimos
+
+Use `discounts` e `increments` para alterar o valor de faturas específicas:
+
+| Campo            | Tipo    | Req. | Descrição                                                                |
+|------------------|---------|------|--------------------------------------------------------------------------|
+| `type`           | string  | Sim  | `fixed` (valor em centavos) ou `percentage`                              |
+| `value`          | number  | Sim  | Maior que zero. Em `fixed`, deve ser um inteiro em centavos. Em desconto `percentage`, no máximo `100` |
+| `invoice_number` | integer | Não  | Número da fatura afetada (a primeira é `1`). Sem ele, vale para **todas** as faturas |
+
+```json Desconto de R$ 10,00 na primeira fatura e acréscimo de 10% na segunda
+{
+  "discounts": [
+    { "type": "fixed", "value": 1000, "invoice_number": 1 }
+  ],
+  "increments": [
+    { "type": "percentage", "value": 10, "invoice_number": 2 }
+  ]
+}
+```
+
+<Warning>
+  Descontos e acréscimos **não podem ser combinados com `split`**. Enviar os dois retorna `422` com `param: "split"`.
+</Warning>
+
+---
+
+## Split
+
+Divida o valor de cada fatura entre recebedores da sua conta com a lista `split` (de 1 a 10 recebedores):
+
+| Campo                                   | Tipo    | Req. | Descrição                                                   |
+|-----------------------------------------|---------|------|-------------------------------------------------------------|
+| `split[].receiver_code`                 | string  | Sim  | Código do recebedor (máx. 32)                               |
+| `split[].amount`                        | integer | Sim  | Valor em centavos (mín. `1`)                                |
+| `split[].options.charge_processing_fee` | boolean | Não  | Este recebedor paga a taxa de processamento                 |
+| `split[].options.charge_remainder_fee`  | boolean | Não  | Este recebedor absorve a diferença de arredondamento        |
+| `split[].options.liable`                | boolean | Não  | Este recebedor é responsável em caso de chargeback          |
+
+As regras são validadas na criação, e não só na primeira cobrança:
+
+- A soma dos `amount` do split deve ser igual ao total dos itens.
+- **Exatamente um** recebedor deve ter `charge_processing_fee: true`.
+- **Pelo menos um** recebedor deve ter `charge_remainder_fee: true`.
+- **Pelo menos um** recebedor deve ter `liable: true`.
+- O `receiver_code` não pode se repetir, deve pertencer à sua conta e estar apto a receber.
+
+```json Split entre dois recebedores
+{
+  "split": [
+    { "receiver_code": "rec_abc123", "amount": 8000, "options": { "charge_processing_fee": true, "charge_remainder_fee": true, "liable": true } },
+    { "receiver_code": "rec_xyz456", "amount": 2000 }
+  ]
+}
+```
+
+---
+
+## Análise de fraude
+
+A primeira cobrança passa pela análise de fraude:
+
+- **Aprovada:** a cobrança segue normalmente.
+- **Verificação necessária:** a assinatura fica `incomplete` e a fatura fica `requires_action` com `next_action.type = "otp_confirmation"`. Nada é cobrado até o comprador informar o código em [Confirmar código de verificação da fatura](/pages/v2/faturas/confirm).
+- **Negada:** a resposta é `402`, a assinatura fica `incomplete_expired` e `latest_invoice.failure_reason.code` é `fraud_suspected`.
+
+Para pular a análise, envie `fraud_analysis`:
+
+```json
+{
+  "fraud_analysis": { "skip": true, "reason": "trusted_customer" }
+}
+```
+
+O `reason` é obrigatório quando `skip` é `true` e aceita `upsell`, `one_click`, `trusted_customer` ou `external_analysis`. Pular a análise exige permissão da conta; sem ela, a resposta é `422` (`fraud_bypass_not_allowed`).
+
+---
+
+## Status da assinatura
+
+| Status               | Significado                                                                        |
+|----------------------|------------------------------------------------------------------------------------|
+| `scheduled`          | Criada com `start_at` futuro. Nenhuma fatura foi gerada ainda                      |
+| `incomplete`         | A primeira fatura ainda não foi paga (em processamento ou aguardando ação)         |
+| `incomplete_expired` | A primeira fatura foi recusada. A assinatura não segue adiante                     |
+| `active`             | Em dia, com pelo menos uma fatura paga                                             |
+| `past_due`           | Uma fatura foi recusada e ainda há novas tentativas de cobrança                    |
+| `suspended`          | As tentativas de cobrança de uma fatura se esgotaram em uma assinatura com `max_invoices`. As cobranças param, mas a fatura em aberto ainda pode ser [paga](/pages/v2/faturas/pay) |
+| `canceled`           | Cancelada por você ou após esgotar as tentativas de cobrança em uma assinatura sem `max_invoices` |
+| `completed`          | A última fatura prevista em `max_invoices` foi paga                                |
+
+---
+
+## Ciclo de vida
+
+```
+POST /v2/subscriptions
+    │
+    ├─ com start_at ──────────────► scheduled ──(data chega)──► fatura gerada
+    │
+    └─ sem start_at ─► primeira fatura cobrada
+                          │
+                          ├─ processing / requires_action ─► incomplete ──(paga)──► active
+                          └─ recusada (HTTP 402) ──────────► incomplete_expired
+
+active ──(fatura recusada)──► past_due ──(paga)──► active
+                                  │
+                                  └─(tentativas esgotadas)─► suspended (com max_invoices)
+                                                             canceled  (sem max_invoices)
+
+active ──(última fatura de max_invoices paga)──► completed
+```
+
+---
+
+## Exemplo: assinatura quinzenal com cartão
+
+```json Request
+{
+  "code": "plano-anual-123",
+  "description": "Plano de teste",
+  "interval": "week",
+  "interval_count": 2,
+  "max_invoices": 12,
+  "customer": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": { "ddi": 55, "ddd": 11, "number": "999999999" },
+    "document": { "type": "cpf", "number": "12345678909" }
+  },
+  "items": [
+    { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+  ],
+  "payment": {
+    "type": "card",
+    "card": {
+      "number": "4111111111111111",
+      "holder_name": "John Doe",
+      "exp_month": "12",
+      "exp_year": "2030",
+      "cvc": "123",
+      "installments": 1
+    }
+  },
+  "discounts": [
+    { "type": "fixed", "value": 1000, "invoice_number": 1 }
+  ]
+}
+```
+
+```json Resposta (HTTP 201)
+{
+  "id": "sub_4Hn8Qw2Rt6Yp1Zx3",
+  "object": "subscription",
+  "code": "plano-anual-123",
+  "status": "incomplete",
+  "currency": "brl",
+  "description": "Plano de teste",
+  "interval": "week",
+  "interval_count": 2,
+  "billing_type": "prepaid",
+  "amount": 10000,
+  "items": [
+    { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+  ],
+  "discounts": [
+    { "type": "fixed", "value": 1000, "invoice_number": 1 }
+  ],
+  "increments": [],
+  "max_invoices": 12,
+  "invoices_paid": 0,
+  "minimum_price": null,
+  "payment_method": {
+    "type": "card",
+    "installments": 1,
+    "card": {
+      "token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+      "brand": "visa",
+      "last_four": "1111",
+      "holder_name": "John Doe"
+    }
+  },
+  "statement_descriptor": null,
+  "start_at": "2026-09-14T00:00:00-03:00",
+  "next_billing_at": "2026-09-28T00:00:00-03:00",
+  "created_at": "2026-09-14T10:00:00-03:00",
+  "customer": { "name": "John Doe", "email": "john@example.com" },
+  "latest_invoice": {
+    "id": "482913",
+    "object": "invoice",
+    "subscription": "sub_4Hn8Qw2Rt6Yp1Zx3",
+    "number": 1,
+    "status": "processing",
+    "currency": "brl",
+    "amount": 9000,
+    "attempts": 0,
+    "items": [
+      { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+    ],
+    "discounts": [
+      { "type": "fixed", "value": 1000, "invoice_number": 1 }
+    ],
+    "increments": [],
+    "payments": [
+      {
+        "id": "cha_8Kq2Lm9XvB3nT7pZ",
+        "object": "payment_intent",
+        "status": "processing",
+        "amount": 9000,
+        "amount_refunded": 0,
+        "currency": "brl",
+        "payment_method_details": {
+          "type": "card",
+          "card": { "brand": "visa", "last_four": "1111", "holder_name": "John Doe" }
+        }
+      }
+    ],
+    "next_action": null,
+    "created_at": "2026-09-14T10:00:00-03:00"
+  },
+  "metadata": []
+}
+```
+
+<Warning>
+  **`201` não significa pago.** A primeira fatura acima está em `processing`. Quando a cobrança é confirmada, a assinatura passa a `active`, `invoices_paid` passa a `1` e `latest_invoice.status` passa a `paid`. Acompanhe pelos [webhooks](#webhooks).
+</Warning>
+
+<Tip>
+  O `payment_method.card.token` é o `id` do cartão salvo. Use-o para [alterar o meio de pagamento](/pages/v2/assinaturas/payment-method) ou [pagar uma fatura](/pages/v2/faturas/pay) sem reenviar os dados do cartão.
+</Tip>
+
+---
+
+## Campos da resposta
+
+| Campo                  | Tipo    | Descrição                                                                        |
+|------------------------|---------|----------------------------------------------------------------------------------|
+| `id`                   | string  | Identificador da assinatura (`sub_...`)                                          |
+| `object`               | string  | Sempre `subscription`                                                            |
+| `code`                 | string  | O código que você enviou                                                         |
+| `status`               | string  | Veja [Status da assinatura](#status-da-assinatura)                               |
+| `currency`             | string  | Moeda em minúsculas (`brl`, `usd`)                                               |
+| `interval`             | string  | `day` ou `week`                                                                  |
+| `interval_count`       | integer | Unidades por ciclo                                                               |
+| `billing_type`         | string  | `prepaid`                                                                        |
+| `amount`               | integer | Soma dos itens em centavos, **sem** descontos e acréscimos                       |
+| `items`                | array   | Itens da assinatura                                                              |
+| `discounts`            | array   | Descontos configurados (`fixed` em centavos)                                     |
+| `increments`           | array   | Acréscimos configurados (`fixed` em centavos)                                    |
+| `max_invoices`         | integer | Limite de faturas ou `null`                                                      |
+| `invoices_paid`        | integer | Quantidade de faturas pagas                                                      |
+| `minimum_price`        | integer | O valor enviado ou `null`. Não é aplicado na cobrança                            |
+| `payment_method`       | object  | `{ "type": "pix" }` ou `{ "type": "card", "installments", "card": { "token", "brand", "last_four", "holder_name" } }` |
+| `statement_descriptor` | string  | Texto na fatura do cartão ou `null`                                              |
+| `start_at`             | string  | Data de início da assinatura (ISO 8601)                                          |
+| `next_billing_at`      | string  | Data da próxima cobrança (ISO 8601)                                              |
+| `created_at`           | string  | Data de criação (ISO 8601)                                                       |
+| `customer`             | object  | `name` e `email` do comprador                                                    |
+| `latest_invoice`       | object  | A [fatura](/pages/v2/faturas/reference) mais recente ou `null`                   |
+| `metadata`             | object  | Os metadados enviados                                                            |
+
+---
+
+## Webhooks
+
+Assinaturas criadas pela v2 enviam os eventos no formato v2. Assinaturas criadas pela v1 continuam no formato v1.
+
+- [Eventos de assinatura](/pages/v2/webhooks/events/subscription): `subscription.canceled`, `subscription.delayed`, `subscription.regularized`, `subscription.suspended` e `subscription.completed`.
+- [Eventos de fatura](/pages/v2/webhooks/events/invoice): `invoice.created`, `invoice.paid` e `invoice.failed`.
+
+<Note>
+  Não existe `subscription.created`: a primeira fatura já vem na resposta do `POST`. O `invoice.created` é enviado apenas nas renovações. Uma fatura paga gera `invoice.paid`, e não `charge.paid`.
+</Note>
+
+---
+
+## Erros específicos
+
+| Status | `code`                           | Quando acontece                                                   |
+|--------|----------------------------------|-------------------------------------------------------------------|
+| `402`  | —                                | A primeira fatura foi recusada. A resposta traz a assinatura em `incomplete_expired` |
+| `403`  | `customer_blocked`               | O comprador ou o cartão está bloqueado                            |
+| `404`  | `resource_missing`               | Assinatura ou item inexistente, ou de outra conta                 |
+| `422`  | `validation_error`               | Campo inválido (veja `param`)                                     |
+| `422`  | `card_token_invalid`             | O `card.token` não pertence à conta                               |
+| `422`  | `fraud_bypass_not_allowed`       | A conta não pode pular a análise de fraude                        |
+| `422`  | `acquirer_feature_not_supported` | A conta não tem adquirente para o meio de pagamento escolhido     |
+| `422`  | `split_error`                    | A configuração de split foi recusada no processamento             |
+| `422`  | `subscription_not_cancelable`    | A assinatura não pode ser cancelada no status atual               |
+| `422`  | `subscription_not_updatable`     | O meio de pagamento não pode ser alterado no status atual         |
+| `422`  | `billing_date_not_updatable`     | A data da próxima cobrança não pode ser alterada agora            |
+| `429`  | `rate_limit_exceeded`            | Muitas tentativas do mesmo comprador                              |
+
+Veja o catálogo completo em [Erros](/pages/v2/start/erros).

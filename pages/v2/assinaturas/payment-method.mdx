@@ -1,0 +1,20 @@
+---
+title: "Alterar meio de pagamento"
+openapi: "POST /v2/subscriptions/{id}/payment-method"
+---
+
+<Info>
+  Troque entre cartão e PIX, ou substitua o cartão da assinatura. Envie o objeto `payment` no mesmo formato da criação e, se quiser, um novo `statement_descriptor`.
+</Info>
+
+<Tip>
+  Para usar um cartão salvo, envie `payment.card.token`. Ao enviar os dados completos de um novo cartão, ele é salvo e o `id` passa a aparecer em `payment_method.card.token` na resposta.
+</Tip>
+
+<Note>
+  Só é possível alterar o meio de pagamento de uma assinatura em andamento ou em atraso (`past_due`). Uma assinatura `suspended`, `canceled` ou `completed` retorna `422` (`subscription_not_updatable`). Um `card.token` que não pertence à conta retorna `422` (`card_token_invalid`).
+</Note>
+
+<Warning>
+  A alteração não paga faturas já recusadas. Para quitar uma fatura em aberto, use [Pagar fatura](/pages/v2/faturas/pay).
+</Warning>

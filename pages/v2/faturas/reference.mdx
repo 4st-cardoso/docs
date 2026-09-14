@@ -1,0 +1,222 @@
+---
+title: "Faturas"
+description: "As cobranças de cada ciclo de uma assinatura na API v2."
+icon: "file-invoice"
+---
+
+## Visão geral
+
+Cada ciclo de uma [assinatura](/pages/v2/assinaturas/reference) gera uma **fatura**. A fatura tem os próprios itens, descontos, pagamentos e status, e pode receber mais de uma tentativa de cobrança.
+
+| Método | Rota                                  | O que faz                                                          |
+|--------|---------------------------------------|--------------------------------------------------------------------|
+| `GET`  | `/v2/invoices/{id}`                   | [Consulta a fatura](/pages/v2/faturas/get)                          |
+| `POST` | `/v2/invoices/{id}/pay`               | [Paga a fatura com um novo meio de pagamento](/pages/v2/faturas/pay) |
+| `POST` | `/v2/invoices/{id}/confirm`           | [Confirma o código de verificação](/pages/v2/faturas/confirm)       |
+| `POST` | `/v2/invoices/{id}/confirm/resend`    | [Reenvia o código de verificação](/pages/v2/faturas/resend-confirmation) |
+
+Para listar as faturas de uma assinatura, use [`GET /v2/subscriptions/{id}/invoices`](/pages/v2/assinaturas/invoices).
+
+<Note>
+  O `id` da fatura é um código numérico de 6 dígitos, como `482913`. As rotas de fatura só encontram faturas de assinaturas.
+</Note>
+
+---
+
+## Status da fatura
+
+| Status               | Significado                                                                    |
+|----------------------|--------------------------------------------------------------------------------|
+| `processing`         | A cobrança está em andamento                                                   |
+| `requires_action`    | O comprador precisa agir: pagar o QR Code PIX ou informar o código de verificação |
+| `paid`               | A fatura foi paga                                                              |
+| `failed`             | A cobrança foi recusada. O motivo está em `failure_reason`                     |
+| `canceled`           | A fatura foi cancelada                                                         |
+| `refunded`           | A fatura foi estornada                                                         |
+| `partially_refunded` | A fatura foi estornada parcialmente                                            |
+| `chargeback`         | A fatura sofreu chargeback                                                     |
+
+<Info>
+  Enquanto a fatura está em aberto ou recusada, o status reflete a **cobrança mais recente**. Uma fatura `failed` pode receber uma nova cobrança com [Pagar fatura](/pages/v2/faturas/pay) e passar a `processing`, `requires_action` ou `paid`.
+</Info>
+
+---
+
+## Campos da fatura
+
+| Campo            | Tipo    | Descrição                                                                          |
+|------------------|---------|------------------------------------------------------------------------------------|
+| `id`             | string  | Identificador da fatura (6 dígitos)                                                |
+| `object`         | string  | Sempre `invoice`                                                                   |
+| `subscription`   | string  | `id` da assinatura (`sub_...`)                                                     |
+| `number`         | integer | Número sequencial da fatura na assinatura. A primeira é `1`                        |
+| `status`         | string  | Veja [Status da fatura](#status-da-fatura)                                         |
+| `currency`       | string  | Moeda em minúsculas (`brl`, `usd`)                                                 |
+| `amount`         | integer | Valor cobrado em centavos, **com** descontos e acréscimos aplicados                |
+| `attempts`       | integer | Quantidade de tentativas de cobrança registradas                                   |
+| `items`          | array   | `code`, `description`, `quantity` e `amount` (unitário, em centavos) de cada item  |
+| `discounts`      | array   | Descontos aplicados a esta fatura                                                  |
+| `increments`     | array   | Acréscimos aplicados a esta fatura                                                 |
+| `payments`       | array   | Tentativas de cobrança da fatura, da mais antiga para a mais recente, no formato [payment_intent](/pages/v2/pedidos/reference#pagamentos) |
+| `next_action`    | object  | Ação pendente do comprador ou `null` (veja abaixo)                                 |
+| `created_at`     | string  | Data de criação (ISO 8601)                                                         |
+| `failure_reason` | object  | Presente apenas quando `status` é `failed`                                         |
+
+### Ação pendente (`next_action`)
+
+Quando a análise de fraude pede verificação, nada é cobrado até a confirmação do código:
+
+```json
+{
+  "type": "otp_confirmation",
+  "otp": {
+    "confirmation_id": "c1d2e3f4-a5b6-7890-abcd-ef1234567890",
+    "expires_at": "2026-09-14T10:15:00-03:00"
+  }
+}
+```
+
+Quando a cobrança é PIX e ainda não foi paga:
+
+```json
+{
+  "type": "pix_display_qr_code",
+  "pix": {
+    "qr_code": "00020126360014br.gov.bcb.pix...",
+    "qr_code_url": "https://...",
+    "expires_at": "2026-09-15T10:00:00-03:00"
+  }
+}
+```
+
+### Motivo da recusa (`failure_reason`)
+
+```json
+{
+  "code": "insufficient_funds",
+  "message": "O cartão não possui saldo suficiente para concluir o pagamento.",
+  "customer_message": "Não foi possível concluir o pagamento. Revise os dados informados ou tente outro meio de pagamento.",
+  "merchant_message": "O pagamento não foi concluído. Oriente o comprador a revisar os dados informados ou tentar outro meio de pagamento."
+}
+```
+
+<Warning>
+  Mostre ao pagador apenas o `customer_message`. O `message` é técnico e não deve ser exibido. Veja [Pagamento recusado](/pages/v2/start/erros#pagamento-recusado-402).
+</Warning>
+
+---
+
+## Exemplo de fatura paga
+
+```json Resposta (HTTP 200)
+{
+  "id": "482913",
+  "object": "invoice",
+  "subscription": "sub_4Hn8Qw2Rt6Yp1Zx3",
+  "number": 1,
+  "status": "paid",
+  "currency": "brl",
+  "amount": 9000,
+  "attempts": 0,
+  "items": [
+    { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+  ],
+  "discounts": [
+    { "type": "fixed", "value": 1000, "invoice_number": 1 }
+  ],
+  "increments": [],
+  "payments": [
+    {
+      "id": "cha_8Kq2Lm9XvB3nT7pZ",
+      "object": "payment_intent",
+      "status": "paid",
+      "amount": 9000,
+      "amount_refunded": 0,
+      "currency": "brl",
+      "payment_method_details": {
+        "type": "card",
+        "card": { "brand": "visa", "last_four": "1111", "holder_name": "John Doe" }
+      }
+    }
+  ],
+  "next_action": null,
+  "created_at": "2026-09-14T10:00:00-03:00"
+}
+```
+
+---
+
+## Pagar uma fatura em aberto
+
+Quando uma fatura é recusada, a assinatura fica `past_due` e recebe novas tentativas automáticas. Você também pode cobrar a fatura na hora, com outro cartão ou PIX:
+
+```json Request — POST /v2/invoices/482913/pay
+{
+  "payment": {
+    "type": "card",
+    "card": {
+      "number": "4111111111111111",
+      "holder_name": "John Doe",
+      "exp_month": "12",
+      "exp_year": "2030",
+      "cvc": "123"
+    }
+  }
+}
+```
+
+A resposta é `200` com a fatura atualizada (em geral `processing` para cartão ou `requires_action` para PIX), ou `402` quando a nova cobrança é recusada.
+
+<Note>
+  Só é possível pagar uma fatura pendente ou recusada de uma assinatura `active`, `past_due` ou `suspended`. Nos demais casos, a resposta é `422` (`invoice_not_payable`).
+</Note>
+
+---
+
+## Código de verificação
+
+1. A fatura fica `requires_action` com `next_action.type = "otp_confirmation"`.
+2. O comprador recebe o código.
+3. Você envia o código em [`POST /v2/invoices/{id}/confirm`](/pages/v2/faturas/confirm): `{ "code": "123456" }`.
+4. A cobrança é retomada e a fatura passa a `processing` (ou `402` se for recusada).
+
+<Warning>
+  O reenvio do código ([`POST /v2/invoices/{id}/confirm/resend`](/pages/v2/faturas/resend-confirmation)) aceita **5 requisições por minuto por IP de origem**. Se a sua plataforma atende várias contas a partir do mesmo servidor, todas dividem esse limite. O `429` desse limite vem **fora do envelope de erro da v2**.
+</Warning>
+
+---
+
+## Webhooks
+
+Faturas de assinaturas criadas pela v2 enviam eventos no formato v2, com a fatura em `data`:
+
+| Evento           | Quando                                                        |
+|------------------|---------------------------------------------------------------|
+| `invoice.created`| Uma nova fatura é gerada em uma renovação (não na primeira)    |
+| `invoice.paid`   | A fatura é paga                                               |
+| `invoice.failed` | Uma tentativa de cobrança da fatura é recusada                |
+
+Veja [Eventos de fatura](/pages/v2/webhooks/events/invoice).
+
+<Note>
+  Uma fatura paga gera `invoice.paid`, e não `charge.paid`. O estorno de uma fatura é notificado por eventos de cobrança (`charge.refunded` ou `charge.partial_refunded`).
+</Note>
+
+---
+
+## Erros específicos
+
+| Status | `code`                           | Quando acontece                                                   |
+|--------|----------------------------------|-------------------------------------------------------------------|
+| `402`  | —                                | A cobrança foi recusada. A resposta traz a fatura com `failure_reason` |
+| `404`  | `resource_missing`               | Fatura inexistente, de outra conta ou que não pertence a uma assinatura |
+| `422`  | `validation_error`               | Campo inválido (veja `param`)                                     |
+| `422`  | `invoice_not_payable`            | A fatura não pode ser paga no status atual                        |
+| `422`  | `card_token_invalid`             | O `card.token` não pertence à conta                               |
+| `422`  | `acquirer_feature_not_supported` | A conta não tem adquirente para o meio de pagamento escolhido     |
+| `422`  | `parameter_missing`              | O `code` não foi enviado na confirmação                           |
+| `422`  | `confirmation_code_invalid`      | O código de verificação é inválido ou expirou                     |
+| `422`  | `order_not_confirmable`          | A fatura não está aguardando código de verificação                |
+| `429`  | —                                | Limite de reenvio do código excedido (fora do envelope)           |
+
+Veja o catálogo completo em [Erros](/pages/v2/start/erros).

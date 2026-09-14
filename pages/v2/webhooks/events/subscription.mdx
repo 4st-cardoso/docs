@@ -1,0 +1,71 @@
+---
+title: "Eventos de assinatura"
+description: "Eventos subscription.* no formato v2."
+icon: "repeat"
+---
+
+Os eventos de assinatura são enviados no formato v2 apenas para assinaturas criadas por `POST /v2/subscriptions`. O `data` é o mesmo objeto devolvido por [`GET /v2/subscriptions/{id}`](/pages/v2/assinaturas/get).
+
+| Evento                     | Quando acontece                                                        |
+|----------------------------|------------------------------------------------------------------------|
+| `subscription.canceled`    | A assinatura foi cancelada                                             |
+| `subscription.delayed`     | Uma cobrança da assinatura falhou. É enviado a **cada** tentativa que falha |
+| `subscription.regularized` | A assinatura em atraso foi paga                                        |
+| `subscription.suspended`   | A assinatura foi suspensa                                              |
+| `subscription.completed`   | A assinatura pagou a última fatura prevista em `max_invoices`. É enviado uma única vez |
+
+<Note>
+  Não existe `subscription.created`. A primeira fatura já vem em `latest_invoice`, na resposta de `POST /v2/subscriptions`.
+</Note>
+
+---
+
+## Exemplo
+
+```json subscription.canceled
+{
+  "id": "hook_Tg6Yh2Uj8Ik4Ol0p",
+  "type": "subscription.canceled",
+  "webhook_version": "v2",
+  "created_at": "2026-09-14T15:04:05Z",
+  "data": {
+    "id": "sub_4Hn8Qw2Rt6Yp1Zx3",
+    "object": "subscription",
+    "code": "plano-anual-123",
+    "status": "canceled",
+    "currency": "brl",
+    "description": "Plano de teste",
+    "interval": "week",
+    "interval_count": 2,
+    "billing_type": "prepaid",
+    "amount": 10000,
+    "items": [
+      { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+    ],
+    "discounts": [],
+    "increments": [],
+    "max_invoices": 12,
+    "invoices_paid": 3,
+    "minimum_price": null,
+    "payment_method": {
+      "type": "card",
+      "installments": 1,
+      "card": {
+        "token": "9b2f5c8e-3a1d-4f7b-8c6e-2d9a1b4c5e6f",
+        "brand": "visa",
+        "last_four": "1111",
+        "holder_name": "João Silva"
+      }
+    },
+    "statement_descriptor": null,
+    "start_at": "2026-08-01T00:00:00-03:00",
+    "next_billing_at": null,
+    "created_at": "2026-08-01T10:00:00-03:00",
+    "customer": { "name": "João Silva", "email": "joao@exemplo.com.br" },
+    "latest_invoice": { "id": "482913", "object": "invoice", "status": "paid", "...": "..." },
+    "metadata": []
+  }
+}
+```
+
+Veja os campos e os status em [Assinaturas](/pages/v2/assinaturas/reference).

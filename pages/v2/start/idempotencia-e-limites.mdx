@@ -1,0 +1,100 @@
+---
+title: "Idempotência e limites"
+description: "Reenvie requisições com segurança e conheça os limites de requisições da API v2."
+icon: "gauge"
+---
+
+## Idempotência
+
+Uma falha de rede pode deixar você sem saber se a operação aconteceu. Para reenviar sem risco de cobrar duas vezes, envie o header `Idempotency-Key` com um valor único por operação:
+
+```http
+Idempotency-Key: pedido-1024-tentativa-1
+```
+
+<Tip>
+  O header é **opcional**, mas recomendado em toda operação que cria ou movimenta dinheiro. Sem ele, a requisição é processada normalmente, sem proteção contra duplicidade.
+</Tip>
+
+### Como funciona
+
+- A chave vale por **24 horas** e é única por conta.
+- A chave pode ter até **128 caracteres**.
+- A **mesma chave com o mesmo corpo** devolve a resposta original (mesmo status e mesmo corpo), sem processar de novo.
+- Só respostas de sucesso (`2xx`) ficam guardadas. Depois de um erro, você pode repetir a mesma chave.
+- A comparação considera o método, a rota e o corpo da requisição.
+
+### Erros de idempotência
+
+| Status | `code`                     | `type`                  | Quando acontece                                              |
+|--------|----------------------------|-------------------------|--------------------------------------------------------------|
+| `400`  | `idempotency_key_invalid`  | `invalid_request_error` | A chave tem mais de 128 caracteres                           |
+| `409`  | `idempotency_key_in_use`   | `idempotency_error`     | A requisição original ainda está em andamento. Tente em instantes |
+| `422`  | `idempotency_key_conflict` | `idempotency_error`     | A chave já foi usada com um corpo diferente                  |
+
+### Rotas que aceitam `Idempotency-Key`
+
+| Método | Rota                                        |
+|--------|---------------------------------------------|
+| `POST` | `/v2/orders`                                |
+| `POST` | `/v2/orders/{id}/capture`                   |
+| `POST` | `/v2/orders/{id}/cancel`                    |
+| `POST` | `/v2/orders/{id}/confirm`                   |
+| `POST` | `/v2/charges/{id}/refund`                   |
+| `POST` | `/v2/cards`                                 |
+| `POST` | `/v2/subscriptions`                         |
+| `POST` | `/v2/subscriptions/{id}/cancel`             |
+| `POST` | `/v2/subscriptions/{id}/payment-method`     |
+| `POST` | `/v2/subscriptions/{id}/items/{code}`       |
+| `POST` | `/v2/subscriptions/{id}/next-billing-date`  |
+| `POST` | `/v2/invoices/{id}/pay`                     |
+| `POST` | `/v2/invoices/{id}/confirm`                 |
+
+---
+
+## Limites de requisições
+
+| Limite                        | Onde se aplica                                            | Valor                                                        | Resposta ao exceder |
+|-------------------------------|-----------------------------------------------------------|--------------------------------------------------------------|---------------------|
+| Geral                         | Todas as rotas                                            | 120 requisições por minuto por chave de API e por conta      | `429` sem envelope  |
+| Por comprador                 | `POST /v2/orders` e `POST /v2/subscriptions`              | 2 tentativas por minuto do mesmo comprador (e-mail ou documento) para os mesmos itens | `429` `rate_limit_exceeded` |
+| Cartões                       | `POST /v2/cards`                                          | 10 cartões por minuto por conta                              | `429` `card_tokenization_rate_limited` |
+| Reenvio do código de verificação | `POST /v2/orders/{id}/confirm/resend` e `POST /v2/invoices/{id}/confirm/resend` | 5 requisições por minuto por IP de origem | `429` sem envelope  |
+
+Toda resposta `429` traz o header `Retry-After` com os segundos até a próxima tentativa.
+
+### Limite geral
+
+O limite geral responde fora do envelope de erro da v2, com os headers de controle:
+
+```http
+HTTP/1.1 429 Too Many Requests
+X-RateLimit-Limit: 120
+X-RateLimit-Remaining: 0
+Retry-After: 42
+```
+
+```json
+{
+  "message": "Too Many Attempts."
+}
+```
+
+### Limite por comprador
+
+O limite por comprador protege contra tentativas repetidas com cartões diferentes. A resposta traz o `customer_message` para exibir ao pagador:
+
+```json Resposta (HTTP 429)
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "rate_limit_exceeded",
+    "message": "Muitas tentativas de pedido para este comprador. Tente novamente mais tarde.",
+    "customer_message": "Não foi possível processar no momento devido a múltiplas tentativas. Tente novamente em instantes."
+  }
+}
+```
+
+<Note>
+  O limite de reenvio do código de verificação é contado por **IP de origem**. Se a sua plataforma atende várias contas a partir do mesmo servidor, todas dividem esse limite.
+</Note>

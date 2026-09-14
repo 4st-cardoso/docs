@@ -1,0 +1,16 @@
+---
+title: "Consultar cobrança"
+openapi: "GET /v2/charges/{id}"
+---
+
+<Info>
+  O `id` da cobrança é o mesmo `id` do pagamento (`payment_intent`) dentro do pedido ou da fatura.
+</Info>
+
+<Note>
+  Uma cobrança de outra conta retorna `404` (`resource_missing`).
+</Note>
+
+<Tip>
+  Use `amount_refundable` para saber quanto ainda pode ser estornado antes de chamar o [estorno](/pages/v2/cobrancas/refund).
+</Tip>

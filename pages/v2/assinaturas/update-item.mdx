@@ -1,0 +1,16 @@
+---
+title: "Atualizar item da assinatura"
+openapi: "POST /v2/subscriptions/{id}/items/{code}"
+---
+
+<Info>
+  O `code` é o código do item enviado em `items[].code` na criação da assinatura. Envie **pelo menos um** dos campos `quantity`, `amount` ou `description`.
+</Info>
+
+<Note>
+  O `amount` é o valor unitário em **centavos**, de `0` a `1000000` (R$ 10.000,00). A alteração vale para as **próximas faturas**, e o `amount` da assinatura é recalculado na resposta.
+</Note>
+
+<Tip>
+  Um `code` que não existe na assinatura retorna `404` (`resource_missing`).
+</Tip>

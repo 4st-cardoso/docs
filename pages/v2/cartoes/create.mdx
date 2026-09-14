@@ -1,0 +1,20 @@
+---
+title: "Salvar cartão"
+openapi: "POST /v2/cards"
+---
+
+<Info>
+  A resposta é sempre `202 Accepted`: a tokenização roda em segundo plano. Acompanhe o campo `tokenization_status` (`pending`, `tokenized` ou `failed`) com [`GET /v2/cards/{id}`](/pages/v2/cartoes/get).
+</Info>
+
+<Tip>
+  Guarde o `id` retornado e use-o como `card.token` em pedidos, assinaturas e faturas. Um cartão com tokenização `pending` ou `failed` continua podendo ser usado em compras.
+</Tip>
+
+<Warning>
+  `customer.document` é obrigatório (`cpf`, `cnpj` ou `passport`), e `customer.phone.ddi` e `customer.phone.ddd` são números inteiros. Um cartão vencido retorna `422` com `param` `card.exp_year`.
+</Warning>
+
+<Note>
+  Limite de **10 cartões por minuto por conta** (`429` `card_tokenization_rate_limited`). Cartão, e-mail ou documento bloqueado retorna `403` (`customer_blocked`).
+</Note>

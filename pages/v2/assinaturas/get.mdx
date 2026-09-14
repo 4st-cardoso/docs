@@ -1,0 +1,16 @@
+---
+title: "Consultar assinatura"
+openapi: "GET /v2/subscriptions/{id}"
+---
+
+<Note>
+  O `id` é o identificador da assinatura, no formato `sub_...`, retornado na criação.
+</Note>
+
+<Info>
+  A resposta traz a fatura mais recente em `latest_invoice` (ou `null` se nenhuma fatura foi gerada). Para ver todas as faturas, use [Listar faturas da assinatura](/pages/v2/assinaturas/invoices).
+</Info>
+
+<Tip>
+  Uma assinatura de outra conta retorna `404` (`resource_missing`), como se não existisse.
+</Tip>

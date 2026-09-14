@@ -1,0 +1,127 @@
+---
+title: "Eventos de pedido"
+description: "order.paid, order.failed, order.refunded e order.chargeback no formato v2."
+icon: "receipt"
+---
+
+Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O `data` é o mesmo objeto devolvido por [`GET /v2/orders/{id}`](/pages/v2/pedidos/get).
+
+| Evento             | Quando acontece                                          |
+|--------------------|----------------------------------------------------------|
+| `order.paid`       | Todos os pagamentos do pedido foram confirmados          |
+| `order.failed`     | O pedido falhou. O motivo vem em `data.failure_reason`   |
+| `order.refunded`   | O pedido foi estornado                                   |
+| `order.chargeback` | O pedido recebeu chargeback                              |
+
+---
+
+## `order.paid`
+
+```json
+{
+  "id": "hook_Xy7kP2mQ9rT4vB1n",
+  "type": "order.paid",
+  "webhook_version": "v2",
+  "created_at": "2026-09-14T15:04:05Z",
+  "data": {
+    "id": "482913",
+    "object": "order",
+    "status": "paid",
+    "currency": "brl",
+    "amount": 15000,
+    "payments": [
+      {
+        "id": "cha_8Kq2Lm9XvB3nT7pZ",
+        "object": "payment_intent",
+        "status": "paid",
+        "amount": 10000,
+        "amount_refunded": 0,
+        "currency": "brl",
+        "payment_method_details": {
+          "type": "card",
+          "card": { "brand": "visa", "last_four": "1111", "holder_name": "João Silva" }
+        }
+      },
+      {
+        "id": "cha_3Hd7Wq1Ns5Rk9Yb2",
+        "object": "payment_intent",
+        "status": "paid",
+        "amount": 5000,
+        "amount_refunded": 0,
+        "currency": "brl",
+        "payment_method_details": {
+          "type": "pix",
+          "pix": {
+            "qr_code": "00020126580014br.gov.bcb.pix...",
+            "qr_code_url": "https://...",
+            "expires_at": "2026-09-14T16:00:00.000000Z"
+          }
+        }
+      }
+    ],
+    "next_action": null
+  }
+}
+```
+
+---
+
+## `order.failed`
+
+```json
+{
+  "id": "hook_Pq4Rs8Tu2Vw6Xy0z",
+  "type": "order.failed",
+  "webhook_version": "v2",
+  "created_at": "2026-09-14T15:04:05Z",
+  "data": {
+    "id": "482913",
+    "object": "order",
+    "status": "failed",
+    "currency": "brl",
+    "amount": 10000,
+    "payments": [
+      {
+        "id": "cha_8Kq2Lm9XvB3nT7pZ",
+        "object": "payment_intent",
+        "status": "failed",
+        "amount": 10000,
+        "amount_refunded": 0,
+        "currency": "brl",
+        "payment_method_details": { "type": "card" }
+      }
+    ],
+    "next_action": null,
+    "failure_reason": {
+      "code": "card_declined",
+      "message": "O cartão foi recusado pelo emissor.",
+      "customer_message": "Não foi possível concluir o pagamento. Revise os dados informados ou tente outro meio de pagamento.",
+      "merchant_message": "O pagamento não foi concluído. Oriente o comprador a revisar os dados informados ou tentar outro meio de pagamento."
+    }
+  }
+}
+```
+
+<Warning>
+  Mostre ao pagador apenas o `customer_message`. O `message` é técnico. Veja [Pagamento recusado](/pages/v2/start/erros#pagamento-recusado-402).
+</Warning>
+
+---
+
+## Status do pedido
+
+| `status`             | Significado                                                   |
+|----------------------|---------------------------------------------------------------|
+| `processing`         | Em processamento                                              |
+| `requires_capture`   | Autorizado, aguardando captura                                |
+| `requires_action`    | Aguardando ação do cliente (pagar o PIX ou confirmar o código) |
+| `paid`               | Pago                                                          |
+| `failed`             | Falhou                                                        |
+| `canceled`           | Cancelado                                                     |
+| `refunded`           | Estornado                                                     |
+| `partially_refunded` | Estornado parcialmente                                        |
+| `chargeback`         | Chargeback                                                    |
+
+<Note>
+  Um chargeback gera `order.chargeback` e também [`charge.chargeback`](/pages/v2/webhooks/events/charge) para a cobrança afetada.
+</Note>

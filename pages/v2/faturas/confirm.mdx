@@ -1,0 +1,16 @@
+---
+title: "Confirmar código de verificação da fatura"
+openapi: "POST /v2/invoices/{id}/confirm"
+---
+
+<Info>
+  Quando a análise de fraude pede verificação, a fatura fica em `requires_action` com `next_action.type = "otp_confirmation"` e **nada é cobrado** até a confirmação. Envie em `code` o código que o comprador recebeu.
+</Info>
+
+<Note>
+  Com o código válido, a cobrança da fatura é retomada. A resposta é `200` com a fatura atualizada (em geral `processing`), ou `402` se a cobrança for recusada.
+</Note>
+
+<Warning>
+  Erros possíveis: `422` `parameter_missing` (sem `code`), `422` `confirmation_code_invalid` (código inválido ou expirado) e `422` `order_not_confirmable` (a fatura não está aguardando código).
+</Warning>

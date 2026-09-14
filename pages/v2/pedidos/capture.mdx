@@ -1,0 +1,20 @@
+---
+title: "Capturar pedido"
+openapi: "POST /v2/orders/{id}/capture"
+---
+
+<Info>
+  Captura todos os pagamentos com cartão autorizados do pedido. Só é aceita quando o pedido está em `requires_capture`. Em outro status, a resposta é `422` (`order_not_capturable`).
+</Info>
+
+<Note>
+  Pedidos com cartão + PIX **não** precisam desta rota: o cartão é capturado automaticamente quando o PIX é pago.
+</Note>
+
+<Warning>
+  Se a adquirente recusar a captura de algum pagamento, os demais são desfeitos e o pedido falha. A resposta é `402` com `status: "failed"` e o motivo em `failure_reason`.
+</Warning>
+
+<Tip>
+  Envie o header `Idempotency-Key` para reenviar com segurança. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites).
+</Tip>

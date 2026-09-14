@@ -1,0 +1,126 @@
+---
+title: "Webhooks da v2"
+description: "Receba notificações dos pedidos, cobranças, assinaturas e faturas criados pela API v2."
+icon: "webhook"
+---
+
+Os webhooks avisam a sua aplicação quando algo muda depois da resposta da API — por exemplo, quando um cartão é confirmado, um PIX é pago ou uma assinatura é renovada. A 4SeletPay envia um `POST` com JSON para a URL que você cadastrou.
+
+<Warning>
+  A resposta de `POST /v2/orders` traz o resultado da autorização, não do pagamento. **Use os webhooks para saber quando um pedido foi pago.**
+</Warning>
+
+---
+
+## Cadastrar um endpoint
+
+A API v2 não tem rota para gerenciar endpoints. Cadastre a URL e escolha os eventos no dashboard ou pela API v1:
+
+<Card title="Endpoints de Webhook (v1)" icon="plug" href="/pages/webhook-endpoints/reference">
+  Crie, liste, atualize e remova os endpoints que recebem as notificações.
+</Card>
+
+---
+
+## Formato v1 ou v2
+
+O formato do webhook depende de **onde o recurso foi criado**, não de uma configuração do endpoint:
+
+| Recurso criado por                                   | Formato do webhook |
+|------------------------------------------------------|--------------------|
+| `POST /v2/orders` e `POST /v2/subscriptions`         | v2                 |
+| Rotas da API v1                                      | v1                 |
+
+O mesmo endpoint pode receber os dois formatos. Use o campo `webhook_version` para decidir como ler o payload.
+
+<Note>
+  Eventos que não existem no formato v2 são entregues no formato v1, mesmo para recursos criados pela v2. É o caso de `charge.challenged` e dos eventos de cartão (`card.*`).
+</Note>
+
+---
+
+## Envelope
+
+```json
+{
+  "id": "hook_Xy7kP2mQ9rT4vB1n",
+  "type": "order.paid",
+  "webhook_version": "v2",
+  "created_at": "2026-09-14T15:04:05Z",
+  "data": { ... }
+}
+```
+
+| Campo             | Tipo   | Descrição                                                         |
+|-------------------|--------|-------------------------------------------------------------------|
+| `id`              | string | Identificador da entrega (`hook_...`). Use para evitar processar a mesma notificação duas vezes |
+| `type`            | string | Evento, em notação `recurso.ação`                                 |
+| `webhook_version` | string | Sempre `v2` neste formato                                         |
+| `created_at`      | string | Data e hora do evento em UTC (ISO 8601)                           |
+| `data`            | object | O recurso do evento (veja abaixo)                                 |
+
+### O que vem em `data`
+
+| Eventos           | Conteúdo de `data`                                                                    |
+|-------------------|----------------------------------------------------------------------------------------|
+| `order.*`         | O mesmo objeto de [`GET /v2/orders/{id}`](/pages/v2/pedidos/get)                       |
+| `invoice.*`       | O mesmo objeto de [`GET /v2/invoices/{id}`](/pages/v2/faturas/get)                     |
+| `subscription.*`  | O mesmo objeto de [`GET /v2/subscriptions/{id}`](/pages/v2/assinaturas/get)            |
+| `charge.*`        | Um payload próprio de cobrança — veja [Eventos de cobrança](/pages/v2/webhooks/events/charge) |
+
+---
+
+## Eventos disponíveis
+
+| Evento                     | Quando acontece                                             |
+|----------------------------|-------------------------------------------------------------|
+| `order.paid`               | Todos os pagamentos do pedido foram confirmados             |
+| `order.failed`             | O pedido falhou                                             |
+| `order.refunded`           | O pedido foi estornado                                      |
+| `order.chargeback`         | O pedido recebeu chargeback                                 |
+| `charge.created`           | A cobrança foi criada                                       |
+| `charge.pending`           | A cobrança está pendente                                    |
+| `charge.paid`              | A cobrança foi paga                                         |
+| `charge.failed`            | A cobrança falhou                                           |
+| `charge.reproved`          | A cobrança foi reprovada                                    |
+| `charge.refunded`          | A cobrança foi totalmente estornada                         |
+| `charge.partial_refunded`  | A cobrança foi parcialmente estornada                       |
+| `charge.chargeback`        | A cobrança recebeu chargeback                               |
+| `charge.expired`           | A cobrança expirou (por exemplo, PIX não pago)              |
+| `charge.canceled`          | A cobrança foi cancelada                                    |
+| `subscription.canceled`    | A assinatura foi cancelada                                  |
+| `subscription.delayed`     | Uma cobrança da assinatura falhou e ela ficou em atraso     |
+| `subscription.regularized` | A assinatura em atraso foi paga                             |
+| `subscription.suspended`   | A assinatura foi suspensa                                   |
+| `subscription.completed`   | A assinatura pagou a última fatura prevista                 |
+| `invoice.created`          | Uma fatura de renovação foi gerada                          |
+| `invoice.paid`             | A fatura foi paga                                           |
+| `invoice.failed`           | A cobrança da fatura falhou                                 |
+
+<CardGroup cols={2}>
+  <Card title="Pedidos" icon="receipt" href="/pages/v2/webhooks/events/order">
+    `order.paid`, `order.failed`, `order.refunded`, `order.chargeback`
+  </Card>
+  <Card title="Cobranças" icon="money-bill" href="/pages/v2/webhooks/events/charge">
+    `charge.*`
+  </Card>
+  <Card title="Assinaturas" icon="repeat" href="/pages/v2/webhooks/events/subscription">
+    `subscription.*`
+  </Card>
+  <Card title="Faturas" icon="file-invoice" href="/pages/v2/webhooks/events/invoice">
+    `invoice.*`
+  </Card>
+</CardGroup>
+
+---
+
+## Boas práticas
+
+- Responda com HTTP `2xx` assim que receber a notificação. Respostas fora da faixa `2xx` são reenviadas, até o limite de tentativas do endpoint.
+- Processe a notificação de forma assíncrona na sua aplicação, depois de responder.
+- Guarde o `id` da entrega e ignore repetições.
+- Não dependa da ordem de chegada dos eventos. Na dúvida, consulte o recurso pela API.
+
+<Info>
+  A verificação por código (OTP) não gera webhook. Ela aparece apenas no `next_action` da resposta do pedido ou da fatura.
+</Info>

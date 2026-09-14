@@ -1,0 +1,28 @@
+---
+title: "Criar pedido"
+openapi: "POST /v2/orders"
+---
+
+<Warning>
+  **`201 Created` não significa pago.** O pedido pode voltar em `requires_capture`, `requires_action` ou `processing`. A confirmação chega pelos webhooks `order.paid` e `charge.paid`. Um pagamento recusado responde `402`, com o pedido completo e o motivo em `failure_reason`.
+</Warning>
+
+<Info>
+  Envie **um ou mais pagamentos** em `payments`. Um pedido com vários pagamentos é tudo ou nada: se um for recusado, os demais são desfeitos.
+</Info>
+
+<Note>
+  Sem `capture_method`, um pagamento com cartão usa captura **manual** e o pedido fica em `requires_capture` até você chamar [`/capture`](/pages/v2/pedidos/capture). Com `capture_method: "automatic"`, a venda é direta só quando o pedido tem **um único** pagamento. Em cartão + PIX, o cartão é capturado automaticamente quando o PIX é pago. Veja [Captura](/pages/v2/pedidos/reference#captura).
+</Note>
+
+<Tip>
+  Para cobrar um cartão salvo, envie `card.token` com o `id` do [cartão](/pages/v2/cartoes/reference) no lugar dos dados do cartão.
+</Tip>
+
+<Warning>
+  A soma dos itens (`amount × quantity`) precisa ser igual à soma dos pagamentos. Com cartão no pedido, o `pix_expiration` pode ser de no máximo 86400 segundos. Pular a análise de fraude (`fraud_analysis`) exige permissão da conta.
+</Warning>
+
+<Note>
+  Limite de **2 tentativas por minuto** do mesmo comprador para os mesmos itens (`429` `rate_limit_exceeded`). Envie o header `Idempotency-Key` para reenviar com segurança. Veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites).
+</Note>
