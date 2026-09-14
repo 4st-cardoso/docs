@@ -2748,8 +2748,11 @@ paths:
                           type: card
                           card:
                             brand: visa
+                            first_six: "411111"
                             last_four: "1111"
                             holder_name: João Silva
+                            exp_month: 12
+                            exp_year: 2030
                     next_action: null
                 pix:
                   summary: PIX aguardando pagamento
@@ -2797,8 +2800,11 @@ paths:
                           type: card
                           card:
                             brand: visa
+                            first_six: "411111"
                             last_four: "1111"
                             holder_name: João Silva
+                            exp_month: 12
+                            exp_year: 2030
                       - id: cha_Ry5Wc1Hd7Nf3Jk9A
                         object: payment_intent
                         status: requires_action
@@ -2927,8 +2933,11 @@ paths:
                       type: card
                       card:
                         brand: visa
+                        first_six: "411111"
                         last_four: "1111"
                         holder_name: João Silva
+                        exp_month: 12
+                        exp_year: 2030
                 next_action: null
         '401':
           $ref: '#/components/responses/V2Unauthorized'
@@ -2978,8 +2987,11 @@ paths:
                       type: card
                       card:
                         brand: visa
+                        first_six: "411111"
                         last_four: "1111"
                         holder_name: João Silva
+                        exp_month: 12
+                        exp_year: 2030
                 next_action: null
         '400':
           $ref: '#/components/responses/V2IdempotencyInvalid'
@@ -3055,8 +3067,11 @@ paths:
                       type: card
                       card:
                         brand: visa
+                        first_six: "411111"
                         last_four: "1111"
                         holder_name: João Silva
+                        exp_month: 12
+                        exp_year: 2030
                 next_action: null
         '400':
           $ref: '#/components/responses/V2IdempotencyInvalid'
@@ -3266,6 +3281,13 @@ paths:
                 amount_refundable: 10000
                 payment_method_details:
                   type: card
+                  card:
+                    brand: visa
+                    first_six: "411111"
+                    last_four: "1111"
+                    holder_name: João Silva
+                    exp_month: 12
+                    exp_year: 2030
                 payment_intent: cha_8Kq2Lm9XvB3nT7pZ
         '401':
           $ref: '#/components/responses/V2Unauthorized'
@@ -3327,6 +3349,13 @@ paths:
                 amount_refundable: 0
                 payment_method_details:
                   type: card
+                  card:
+                    brand: visa
+                    first_six: "411111"
+                    last_four: "1111"
+                    holder_name: João Silva
+                    exp_month: 12
+                    exp_year: 2030
                 payment_intent: cha_8Kq2Lm9XvB3nT7pZ
         '400':
           $ref: '#/components/responses/V2IdempotencyInvalid'
@@ -3714,8 +3743,11 @@ paths:
                         type: card
                         card:
                           brand: visa
+                          first_six: "411111"
                           last_four: "1111"
                           holder_name: João Silva
+                          exp_month: 12
+                          exp_year: 2030
                   next_action: null
                   created_at: "2026-09-14T12:00:00-03:00"
                 metadata: {}
@@ -4188,8 +4220,11 @@ paths:
                           type: card
                           card:
                             brand: visa
+                            first_six: "411111"
                             last_four: "1111"
                             holder_name: João Silva
+                            exp_month: 12
+                            exp_year: 2030
                     next_action: null
                     created_at: "2026-09-14T12:00:00-03:00"
                 has_more: false
@@ -4923,8 +4958,11 @@ components:
                   type: card
                   card:
                     brand: visa
+                    first_six: "411111"
                     last_four: "1111"
                     holder_name: João Silva
+                    exp_month: 12
+                    exp_year: 2030
             next_action: null
             failure_reason:
               code: insufficient_funds
@@ -4966,8 +5004,11 @@ components:
                   type: card
                   card:
                     brand: visa
+                    first_six: "411111"
                     last_four: "1111"
                     holder_name: João Silva
+                    exp_month: 12
+                    exp_year: 2030
             next_action: null
             created_at: "2026-09-14T12:00:00-03:00"
             failure_reason:
@@ -5399,20 +5440,39 @@ components:
               type: string
               enum: [card, pix, boleto]
             card:
-              type: object
-              description: Presente em pagamentos com cartão
-              properties:
-                brand:
-                  type: string
-                  example: visa
-                last_four:
-                  type: string
-                  example: "1111"
-                holder_name:
-                  type: string
-                  example: João Silva
+              $ref: '#/components/schemas/V2PaymentCard'
             pix:
               $ref: '#/components/schemas/V2Pix'
+
+    V2PaymentCard:
+      type: object
+      description: >
+        Cartão vinculado à cobrança. Só aparece quando a cobrança tem um cartão vinculado: sem cartão, a chave
+        `card` não é enviada (ela não vem com `null`). O `id` do cartão não é devolvido em pedidos nem em
+        cobranças. O número completo e o código de segurança nunca são devolvidos.
+      properties:
+        brand:
+          type: string
+          example: visa
+        first_six:
+          type: string
+          nullable: true
+          example: "411111"
+        last_four:
+          type: string
+          nullable: true
+          example: "1111"
+        holder_name:
+          type: string
+          example: João Silva
+        exp_month:
+          type: integer
+          nullable: true
+          example: 12
+        exp_year:
+          type: integer
+          nullable: true
+          example: 2030
 
     V2NextAction:
       type: object
@@ -5538,6 +5598,8 @@ components:
             type:
               type: string
               enum: [card, pix, boleto]
+            card:
+              $ref: '#/components/schemas/V2PaymentCard'
         payment_intent:
           type: string
           description: O `id` do pagamento correspondente no pedido ou na fatura

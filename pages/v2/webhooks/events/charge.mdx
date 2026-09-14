@@ -60,8 +60,11 @@ Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o ob
     },
     "card": {
       "brand": "visa",
+      "first_six": "411111",
       "last_four": "1111",
-      "holder_name": "João Silva"
+      "holder_name": "João Silva",
+      "exp_month": 12,
+      "exp_year": 2030
     },
     "transaction": {
       "nsu": "123456",
@@ -85,13 +88,17 @@ Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o ob
 | `order.id`                     | string         | Identificador interno do pedido                                           |
 | `order.code`                   | string         | Identificador do pedido na API. Use em [`GET /v2/orders/{id}`](/pages/v2/pedidos/get) ou [`GET /v2/invoices/{id}`](/pages/v2/faturas/get) |
 | `customer`                     | object \| null | `id`, `code`, `name` e `email` do cliente                                 |
-| `card`                         | object \| null | `brand`, `last_four` e `holder_name`. `null` em pagamentos sem cartão     |
+| `card`                         | object \| null | `brand`, `first_six`, `last_four`, `holder_name`, `exp_month` e `exp_year`. `null` quando a cobrança não tem cartão vinculado |
 | `transaction.nsu`              | string \| null | NSU da transação                                                          |
 | `transaction.tid`              | string \| null | TID da transação                                                          |
 | `transaction.acquirer_message` | string \| null | Mensagem retornada pela adquirente, quando houver                         |
 
 <Warning>
   O vocabulário do webhook de cobrança é diferente do da API: aqui o método é `credit_card` (na API, `card`) e o estorno parcial é `partial_refunded` (na API, `partially_refunded`).
+</Warning>
+
+<Warning>
+  Sem cartão vinculado, o webhook envia `"card": null`. Nas respostas da API (`GET /v2/charges/{id}` e `payments[]` de pedidos e faturas), a chave `card` não aparece. Trate os dois casos no seu código. O `id` do cartão não é enviado.
 </Warning>
 
 ### Status da cobrança no webhook

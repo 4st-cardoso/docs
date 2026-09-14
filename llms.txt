@@ -127,7 +127,7 @@ Notas importantes da v2:
 
 ## Cobranças (v2)
 
-- [Referência de Cobranças](https://docs.4seletpay.com.br/pages/v2/cobrancas/reference): Visão financeira de cada pagamento: `amount`, `amount_refunded`, `amount_refundable`, `status`.
+- [Referência de Cobranças](https://docs.4seletpay.com.br/pages/v2/cobrancas/reference): Visão financeira de cada pagamento: `amount`, `amount_refunded`, `amount_refundable`, `status`. `payment_method_details.card` (`brand`, `first_six`, `last_four`, `holder_name`, `exp_month`, `exp_year`) só aparece quando há cartão vinculado; sem cartão, a chave não é enviada. O `id` do cartão não é devolvido em pedidos nem em cobranças.
 - [GET /v2/charges/{id}](https://docs.4seletpay.com.br/pages/v2/cobrancas/get): Consulta uma cobrança.
 - [POST /v2/charges/{id}/refund](https://docs.4seletpay.com.br/pages/v2/cobrancas/refund): Estorna uma cobrança paga. `amount` opcional (centavos, mínimo 100 no parcial); sem `amount`, estorna o saldo restante. Assíncrono (`refund_processing`); um estorno por vez; a disponibilidade depende da adquirente da cobrança (`422 refund_not_supported`).
 
@@ -160,6 +160,6 @@ Notas importantes da v2:
 
 - [Webhooks da v2](https://docs.4seletpay.com.br/pages/v2/webhooks/reference): Envelope v2, regra de versão por origem do recurso e lista de eventos. Endpoints são cadastrados no dashboard ou pela API v1.
 - [Eventos de pedido](https://docs.4seletpay.com.br/pages/v2/webhooks/events/order): `order.paid`, `order.failed`, `order.refunded`, `order.chargeback`. `data` = objeto de pedido.
-- [Eventos de cobrança](https://docs.4seletpay.com.br/pages/v2/webhooks/events/charge): `charge.*`. `data` = payload próprio de cobrança (`code`, `status`, `payment_method`, `order`, `customer`, `card`, `transaction`).
+- [Eventos de cobrança](https://docs.4seletpay.com.br/pages/v2/webhooks/events/charge): `charge.*`. `data` = payload próprio de cobrança (`code`, `status`, `payment_method`, `order`, `customer`, `card`, `transaction`). Sem cartão vinculado, `card` vem `null`.
 - [Eventos de assinatura](https://docs.4seletpay.com.br/pages/v2/webhooks/events/subscription): `subscription.canceled`, `delayed`, `regularized`, `suspended`, `completed`. Não existe `subscription.created`.
 - [Eventos de fatura](https://docs.4seletpay.com.br/pages/v2/webhooks/events/invoice): `invoice.created` (só renovações), `invoice.paid`, `invoice.failed`.

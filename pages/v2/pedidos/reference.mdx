@@ -183,7 +183,7 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
       "currency": "brl",
       "payment_method_details": {
         "type": "card",
-        "card": { "brand": "visa", "last_four": "1111", "holder_name": "Maria Santos" }
+        "card": { "brand": "visa", "first_six": "411111", "last_four": "1111", "holder_name": "Maria Santos", "exp_month": 12, "exp_year": 2030 }
       }
     }
   ],
@@ -314,8 +314,12 @@ Cada item de `payments` é um objeto `payment_intent`. O `id` do pagamento é o 
 | `amount_refunded`                | integer | Total estornado, em centavos                                |
 | `currency`                       | string  | Moeda, em minúsculas                                        |
 | `payment_method_details.type`    | string  | `card`, `pix` ou `boleto`                                   |
-| `payment_method_details.card`    | object  | Só para cartão: `brand`, `last_four`, `holder_name`         |
+| `payment_method_details.card`    | object  | Só quando há cartão vinculado: `brand`, `first_six`, `last_four`, `holder_name`, `exp_month`, `exp_year` |
 | `payment_method_details.pix`     | object  | Só para PIX: `qr_code`, `qr_code_url`, `expires_at`         |
+
+<Note>
+  O objeto `card` só aparece quando a cobrança tem um cartão vinculado. Sem cartão, a chave `card` não é enviada — ela não vem com `null`. O `id` do cartão não é devolvido em pedidos nem em cobranças. No [webhook de cobrança](/pages/v2/webhooks/events/charge), ao contrário, `card` vem como `null` quando não há cartão.
+</Note>
 
 ### Status do pagamento
 

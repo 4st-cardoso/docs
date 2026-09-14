@@ -31,7 +31,15 @@ Use as rotas de cobrança para saber quanto foi pago e estornado, e para estorna
   "amount_refunded": 0,
   "amount_refundable": 10000,
   "payment_method_details": {
-    "type": "card"
+    "type": "card",
+    "card": {
+      "brand": "visa",
+      "first_six": "411111",
+      "last_four": "1111",
+      "holder_name": "João Silva",
+      "exp_month": 12,
+      "exp_year": 2030
+    }
   },
   "payment_intent": "cha_8Kq2Lm9XvB3nT7pZ"
 }
@@ -49,7 +57,12 @@ Use as rotas de cobrança para saber quanto foi pago e estornado, e para estorna
 | `amount_refunded`             | integer | Total já estornado, em centavos                                    |
 | `amount_refundable`           | integer | Quanto ainda pode ser estornado, em centavos. `0` se a cobrança não estiver paga |
 | `payment_method_details.type` | string  | `card`, `pix` ou `boleto`                                          |
+| `payment_method_details.card` | object  | Cartão vinculado: `brand`, `first_six`, `last_four`, `holder_name`, `exp_month`, `exp_year`. Só aparece quando há cartão vinculado |
 | `payment_intent`              | string  | `id` do pagamento correspondente no pedido ou na fatura            |
+
+<Note>
+  Sem cartão vinculado (por exemplo, em PIX), a chave `card` não é enviada — ela não vem com `null`. O `id` do cartão não é devolvido na cobrança. No [webhook de cobrança](/pages/v2/webhooks/events/charge), ao contrário, `card` vem como `null` quando não há cartão.
+</Note>
 
 ---
 
