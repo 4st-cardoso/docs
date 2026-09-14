@@ -34,7 +34,7 @@ O formato do webhook depende de **onde o recurso foi criado**, não de uma confi
 O mesmo endpoint pode receber os dois formatos. Use o campo `webhook_version` para decidir como ler o payload.
 
 <Note>
-  Eventos que não existem no formato v2 são entregues no formato v1, mesmo para recursos criados pela v2. É o caso de `charge.challenged` e dos eventos de cartão (`card.*`).
+  Eventos que não existem no formato v2 são entregues no formato v1, mesmo para recursos criados pela v2. É o caso de `order.challenged`, `charge.challenged` e dos eventos de cartão (`card.*`).
 </Note>
 
 ---
@@ -122,5 +122,5 @@ O mesmo endpoint pode receber os dois formatos. Use o campo `webhook_version` pa
 - Não dependa da ordem de chegada dos eventos. Na dúvida, consulte o recurso pela API.
 
 <Info>
-  A verificação por código (OTP) não gera webhook. Ela aparece apenas no `next_action` da resposta do pedido ou da fatura.
+  A verificação por código (OTP) não gera webhook no formato v2. Ela gera `order.challenged` no formato v1, inclusive a cada reenvio do código, e aparece no `next_action` da resposta do pedido ou da fatura.
 </Info>

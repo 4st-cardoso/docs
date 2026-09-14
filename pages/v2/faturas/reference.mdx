@@ -18,7 +18,7 @@ Cada ciclo de uma [assinatura](/pages/v2/assinaturas/reference) gera uma **fatur
 Para listar as faturas de uma assinatura, use [`GET /v2/subscriptions/{id}/invoices`](/pages/v2/assinaturas/invoices).
 
 <Note>
-  O `id` da fatura é um código numérico de 6 dígitos, como `482913`. As rotas de fatura só encontram faturas de assinaturas.
+  As rotas de fatura só encontram faturas de assinaturas.
 </Note>
 
 ---
@@ -46,7 +46,7 @@ Para listar as faturas de uma assinatura, use [`GET /v2/subscriptions/{id}/invoi
 
 | Campo            | Tipo    | Descrição                                                                          |
 |------------------|---------|------------------------------------------------------------------------------------|
-| `id`             | string  | Identificador da fatura (6 dígitos)                                                |
+| `id`             | string  | Identificador da fatura (`ord_` seguido de 16 caracteres)                                                |
 | `object`         | string  | Sempre `invoice`                                                                   |
 | `subscription`   | string  | `id` da assinatura (`sub_...`)                                                     |
 | `number`         | integer | Número sequencial da fatura na assinatura. A primeira é `1`                        |
@@ -71,7 +71,7 @@ Quando a análise de fraude pede verificação, nada é cobrado até a confirma�
   "type": "otp_confirmation",
   "otp": {
     "confirmation_id": "c1d2e3f4-a5b6-7890-abcd-ef1234567890",
-    "expires_at": "2026-09-14T10:15:00-03:00"
+    "expires_at": "2026-09-14T13:15:00.000000Z"
   }
 }
 ```
@@ -84,7 +84,7 @@ Quando a cobrança é PIX e ainda não foi paga:
   "pix": {
     "qr_code": "00020126360014br.gov.bcb.pix...",
     "qr_code_url": "https://...",
-    "expires_at": "2026-09-15T10:00:00-03:00"
+    "expires_at": "2026-09-15 10:00:00"
   }
 }
 ```
@@ -110,7 +110,7 @@ Quando a cobrança é PIX e ainda não foi paga:
 
 ```json Resposta (HTTP 200)
 {
-  "id": "482913",
+  "id": "ord_7Hk2Pq9Xm4Ln8Rt3",
   "object": "invoice",
   "subscription": "sub_4Hn8Qw2Rt6Yp1Zx3",
   "number": 1,
@@ -150,7 +150,7 @@ Quando a cobrança é PIX e ainda não foi paga:
 
 Quando uma fatura é recusada, a assinatura fica `past_due` e recebe novas tentativas automáticas. Você também pode cobrar a fatura na hora, com outro cartão ou PIX:
 
-```json Request — POST /v2/invoices/482913/pay
+```json Request — POST /v2/invoices/ord_7Hk2Pq9Xm4Ln8Rt3/pay
 {
   "payment": {
     "type": "card",

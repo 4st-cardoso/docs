@@ -16,5 +16,5 @@ openapi: "POST /v2/orders/{id}/confirm"
 </Warning>
 
 <Tip>
-  Se o código expirou, gere outro com [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation). A verificação por código não gera webhook: acompanhe pelo `next_action` da resposta.
+  Se o código expirou, gere outro com [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation). A verificação por código não gera webhook no formato v2: ela gera `order.challenged` no formato v1, inclusive a cada reenvio. Acompanhe pelo `next_action` da resposta.
 </Tip>

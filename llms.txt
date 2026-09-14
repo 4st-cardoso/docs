@@ -105,7 +105,7 @@ Notas importantes da v2:
 - `Idempotency-Key` é **opcional** (recomendado), até 128 caracteres, válido por 24h; só respostas `2xx` são reaproveitadas.
 - Limites: 120 req/min por chave e por conta (resposta `429` fora do envelope, `{ "message": "Too Many Attempts." }`); 2 tentativas/min por comprador e itens em pedidos e assinaturas (`429 rate_limit_exceeded`); 10 cartões/min por conta (`429 card_tokenization_rate_limited`); reenvio do código de verificação 5/min por IP de origem (compartilhado entre contas no mesmo servidor, `429` fora do envelope).
 - `GET /v2/orders/{id}` só encontra pedidos criados pela v2.
-- Webhooks: o formato depende de onde o recurso foi criado. Recursos da v2 geram envelope `{ "id": "hook_...", "type", "webhook_version": "v2", "created_at", "data" }`; os da v1 continuam no formato v1. Eventos `card.*` e `charge.challenged` só existem no formato v1.
+- Webhooks: o formato depende de onde o recurso foi criado. Recursos da v2 geram envelope `{ "id": "hook_...", "type", "webhook_version": "v2", "created_at", "data" }`; os da v1 continuam no formato v1. Eventos `card.*`, `order.challenged` e `charge.challenged` só existem no formato v1.
 
 ## Comece aqui (v2)
 

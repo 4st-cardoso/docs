@@ -48,7 +48,7 @@ O intervalo total pode ter no máximo **365 dias**. Acima disso, a resposta é `
 | `code`                 | string  | Não  | Código definido por você (máx. 255)                                       |
 | `description`          | string  | Não  | Descrição da assinatura (máx. 255)                                        |
 | `currency`             | string  | Não  | `BRL` ou `USD` (padrão `BRL`). Na resposta, vem em minúsculas             |
-| `international`        | boolean | Não  | Indica se é uma transação internacional (padrão `false`)                  |
+| `international`        | boolean | Não  | Indica pagamento internacional e é usado na escolha da adquirente (padrão `false`). Não é devolvido na resposta |
 | `billing_type`         | string  | Não  | Apenas `prepaid`                                                          |
 | `start_at`             | date    | Não  | Início da cobrança, a partir de amanhã. Sem ele, a primeira fatura é cobrada na criação |
 | `max_invoices`         | integer | Não  | Número máximo de faturas (mín. `1`). Sem ele, a assinatura não tem fim    |
@@ -138,7 +138,7 @@ Divida o valor de cada fatura entre recebedores da sua conta com a lista `split`
 | `split[].options.charge_remainder_fee`  | boolean | Não  | Este recebedor absorve a diferença de arredondamento        |
 | `split[].options.liable`                | boolean | Não  | Este recebedor é responsável em caso de chargeback          |
 
-As regras são validadas na criação, e não só na primeira cobrança:
+Quando o split está habilitado na plataforma, as regras abaixo são validadas na criação, e não só na primeira cobrança. Com o split desabilitado, elas não são verificadas:
 
 - A soma dos `amount` do split deve ser igual ao total dos itens.
 - **Exatamente um** recebedor deve ter `charge_processing_fee: true`.
@@ -149,8 +149,8 @@ As regras são validadas na criação, e não só na primeira cobrança:
 ```json Split entre dois recebedores
 {
   "split": [
-    { "receiver_code": "rec_abc123", "amount": 8000, "options": { "charge_processing_fee": true, "charge_remainder_fee": true, "liable": true } },
-    { "receiver_code": "rec_xyz456", "amount": 2000 }
+    { "receiver_code": "re_4kT9pWq2Lx7ZbN1mRv5c", "amount": 8000, "options": { "charge_processing_fee": true, "charge_remainder_fee": true, "liable": true } },
+    { "receiver_code": "re_Hs8dF3jK6aQ0wE2yU9tP", "amount": 2000 }
   ]
 }
 ```
@@ -287,7 +287,7 @@ active ──(última fatura de max_invoices paga)──► completed
   "created_at": "2026-09-14T10:00:00-03:00",
   "customer": { "name": "John Doe", "email": "john@example.com" },
   "latest_invoice": {
-    "id": "482913",
+    "id": "ord_7Hk2Pq9Xm4Ln8Rt3",
     "object": "invoice",
     "subscription": "sub_4Hn8Qw2Rt6Yp1Zx3",
     "number": 1,

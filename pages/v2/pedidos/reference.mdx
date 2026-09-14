@@ -127,7 +127,7 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
 - Um pagamento com cartão precisa de `card.token` **ou** de todos os dados do cartão.
 - Quando o pedido tem cartão, o `pix_expiration` de um pagamento PIX pode ser de no máximo **86400 segundos** (24 horas). O cartão fica pré-autorizado enquanto o PIX não é pago.
 - A soma de `split[].amount` precisa ser igual ao `amount` do pagamento.
-- No split, **exatamente um** recebedor precisa ter `options.charge_processing_fee: true`, e o valor dele precisa cobrir as taxas de processamento. Pelo menos um recebedor precisa ter `options.charge_remainder_fee: true` e pelo menos um precisa ter `options.liable: true`. Um split que não pode ser aplicado retorna `422` (`split_error`).
+- Quando o split está habilitado na plataforma, **exatamente um** recebedor precisa ter `options.charge_processing_fee: true`, e o valor dele precisa cobrir as taxas de processamento. Pelo menos um recebedor precisa ter `options.charge_remainder_fee: true` e pelo menos um precisa ter `options.liable: true`. Um split que não pode ser aplicado retorna `422` (`split_error`).
 
 ---
 
@@ -168,7 +168,7 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
 
 ```json Resposta (HTTP 201)
 {
-  "id": "482913",
+  "id": "ord_7Hk2Pq9Xm4Ln8Rt3",
   "object": "order",
   "status": "requires_capture",
   "currency": "brl",
@@ -201,7 +201,7 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
 
 ```json Resposta (HTTP 201)
 {
-  "id": "730215",
+  "id": "ord_Bv5Nc1Zs6Qw0Ey2U",
   "object": "order",
   "status": "requires_action",
   "currency": "brl",
@@ -219,7 +219,7 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
         "pix": {
           "qr_code": "00020126580014br.gov.bcb.pix...",
           "qr_code_url": "https://...",
-          "expires_at": "2026-09-14T11:00:00.000000Z"
+          "expires_at": "2026-09-14 11:00:00"
         }
       }
     }
@@ -229,7 +229,7 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
     "pix": {
       "qr_code": "00020126580014br.gov.bcb.pix...",
       "qr_code_url": "https://...",
-      "expires_at": "2026-09-14T11:00:00.000000Z"
+      "expires_at": "2026-09-14 11:00:00"
     }
   }
 }
@@ -346,12 +346,12 @@ Quando o cliente precisa fazer algo, o pedido traz um `next_action`. Se nada for
   "pix": {
     "qr_code": "00020126580014br.gov.bcb.pix...",
     "qr_code_url": "https://...",
-    "expires_at": "2026-09-14T11:00:00.000000Z"
+    "expires_at": "2026-09-14 11:00:00"
   }
 }
 ```
 
-Exiba o `qr_code` (código copia e cola) ou a imagem de `qr_code_url` para o cliente.
+Exiba o `qr_code` (código copia e cola) ou a imagem de `qr_code_url` para o cliente. O `expires_at` do PIX vem no formato `AAAA-MM-DD HH:MM:SS`, sem indicação de fuso. O `expires_at` do código de verificação vem em UTC (ISO 8601).
 
 ### Código de verificação
 
@@ -372,7 +372,7 @@ A análise de fraude pode pedir que o cliente confirme um código antes do pagam
 3. Se o código expirar, gere outro com [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation).
 
 <Note>
-  Nenhum pagamento é cobrado antes da confirmação. O código de verificação tem prioridade sobre o QR Code PIX. A verificação por código **não** gera webhook: acompanhe pelo `next_action` da resposta.
+  Nenhum pagamento é cobrado antes da confirmação. O código de verificação tem prioridade sobre o QR Code PIX. A verificação por código **não** gera webhook no formato v2: ela gera `order.challenged` no formato v1, inclusive a cada reenvio do código. Acompanhe pelo `next_action` da resposta.
 </Note>
 
 <Warning>
