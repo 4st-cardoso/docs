@@ -22,7 +22,7 @@ https://app.4seletpay.com.br/api/v2
 |------------------------|--------------------------------------------------------------------------------------|
 | Autenticação           | `Authorization: Bearer sk_...` com a sua [chave de API](/pages/v2/start/autenticacao). Não existe header `account` |
 | Valores                | Sempre em **centavos**, como inteiro (R$ 10,00 = `1000`)                            |
-| Moeda                  | Enviada como `BRL` ou `USD`; devolvida em minúsculas (`brl`)                         |
+| Moeda                  | Na requisição, `currency` (`BRL` ou `USD`) indica a moeda dos valores enviados. A adquirente sempre recebe BRL: pedidos, pagamentos, cobranças e faturas respondem em `brl`, com o valor enviado em `original_amount` e `original_currency`. Veja [Moeda e conversão](/pages/v2/pedidos/reference#moeda-e-conversão) |
 | Datas                  | ISO 8601                                                                              |
 | Erros                  | Envelope `{ "error": { ... } }` — veja [Erros](/pages/v2/start/erros)                |
 | Reenvio seguro         | Header `Idempotency-Key` — veja [Idempotência e limites](/pages/v2/start/idempotencia-e-limites) |

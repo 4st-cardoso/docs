@@ -2596,6 +2596,12 @@ paths:
 
         **Tudo ou nada.** Se um dos pagamentos for recusado, os pagamentos já autorizados são desfeitos e o
         pedido falha.
+
+
+        **PayPal.** O PayPal processa apenas cobranças em `BRL`: um pedido com `currency` diferente de `BRL` processado por ele é
+        recusado com 402, mesmo com a conversão para real, e `failure_reason`, não com erro de requisição. O PayPal nunca é escolhido para pedidos com
+        dois ou mais pagamentos, porque não tem as capacidades exigidas por esse tipo de pedido. Se ele for a única
+        adquirente da conta, esses pedidos retornam 422 `acquirer_feature_not_supported`.
       operationId: v2CreateOrder
       security:
         - secretKeyAuth: []
@@ -2737,6 +2743,8 @@ paths:
                     status: requires_capture
                     currency: brl
                     amount: 10000
+                    original_amount: 10000
+                    original_currency: brl
                     payments:
                       - id: cha_8Kq2Lm9XvB3nT7pZ
                         object: payment_intent
@@ -2744,6 +2752,9 @@ paths:
                         amount: 10000
                         amount_refunded: 0
                         currency: brl
+                        original_amount: 10000
+                        original_currency: brl
+                        exchange_rate: null
                         payment_method_details:
                           type: card
                           card:
@@ -2762,6 +2773,8 @@ paths:
                     status: requires_action
                     currency: brl
                     amount: 5000
+                    original_amount: 5000
+                    original_currency: brl
                     payments:
                       - id: cha_Ry5Wc1Hd7Nf3Jk9A
                         object: payment_intent
@@ -2769,6 +2782,9 @@ paths:
                         amount: 5000
                         amount_refunded: 0
                         currency: brl
+                        original_amount: 5000
+                        original_currency: brl
+                        exchange_rate: null
                         payment_method_details:
                           type: pix
                           pix:
@@ -2789,6 +2805,8 @@ paths:
                     status: requires_action
                     currency: brl
                     amount: 10000
+                    original_amount: 10000
+                    original_currency: brl
                     payments:
                       - id: cha_8Kq2Lm9XvB3nT7pZ
                         object: payment_intent
@@ -2796,6 +2814,9 @@ paths:
                         amount: 7000
                         amount_refunded: 0
                         currency: brl
+                        original_amount: 7000
+                        original_currency: brl
+                        exchange_rate: null
                         payment_method_details:
                           type: card
                           card:
@@ -2811,6 +2832,9 @@ paths:
                         amount: 3000
                         amount_refunded: 0
                         currency: brl
+                        original_amount: 3000
+                        original_currency: brl
+                        exchange_rate: null
                         payment_method_details:
                           type: pix
                           pix:
@@ -2922,6 +2946,8 @@ paths:
                 status: requires_capture
                 currency: brl
                 amount: 10000
+                original_amount: 10000
+                original_currency: brl
                 payments:
                   - id: cha_8Kq2Lm9XvB3nT7pZ
                     object: payment_intent
@@ -2929,6 +2955,9 @@ paths:
                     amount: 10000
                     amount_refunded: 0
                     currency: brl
+                    original_amount: 10000
+                    original_currency: brl
+                    exchange_rate: null
                     payment_method_details:
                       type: card
                       card:
@@ -2976,6 +3005,8 @@ paths:
                 status: paid
                 currency: brl
                 amount: 10000
+                original_amount: 10000
+                original_currency: brl
                 payments:
                   - id: cha_8Kq2Lm9XvB3nT7pZ
                     object: payment_intent
@@ -2983,6 +3014,9 @@ paths:
                     amount: 10000
                     amount_refunded: 0
                     currency: brl
+                    original_amount: 10000
+                    original_currency: brl
+                    exchange_rate: null
                     payment_method_details:
                       type: card
                       card:
@@ -3056,6 +3090,8 @@ paths:
                 status: canceled
                 currency: brl
                 amount: 10000
+                original_amount: 10000
+                original_currency: brl
                 payments:
                   - id: cha_8Kq2Lm9XvB3nT7pZ
                     object: payment_intent
@@ -3063,6 +3099,9 @@ paths:
                     amount: 10000
                     amount_refunded: 0
                     currency: brl
+                    original_amount: 10000
+                    original_currency: brl
+                    exchange_rate: null
                     payment_method_details:
                       type: card
                       card:
@@ -3214,6 +3253,8 @@ paths:
                 status: requires_action
                 currency: brl
                 amount: 10000
+                original_amount: 10000
+                original_currency: brl
                 payments:
                   - id: cha_8Kq2Lm9XvB3nT7pZ
                     object: payment_intent
@@ -3221,6 +3262,9 @@ paths:
                     amount: 10000
                     amount_refunded: 0
                     currency: brl
+                    original_amount: 10000
+                    original_currency: brl
+                    exchange_rate: null
                     payment_method_details:
                       type: card
                 next_action:
@@ -3274,6 +3318,9 @@ paths:
                 object: charge
                 amount: 10000
                 currency: brl
+                original_amount: 10000
+                original_currency: brl
+                exchange_rate: null
                 status: paid
                 paid: true
                 captured: true
@@ -3342,6 +3389,9 @@ paths:
                 object: charge
                 amount: 10000
                 currency: brl
+                original_amount: 10000
+                original_currency: brl
+                exchange_rate: null
                 status: refund_processing
                 paid: true
                 captured: true
@@ -3613,6 +3663,10 @@ paths:
         vão até 100. `split` não pode ser combinado com descontos ou acréscimos. `minimum_price` é aceito e
         devolvido, mas ainda não é aplicado na cobrança. Não existe webhook de assinatura criada: a primeira
         fatura vem na própria resposta.
+
+
+        **PayPal.** O PayPal processa apenas cobranças em `BRL`: uma fatura com `currency` diferente de `BRL` cobrada por ele é recusada,
+        mesmo com a conversão para real, com 402 e `failure_reason`, não com erro de requisição.
       operationId: v2CreateSubscription
       security:
         - secretKeyAuth: []
@@ -3721,16 +3775,21 @@ paths:
                   status: processing
                   currency: brl
                   amount: 9000
+                  original_amount: 9000
+                  original_currency: brl
+                  exchange_rate: null
                   attempts: 1
                   items:
                     - code: SKU-SUB
                       description: Assinatura
                       quantity: 1
                       amount: 10000
+                      amount_total: 10000
                   discounts:
                     - type: fixed
                       value: 1000
                       invoice_number: 1
+                      amount_applied: 1000
                   increments: []
                   payments:
                     - id: cha_8Kq2Lm9XvB3nT7pZ
@@ -3739,6 +3798,9 @@ paths:
                       amount: 9000
                       amount_refunded: 0
                       currency: brl
+                      original_amount: 9000
+                      original_currency: brl
+                      exchange_rate: null
                       payment_method_details:
                         type: card
                         card:
@@ -4198,16 +4260,21 @@ paths:
                     status: paid
                     currency: brl
                     amount: 9000
+                    original_amount: 9000
+                    original_currency: brl
+                    exchange_rate: null
                     attempts: 1
                     items:
                       - code: SKU-SUB
                         description: Assinatura
                         quantity: 1
                         amount: 10000
+                        amount_total: 10000
                     discounts:
                       - type: fixed
                         value: 1000
                         invoice_number: 1
+                        amount_applied: 1000
                     increments: []
                     payments:
                       - id: cha_8Kq2Lm9XvB3nT7pZ
@@ -4216,6 +4283,9 @@ paths:
                         amount: 9000
                         amount_refunded: 0
                         currency: brl
+                        original_amount: 9000
+                        original_currency: brl
+                        exchange_rate: null
                         payment_method_details:
                           type: card
                           card:
@@ -4286,6 +4356,10 @@ paths:
       description: >
         Cobra uma fatura que ainda não foi paga, por exemplo uma fatura recusada ou em atraso, com um cartão novo,
         um cartão salvo ou PIX. Se o pagamento for recusado, a resposta é 402 com `failure_reason`.
+
+
+        **PayPal.** O PayPal processa apenas cobranças em `BRL`: uma fatura com `currency` diferente de `BRL` cobrada por ele é recusada,
+        mesmo com a conversão para real, com 402 e `failure_reason`, não com erro de requisição.
       operationId: v2PayInvoice
       security:
         - secretKeyAuth: []
@@ -4947,6 +5021,8 @@ components:
             status: failed
             currency: brl
             amount: 10000
+            original_amount: 10000
+            original_currency: brl
             payments:
               - id: cha_8Kq2Lm9XvB3nT7pZ
                 object: payment_intent
@@ -4954,6 +5030,9 @@ components:
                 amount: 10000
                 amount_refunded: 0
                 currency: brl
+                original_amount: 10000
+                original_currency: brl
+                exchange_rate: null
                 payment_method_details:
                   type: card
                   card:
@@ -4985,12 +5064,16 @@ components:
             status: failed
             currency: brl
             amount: 10000
+            original_amount: 10000
+            original_currency: brl
+            exchange_rate: null
             attempts: 1
             items:
               - code: SKU-SUB
                 description: Assinatura
                 quantity: 1
                 amount: 10000
+                amount_total: 10000
             discounts: []
             increments: []
             payments:
@@ -5000,6 +5083,9 @@ components:
                 amount: 10000
                 amount_refunded: 0
                 currency: brl
+                original_amount: 10000
+                original_currency: brl
+                exchange_rate: null
                 payment_method_details:
                   type: card
                   card:
@@ -5363,6 +5449,16 @@ components:
           type: string
           enum: [BRL, USD]
           default: BRL
+          description: >
+            Moeda dos valores enviados (`payments[].amount` e `items[].amount`). A conversão para real acontece uma
+            vez, na criação de cada pagamento, e a adquirente sempre recebe BRL. Não tem relação com `international`.
+        international:
+          type: boolean
+          default: false
+          description: >
+            Restringe a escolha às adquirentes habilitadas para compra internacional. Não tem relação com
+            `currency`: uma cobrança em BRL pode ser internacional. Se nenhuma adquirente da conta atender, a
+            resposta é `422` `acquirer_feature_not_supported`. Não é devolvido na resposta.
         customer:
           $ref: '#/components/schemas/V2Customer'
         payments:
@@ -5424,7 +5520,7 @@ components:
             `refunded`: estornado em parte ou totalmente. `chargeback`: contestado pelo portador.
         amount:
           type: integer
-          description: Valor em centavos
+          description: Valor cobrado, em centavos de real
           example: 10000
         amount_refunded:
           type: integer
@@ -5432,7 +5528,23 @@ components:
           example: 0
         currency:
           type: string
+          enum: [brl]
+          description: Sempre `brl`
           example: brl
+        original_amount:
+          type: integer
+          description: Valor na moeda enviada, em centavos. Igual a `amount` em BRL
+          example: 10000
+        original_currency:
+          type: string
+          description: Moeda enviada, em minúsculas
+          example: brl
+        exchange_rate:
+          type: number
+          nullable: true
+          description: >
+            Cotação usada: 1 unidade da moeda original = `exchange_rate` reais. `null` quando a moeda é BRL.
+          example: null
         payment_method_details:
           type: object
           properties:
@@ -5539,10 +5651,20 @@ components:
           enum: [processing, requires_capture, requires_action, paid, failed, canceled, refunded, partially_refunded, chargeback]
         currency:
           type: string
+          enum: [brl]
+          description: Sempre `brl`
+          example: brl
+        original_amount:
+          type: integer
+          description: Valor total na moeda enviada, em centavos. Igual a `amount` em BRL
+          example: 10000
+        original_currency:
+          type: string
+          description: Moeda enviada, em minúsculas
           example: brl
         amount:
           type: integer
-          description: Valor total, em centavos
+          description: Valor total cobrado, em centavos de real (soma dos pagamentos)
           example: 10000
         payments:
           type: array
@@ -5567,11 +5689,27 @@ components:
           enum: [charge]
         amount:
           type: integer
-          description: Valor em centavos
+          description: Valor cobrado, em centavos de real
           example: 10000
         currency:
           type: string
+          enum: [brl]
+          description: Sempre `brl`
           example: brl
+        original_amount:
+          type: integer
+          description: Valor na moeda enviada, em centavos. Igual a `amount` em BRL
+          example: 10000
+        original_currency:
+          type: string
+          description: Moeda enviada, em minúsculas
+          example: brl
+        exchange_rate:
+          type: number
+          nullable: true
+          description: >
+            Cotação usada: 1 unidade da moeda original = `exchange_rate` reais. `null` quando a moeda é BRL.
+          example: null
         status:
           type: string
           enum: [pending, paid, refund_processing, partially_refunded, refunded, chargeback, failed]
@@ -5586,11 +5724,11 @@ components:
           description: A cobrança foi capturada (mesmo valor de `paid`)
         amount_refunded:
           type: integer
-          description: Valor já estornado, em centavos
+          description: Valor já estornado, em centavos de real
           example: 0
         amount_refundable:
           type: integer
-          description: Valor que ainda pode ser estornado, em centavos
+          description: Valor que ainda pode ser estornado, em centavos de real
           example: 10000
         payment_method_details:
           type: object
@@ -5612,7 +5750,7 @@ components:
           type: integer
           minimum: 1
           description: >
-            Valor a estornar, em centavos. Sem `amount`, estorna todo o saldo restante. Um estorno parcial precisa
+            Valor a estornar, em centavos de real. Sem `amount`, estorna todo o saldo restante. Um estorno parcial precisa
             ser de pelo menos 100 centavos.
           example: 3000
 
@@ -5726,6 +5864,29 @@ components:
           description: Valor unitário, em centavos
           example: 10000
 
+    V2InvoiceItem:
+      allOf:
+        - $ref: '#/components/schemas/V2SubscriptionItem'
+        - type: object
+          properties:
+            amount_total:
+              type: integer
+              description: Total bruto da linha (valor unitário × quantidade), em centavos de real, conciliado com o `amount` da fatura
+              example: 10000
+
+    V2InvoiceAdjustment:
+      allOf:
+        - $ref: '#/components/schemas/V2SubscriptionAdjustment'
+        - type: object
+          properties:
+            amount_applied:
+              type: integer
+              description: >
+                Valor efetivamente aplicado, em centavos de real, inclusive em `percentage`. Nos descontos, o total
+                aplicado é limitado ao valor dos itens e repartido na proporção do valor declarado de cada desconto;
+                por isso pode ser menor que `value`. Nos acréscimos, não há limite.
+              example: 1000
+
     V2SubscriptionAdjustment:
       type: object
       required: [type, value]
@@ -5818,10 +5979,15 @@ components:
           type: string
           enum: [BRL, USD]
           default: BRL
+          description: >
+            Moeda em que o preço da assinatura é acordado. Cada fatura é cobrada em BRL e informa o valor original
+            e a cotação.
         international:
           type: boolean
           default: false
-          description: Indica pagamento internacional e é usado na escolha da adquirente. Não é devolvido na resposta.
+          description: >
+            Restringe a escolha às adquirentes habilitadas para compra internacional. Não tem relação com
+            `currency`. Não é devolvido na resposta.
         interval:
           type: string
           enum: [day, week]
@@ -5980,6 +6146,9 @@ components:
           enum: [incomplete, incomplete_expired, scheduled, active, past_due, suspended, canceled, completed]
         currency:
           type: string
+          description: >
+            Moeda em que o preço foi acordado. Não é convertida para real: `amount`, `items`, `discounts` e
+            `increments` ficam nessa moeda. O valor cobrado de cada ciclo está nas faturas, em BRL.
           example: brl
         description:
           type: string
@@ -5994,7 +6163,7 @@ components:
           enum: [prepaid]
         amount:
           type: integer
-          description: Total dos itens, em centavos, sem descontos ou acréscimos
+          description: Total dos itens, em centavos da moeda `currency`, sem descontos ou acréscimos
         items:
           type: array
           items:
@@ -6096,26 +6265,56 @@ components:
           enum: [processing, requires_action, paid, failed, canceled, refunded, partially_refunded, chargeback]
         currency:
           type: string
+          enum: [brl]
+          description: Sempre `brl`
           example: brl
+        original_amount:
+          type: integer
+          description: Valor da fatura na moeda da assinatura, em centavos. Igual a `amount` em BRL
+          example: 10000
+        original_currency:
+          type: string
+          description: Moeda enviada, em minúsculas
+          example: brl
+        exchange_rate:
+          type: number
+          nullable: true
+          description: >
+            Cotação usada: 1 unidade da moeda original = `exchange_rate` reais. `null` quando a moeda é BRL. Única por fatura: uma nova tentativa
+            reaproveita a cotação da primeira cobrança.
+          example: null
         amount:
           type: integer
-          description: Valor da fatura, em centavos, já com descontos e acréscimos
+          description: >
+            Valor cobrado, em centavos de real, já com descontos e acréscimos. Fecha ao centavo com
+            Σ `items[].amount_total` − Σ `discounts[].amount_applied` + Σ `increments[].amount_applied`. Somar
+            `items[].amount × quantity` não tem essa garantia.
           example: 9000
         attempts:
           type: integer
           description: Tentativas de cobrança
         items:
           type: array
+          description: >
+            Itens da fatura. `amount` é o valor unitário, em centavos de real, convertido pela `exchange_rate`.
+            `amount_total` é o total bruto da linha, em centavos de real, conciliado com o `amount` da fatura.
           items:
-            $ref: '#/components/schemas/V2SubscriptionItem'
+            $ref: '#/components/schemas/V2InvoiceItem'
         discounts:
           type: array
+          description: >
+            Descontos da fatura. `value` é o valor declarado: em `fixed`, centavos de real convertidos pela
+            `exchange_rate`; em `percentage`, o percentual, sem conversão. `amount_applied` é o valor efetivamente
+            descontado, em centavos de real.
           items:
-            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+            $ref: '#/components/schemas/V2InvoiceAdjustment'
         increments:
           type: array
+          description: >
+            Acréscimos da fatura, com os mesmos campos de `discounts`. `amount_applied` é o valor efetivamente
+            acrescido, em centavos de real. Acréscimos não têm limite.
           items:
-            $ref: '#/components/schemas/V2SubscriptionAdjustment'
+            $ref: '#/components/schemas/V2InvoiceAdjustment'
         payments:
           type: array
           items:

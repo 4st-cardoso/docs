@@ -51,16 +51,34 @@ Para listar as faturas de uma assinatura, use [`GET /v2/subscriptions/{id}/invoi
 | `subscription`   | string  | `id` da assinatura (`sub_...`)                                                     |
 | `number`         | integer | Número sequencial da fatura na assinatura. A primeira é `1`                        |
 | `status`         | string  | Veja [Status da fatura](#status-da-fatura)                                         |
-| `currency`       | string  | Moeda em minúsculas (`brl`, `usd`)                                                 |
-| `amount`         | integer | Valor cobrado em centavos, **com** descontos e acréscimos aplicados                |
+| `amount`            | integer | Valor cobrado, em centavos de real, **com** descontos e acréscimos aplicados    |
+| `currency`          | string  | Sempre `brl`                                                                    |
+| `original_amount`   | integer | Valor da fatura na moeda da assinatura, em centavos. Igual a `amount` em BRL    |
+| `original_currency` | string  | Moeda da assinatura, em minúsculas (`brl`, `usd`)                               |
+| `exchange_rate`     | number  | Cotação usada (1 unidade da moeda da assinatura = `exchange_rate` reais). `null` em BRL |
 | `attempts`       | integer | Quantidade de tentativas de cobrança registradas                                   |
-| `items`          | array   | `code`, `description`, `quantity` e `amount` (unitário, em centavos) de cada item  |
-| `discounts`      | array   | Descontos aplicados a esta fatura                                                  |
-| `increments`     | array   | Acréscimos aplicados a esta fatura                                                 |
+| `items`          | array   | Itens da fatura: `code`, `description`, `quantity`, `amount` (valor unitário, em centavos de real, convertido pela `exchange_rate` da fatura) e `amount_total` (total bruto da linha, em centavos de real) |
+| `discounts`      | array   | Descontos da fatura: `type`, `value` (o valor declarado: em `fixed`, centavos de real convertidos pela `exchange_rate`; em `percentage`, o percentual, sem conversão), `invoice_number` e `amount_applied` (valor efetivamente descontado, em centavos de real, inclusive em `percentage`) |
+| `increments`     | array   | Acréscimos da fatura, com os mesmos campos de `discounts`. `amount_applied` é o valor efetivamente acrescido, em centavos de real |
 | `payments`       | array   | Tentativas de cobrança da fatura, da mais antiga para a mais recente, no formato [payment_intent](/pages/v2/pedidos/reference#pagamentos) |
 | `next_action`    | object  | Ação pendente do comprador ou `null` (veja abaixo)                                 |
 | `created_at`     | string  | Data de criação (ISO 8601)                                                         |
 | `failure_reason` | object  | Presente apenas quando `status` é `failed`                                         |
+
+<Note>
+  A fatura informa o valor **cobrado**, em real. Cada fatura tem uma única `exchange_rate`: uma nova tentativa de cobrança reaproveita a cotação da primeira cobrança da fatura, em vez de converter de novo. O preço acordado, na moeda da assinatura, fica na [assinatura](/pages/v2/assinaturas/reference).
+
+  Os `items` e os descontos e acréscimos `fixed` também saem em real, convertidos pela mesma `exchange_rate`. O tipo `percentage` não é convertido, porque percentual não tem moeda. Em faturas em BRL nada é convertido.
+
+  A soma que fecha ao centavo, em BRL e em moeda estrangeira, é a dos campos conciliados:
+
+  **Σ `items[].amount_total` − Σ `discounts[].amount_applied` + Σ `increments[].amount_applied` = `amount`**
+
+  Somar `items[].amount × quantity` (os valores unitários) **não** tem essa garantia: numa fatura em moeda estrangeira, o resultado pode divergir em centavos.
+
+  - **Desconto maior que os itens:** o total dos descontos aplicados é limitado ao valor dos itens. Nesse caso, o `amount_applied` fica menor que o `value` declarado, e o limite é repartido entre os descontos na proporção do valor declarado de cada um.
+  - **Acréscimos** não têm limite e podem superar o valor dos itens.
+</Note>
 
 ### Ação pendente (`next_action`)
 
@@ -117,12 +135,15 @@ Quando a cobrança é PIX e ainda não foi paga:
   "status": "paid",
   "currency": "brl",
   "amount": 9000,
+  "original_amount": 9000,
+  "original_currency": "brl",
+  "exchange_rate": null,
   "attempts": 0,
   "items": [
-    { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+    { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000, "amount_total": 10000 }
   ],
   "discounts": [
-    { "type": "fixed", "value": 1000, "invoice_number": 1 }
+    { "type": "fixed", "value": 1000, "invoice_number": 1, "amount_applied": 1000 }
   ],
   "increments": [],
   "payments": [
@@ -133,6 +154,9 @@ Quando a cobrança é PIX e ainda não foi paga:
       "amount": 9000,
       "amount_refunded": 0,
       "currency": "brl",
+      "original_amount": 9000,
+      "original_currency": "brl",
+      "exchange_rate": null,
       "payment_method_details": {
         "type": "card",
         "card": { "brand": "visa", "first_six": "411111", "last_four": "1111", "holder_name": "John Doe", "exp_month": 12, "exp_year": 2030 }
@@ -169,6 +193,10 @@ A resposta é `200` com a fatura atualizada (em geral `processing` para cartão 
 
 <Note>
   Só é possível pagar uma fatura pendente ou recusada de uma assinatura `active`, `past_due` ou `suspended`. Nos demais casos, a resposta é `422` (`invoice_not_payable`).
+</Note>
+
+<Note>
+  O **PayPal** processa apenas cobranças em `BRL`. Uma fatura de assinatura com `currency` diferente de `BRL` cobrada pelo PayPal é recusada, mesmo com a conversão para real: a resposta é `402` com `failure_reason`, como qualquer recusa de pagamento, e não um erro de requisição.
 </Note>
 
 ---

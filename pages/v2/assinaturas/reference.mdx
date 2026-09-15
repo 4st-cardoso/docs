@@ -47,8 +47,8 @@ O intervalo total pode ter no máximo **365 dias**. Acima disso, a resposta é `
 | `interval_count`       | integer | Sim  | Quantidade de unidades por ciclo (mín. `1`)                               |
 | `code`                 | string  | Não  | Código definido por você (máx. 255)                                       |
 | `description`          | string  | Não  | Descrição da assinatura (máx. 255)                                        |
-| `currency`             | string  | Não  | `BRL` ou `USD` (padrão `BRL`). Na resposta, vem em minúsculas             |
-| `international`        | boolean | Não  | Indica pagamento internacional e é usado na escolha da adquirente (padrão `false`). Não é devolvido na resposta |
+| `currency`             | string  | Não  | `BRL` ou `USD` (padrão `BRL`). Moeda em que o preço da assinatura é acordado. Na resposta, vem em minúsculas |
+| `international`        | boolean | Não  | Restringe a escolha às adquirentes habilitadas para compra internacional (padrão `false`). Não tem relação com `currency` e não é devolvido na resposta |
 | `billing_type`         | string  | Não  | Apenas `prepaid`                                                          |
 | `start_at`             | date    | Não  | Início da cobrança, a partir de amanhã. Sem ele, a primeira fatura é cobrada na criação |
 | `max_invoices`         | integer | Não  | Número máximo de faturas (mín. `1`). Sem ele, a assinatura não tem fim    |
@@ -96,6 +96,10 @@ O intervalo total pode ter no máximo **365 dias**. Acima disso, a resposta é `
 | `payment.pix_expiration`    | integer | Não      | Expiração do PIX em segundos (mín. `1`)                      |
 
 ¹ Obrigatório quando `payment.type` é `card` e `payment.card.token` não é enviado.
+
+<Note>
+  O **PayPal** processa apenas cobranças em `BRL`. Uma fatura de assinatura com `currency` diferente de `BRL` cobrada pelo PayPal é recusada, mesmo com a conversão para real: a resposta é `402` com `failure_reason`, como qualquer recusa de pagamento, e não um erro de requisição.
+</Note>
 
 ---
 
@@ -294,12 +298,15 @@ active ──(última fatura de max_invoices paga)──► completed
     "status": "processing",
     "currency": "brl",
     "amount": 9000,
+    "original_amount": 9000,
+    "original_currency": "brl",
+    "exchange_rate": null,
     "attempts": 0,
     "items": [
-      { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000 }
+      { "code": "SKU-SUB", "description": "Assinatura", "quantity": 1, "amount": 10000, "amount_total": 10000 }
     ],
     "discounts": [
-      { "type": "fixed", "value": 1000, "invoice_number": 1 }
+      { "type": "fixed", "value": 1000, "invoice_number": 1, "amount_applied": 1000 }
     ],
     "increments": [],
     "payments": [
@@ -310,6 +317,9 @@ active ──(última fatura de max_invoices paga)──► completed
         "amount": 9000,
         "amount_refunded": 0,
         "currency": "brl",
+        "original_amount": 9000,
+        "original_currency": "brl",
+        "exchange_rate": null,
         "payment_method_details": {
           "type": "card",
           "card": { "brand": "visa", "first_six": "411111", "last_four": "1111", "holder_name": "John Doe", "exp_month": 12, "exp_year": 2030 }
@@ -335,13 +345,17 @@ active ──(última fatura de max_invoices paga)──► completed
 
 ## Campos da resposta
 
+<Note>
+  A assinatura é um contrato de preço, não uma cobrança: o preço foi acordado em uma moeda e não muda porque o câmbio mudou. Por isso `amount`, `items`, `discounts` e `increments` da assinatura ficam na moeda de `currency`. O valor cobrado de cada ciclo está nas [faturas](/pages/v2/faturas/reference), que respondem em BRL, com `original_amount`, `original_currency` e `exchange_rate`.
+</Note>
+
 | Campo                  | Tipo    | Descrição                                                                        |
 |------------------------|---------|----------------------------------------------------------------------------------|
 | `id`                   | string  | Identificador da assinatura (`sub_...`)                                          |
 | `object`               | string  | Sempre `subscription`                                                            |
 | `code`                 | string  | O código que você enviou                                                         |
 | `status`               | string  | Veja [Status da assinatura](#status-da-assinatura)                               |
-| `currency`             | string  | Moeda em minúsculas (`brl`, `usd`)                                               |
+| `currency`             | string  | Moeda em que o preço foi acordado, em minúsculas (`brl`, `usd`). **Não** é convertida para real |
 | `interval`             | string  | `day` ou `week`                                                                  |
 | `interval_count`       | integer | Unidades por ciclo                                                               |
 | `billing_type`         | string  | `prepaid`                                                                        |

@@ -29,6 +29,8 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
     "status": "paid",
     "currency": "brl",
     "amount": 15000,
+    "original_amount": 15000,
+    "original_currency": "brl",
     "payments": [
       {
         "id": "cha_8Kq2Lm9XvB3nT7pZ",
@@ -37,6 +39,9 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
         "amount": 10000,
         "amount_refunded": 0,
         "currency": "brl",
+        "original_amount": 10000,
+        "original_currency": "brl",
+        "exchange_rate": null,
         "payment_method_details": {
           "type": "card",
           "card": { "brand": "visa", "first_six": "411111", "last_four": "1111", "holder_name": "João Silva", "exp_month": 12, "exp_year": 2030 }
@@ -49,6 +54,9 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
         "amount": 5000,
         "amount_refunded": 0,
         "currency": "brl",
+        "original_amount": 5000,
+        "original_currency": "brl",
+        "exchange_rate": null,
         "payment_method_details": {
           "type": "pix",
           "pix": {
@@ -80,6 +88,8 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
     "status": "failed",
     "currency": "brl",
     "amount": 10000,
+    "original_amount": 10000,
+    "original_currency": "brl",
     "payments": [
       {
         "id": "cha_8Kq2Lm9XvB3nT7pZ",
@@ -88,6 +98,9 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
         "amount": 10000,
         "amount_refunded": 0,
         "currency": "brl",
+        "original_amount": 10000,
+        "original_currency": "brl",
+        "exchange_rate": null,
         "payment_method_details": { "type": "card" }
       }
     ],

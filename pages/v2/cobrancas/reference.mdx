@@ -25,6 +25,9 @@ Use as rotas de cobrança para saber quanto foi pago e estornado, e para estorna
   "object": "charge",
   "amount": 10000,
   "currency": "brl",
+  "original_amount": 10000,
+  "original_currency": "brl",
+  "exchange_rate": null,
   "status": "paid",
   "paid": true,
   "captured": true,
@@ -49,13 +52,16 @@ Use as rotas de cobrança para saber quanto foi pago e estornado, e para estorna
 |-------------------------------|---------|--------------------------------------------------------------------|
 | `id`                          | string  | Identificador da cobrança                                          |
 | `object`                      | string  | Sempre `charge`                                                    |
-| `amount`                      | integer | Valor da cobrança, em centavos                                     |
-| `currency`                    | string  | Moeda, em minúsculas (`brl`, `usd`)                                |
+| `amount`                      | integer | Valor da cobrança, em centavos de real                             |
+| `currency`                    | string  | Sempre `brl`                                                       |
+| `original_amount`             | integer | Valor na moeda enviada, em centavos. Igual a `amount` em BRL       |
+| `original_currency`           | string  | Moeda enviada, em minúsculas (`brl`, `usd`)                        |
+| `exchange_rate`               | number  | Cotação usada (1 unidade da moeda enviada = `exchange_rate` reais). `null` em BRL |
 | `status`                      | string  | Status da cobrança (veja abaixo)                                   |
 | `paid`                        | boolean | `true` se a cobrança foi paga, mesmo que depois estornada          |
 | `captured`                    | boolean | Mesmo valor de `paid`                                              |
-| `amount_refunded`             | integer | Total já estornado, em centavos                                    |
-| `amount_refundable`           | integer | Quanto ainda pode ser estornado, em centavos. `0` se a cobrança não estiver paga |
+| `amount_refunded`             | integer | Total já estornado, em centavos de real                            |
+| `amount_refundable`           | integer | Quanto ainda pode ser estornado, em centavos de real. `0` se a cobrança não estiver paga |
 | `payment_method_details.type` | string  | `card`, `pix` ou `boleto`                                          |
 | `payment_method_details.card` | object  | Cartão vinculado: `brand`, `first_six`, `last_four`, `holder_name`, `exp_month`, `exp_year`. Só aparece quando há cartão vinculado |
 | `payment_intent`              | string  | `id` do pagamento correspondente no pedido ou na fatura            |
@@ -90,7 +96,7 @@ Envie `POST /v2/charges/{id}/refund` para devolver o valor ao cliente.
 
 | Campo    | Tipo    | Req. | Descrição                                                            |
 |----------|---------|------|----------------------------------------------------------------------|
-| `amount` | integer | Não  | Valor a estornar, em centavos (mín. `1`). Se omitido, estorna todo o saldo restante |
+| `amount` | integer | Não  | Valor a estornar, em centavos de real (mín. `1`). Se omitido, estorna todo o saldo restante |
 
 ```json Estorno parcial de R$ 30,00
 {

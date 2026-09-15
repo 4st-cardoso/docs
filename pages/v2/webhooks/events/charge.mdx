@@ -45,6 +45,9 @@ Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o ob
     "status": "paid",
     "amount": 10000,
     "currency": "brl",
+    "original_amount": 10000,
+    "original_currency": "brl",
+    "exchange_rate": null,
     "payment_method": "credit_card",
     "installments": 1,
     "created_at": "2026-09-14T15:00:00Z",
@@ -80,8 +83,11 @@ Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o ob
 | `id`                           | string         | Identificador interno da cobrança                                         |
 | `code`                         | string         | Identificador da cobrança na API. Use em [`GET /v2/charges/{id}`](/pages/v2/cobrancas/get) |
 | `status`                       | string         | Status da cobrança no webhook (veja abaixo)                               |
-| `amount`                       | integer        | Valor em centavos                                                         |
-| `currency`                     | string         | Moeda, em minúsculas                                                      |
+| `amount`                       | integer        | Valor cobrado, em centavos de real                                        |
+| `currency`                     | string         | Sempre `brl`                                                              |
+| `original_amount`              | integer        | Valor na moeda enviada, em centavos. Igual a `amount` em BRL              |
+| `original_currency`            | string         | Moeda enviada, em minúsculas (`brl`, `usd`)                               |
+| `exchange_rate`                | number \| null  | Cotação usada (1 unidade da moeda enviada = `exchange_rate` reais). `null` em BRL |
 | `payment_method`               | string         | `credit_card`, `pix` ou `boleto`                                          |
 | `installments`                 | integer        | Número de parcelas                                                        |
 | `created_at`                   | string         | Data de criação da cobrança (ISO 8601, UTC)                               |

@@ -36,7 +36,8 @@ Pedido (order)
 
 | Campo            | Tipo   | Req. | Descrição                                                        |
 |------------------|--------|------|------------------------------------------------------------------|
-| `currency`       | string | Não  | `BRL` ou `USD`. Padrão: `BRL`                                    |
+| `currency`       | string | Não  | `BRL` ou `USD`. Padrão: `BRL`. Moeda dos valores enviados no pedido. Veja [Moeda e conversão](#moeda-e-conversão) |
+| `international`  | boolean | Não | Restringe a escolha às adquirentes habilitadas para compra internacional. Padrão: `false`. Não tem relação com `currency` |
 | `customer`       | object | Sim  | Dados do comprador (veja abaixo)                                 |
 | `payments`       | array  | Sim  | Um ou mais pagamentos (veja abaixo)                              |
 | `items`          | array  | Sim  | Um ou mais itens (veja abaixo)                                   |
@@ -173,6 +174,8 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
   "status": "requires_capture",
   "currency": "brl",
   "amount": 10000,
+  "original_amount": 10000,
+  "original_currency": "brl",
   "payments": [
     {
       "id": "cha_8Kq2Lm9XvB3nT7pZ",
@@ -181,6 +184,9 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
       "amount": 10000,
       "amount_refunded": 0,
       "currency": "brl",
+      "original_amount": 10000,
+      "original_currency": "brl",
+      "exchange_rate": null,
       "payment_method_details": {
         "type": "card",
         "card": { "brand": "visa", "first_six": "411111", "last_four": "1111", "holder_name": "Maria Santos", "exp_month": 12, "exp_year": 2030 }
@@ -206,6 +212,8 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
   "status": "requires_action",
   "currency": "brl",
   "amount": 5000,
+  "original_amount": 5000,
+  "original_currency": "brl",
   "payments": [
     {
       "id": "cha_Rt6Yp1Zx3Hn8Qw2K",
@@ -214,6 +222,9 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
       "amount": 5000,
       "amount_refunded": 0,
       "currency": "brl",
+      "original_amount": 5000,
+      "original_currency": "brl",
+      "exchange_rate": null,
       "payment_method_details": {
         "type": "pix",
         "pix": {
@@ -270,6 +281,59 @@ Um pagamento com cartão pode ser só **autorizado** (o limite fica reservado) o
 
 ---
 
+## Moeda e conversão
+
+O `currency` da requisição indica **em que moeda estão os valores que você envia** (`payments[].amount` e `items[].amount`). Ele não tem relação com `international`.
+
+A 4SeletPay converte os valores para real **uma única vez**, na criação de cada pagamento, com a cotação do momento. A adquirente sempre recebe o valor em **BRL**. O valor enviado e a cotação ficam registrados.
+
+Por isso, pedidos, pagamentos, cobranças e faturas respondem com o valor **cobrado**, em real, e trazem o valor enviado em campos próprios:
+
+| Campo               | O que é                                                                                  |
+|---------------------|------------------------------------------------------------------------------------------|
+| `amount`            | Valor cobrado, em centavos de real                                                       |
+| `currency`          | Sempre `brl`                                                                             |
+| `original_amount`   | Valor na moeda enviada, em centavos                                                      |
+| `original_currency` | Moeda enviada, em minúsculas (`brl`, `usd`)                                              |
+| `exchange_rate`     | Cotação usada: 1 unidade da moeda enviada = `exchange_rate` reais. `null` quando a moeda é BRL. Presente em pagamentos, cobranças e faturas |
+
+```json Pedido de US$ 10,00
+{
+  "id": "ord_7Hk2Pq9Xm4Ln8Rt3",
+  "object": "order",
+  "status": "requires_capture",
+  "amount": 5432,
+  "currency": "brl",
+  "original_amount": 1000,
+  "original_currency": "usd",
+  "payments": [
+    {
+      "id": "cha_8Kq2Lm9XvB3nT7pZ",
+      "object": "payment_intent",
+      "status": "requires_capture",
+      "amount": 5432,
+      "amount_refunded": 0,
+      "currency": "brl",
+      "original_amount": 1000,
+      "original_currency": "usd",
+      "exchange_rate": 5.4321,
+      "payment_method_details": { "type": "card" }
+    }
+  ],
+  "next_action": null
+}
+```
+
+<Note>
+  O pedido **não** tem `exchange_rate`. Cada pagamento é convertido no próprio momento, com a cotação vigente, então não existe uma cotação única do pedido. Consulte a cotação em cada item de `payments`. O `amount` do pedido é a soma dos pagamentos, em real.
+</Note>
+
+<Info>
+  Em pedidos em BRL, `original_amount` é igual a `amount`, `original_currency` é `brl` e `exchange_rate` é `null`. Os valores de estorno (`amount`, `amount_refunded` e `amount_refundable`) também são em centavos de real.
+</Info>
+
+---
+
 ## O objeto pedido
 
 | Campo            | Tipo    | Descrição                                                              |
@@ -277,8 +341,10 @@ Um pagamento com cartão pode ser só **autorizado** (o limite fica reservado) o
 | `id`             | string  | Identificador do pedido                                                |
 | `object`         | string  | Sempre `order`                                                         |
 | `status`         | string  | Status do pedido (veja abaixo)                                         |
-| `currency`       | string  | Moeda, em minúsculas (`brl`, `usd`)                                    |
-| `amount`         | integer | Valor total, em centavos                                               |
+| `amount`            | integer | Valor total cobrado, em centavos de real (soma dos pagamentos)         |
+| `currency`          | string  | Sempre `brl`                                                           |
+| `original_amount`   | integer | Valor total na moeda enviada, em centavos. Igual a `amount` em pedidos em BRL |
+| `original_currency` | string  | Moeda enviada na criação, em minúsculas (`brl`, `usd`)                 |
 | `payments`       | array   | Pagamentos do pedido (veja [Pagamentos](#pagamentos))                  |
 | `next_action`    | object  | Ação que o cliente precisa fazer, ou `null`                            |
 | `failure_reason` | object  | Presente apenas quando `status` é `failed`. Veja [Pagamento recusado](/pages/v2/start/erros#pagamento-recusado-402) |
@@ -310,9 +376,12 @@ Cada item de `payments` é um objeto `payment_intent`. O `id` do pagamento é o 
 | `id`                             | string  | Identificador do pagamento (igual ao da cobrança)           |
 | `object`                         | string  | Sempre `payment_intent`                                     |
 | `status`                         | string  | Status do pagamento (veja abaixo)                           |
-| `amount`                         | integer | Valor, em centavos                                          |
-| `amount_refunded`                | integer | Total estornado, em centavos                                |
-| `currency`                       | string  | Moeda, em minúsculas                                        |
+| `amount`                         | integer | Valor cobrado, em centavos de real                          |
+| `amount_refunded`                | integer | Total estornado, em centavos de real                        |
+| `currency`                       | string  | Sempre `brl`                                                |
+| `original_amount`                | integer | Valor na moeda enviada, em centavos                         |
+| `original_currency`              | string  | Moeda enviada, em minúsculas (`brl`, `usd`)                 |
+| `exchange_rate`                  | number  | Cotação usada (1 unidade da moeda enviada = `exchange_rate` reais). `null` em BRL |
 | `payment_method_details.type`    | string  | `card`, `pix` ou `boleto`                                   |
 | `payment_method_details.card`    | object  | Só quando há cartão vinculado: `brand`, `first_six`, `last_four`, `holder_name`, `exp_month`, `exp_year` |
 | `payment_method_details.pix`     | object  | Só para PIX: `qr_code`, `qr_code_url`, `expires_at`         |
@@ -418,7 +487,9 @@ Veja todos os limites em [Idempotência e limites](/pages/v2/start/idempotencia-
 ## Pontos de atenção
 
 - `GET /v2/orders/{id}` só encontra pedidos **criados pela API v2**. Pedidos da v1 retornam `404`.
-- Os pedidos da v2 não têm o campo `international`.
+- `international` não tem relação com `currency`: ele só restringe a escolha às adquirentes habilitadas para compra internacional, e uma cobrança em BRL pode ser internacional. Se nenhuma adquirente da conta atender, a resposta é `422` (`acquirer_feature_not_supported`). O campo não é devolvido na resposta.
+- O **PayPal** processa apenas cobranças em `BRL`. Um pedido com `currency` diferente de `BRL` processado pelo PayPal é recusado, mesmo com a conversão para real: a resposta é `402` com `failure_reason`, como qualquer recusa de pagamento, e não um erro de requisição.
+- O **PayPal** nunca é escolhido para pedidos com dois ou mais pagamentos, porque não tem as capacidades exigidas por esse tipo de pedido. Ele atende pedidos com um único pagamento com cartão. Se o PayPal for a única adquirente da conta, um pedido com dois ou mais pagamentos retorna `422` (`acquirer_feature_not_supported`). É uma limitação do PayPal, não uma falha.
 - Os pedidos da v2 não salvam cartão. O `id` de um cartão salvo vem de [`POST /v2/cards`](/pages/v2/cartoes/create), de uma [assinatura](/pages/v2/assinaturas/reference) ou de um cartão salvo no checkout da v1.
 
 ---
