@@ -71,9 +71,9 @@ https://app.4seletpay.com.br/api/v2
 | Assinaturas  | `POST` | `/v2/subscriptions`                          |
 |              | `GET`  | `/v2/subscriptions/{id}`                     |
 |              | `POST` | `/v2/subscriptions/{id}/cancel`              |
-|              | `POST` | `/v2/subscriptions/{id}/payment-method`      |
-|              | `POST` | `/v2/subscriptions/{id}/items/{code}`        |
-|              | `POST` | `/v2/subscriptions/{id}/next-billing-date`   |
+|              | `PUT` | `/v2/subscriptions/{id}/payment-method`      |
+|              | `PATCH` | `/v2/subscriptions/{id}/items/{code}`        |
+|              | `PUT` | `/v2/subscriptions/{id}/next-billing-date`   |
 |              | `GET`  | `/v2/subscriptions/{id}/invoices`            |
 | Faturas      | `GET`  | `/v2/invoices/{id}`                          |
 |              | `POST` | `/v2/invoices/{id}/pay`                      |

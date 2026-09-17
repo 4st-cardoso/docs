@@ -2915,7 +2915,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2BuyerRateLimited'
         '500':
@@ -3059,7 +3059,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
 
@@ -3142,7 +3142,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
 
@@ -3221,7 +3221,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
@@ -3482,7 +3482,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
@@ -3594,7 +3594,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2CardRateLimited'
         '500':
@@ -3880,7 +3880,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2BuyerRateLimited'
         '500':
@@ -3962,14 +3962,14 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
           $ref: '#/components/responses/V2ServerError'
 
   /v2/subscriptions/{id}/payment-method:
-    post:
+    put:
       tags: [Assinaturas (v2)]
       summary: Alterar meio de pagamento da assinatura
       description: >
@@ -4053,14 +4053,14 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
           $ref: '#/components/responses/V2ServerError'
 
   /v2/subscriptions/{id}/items/{code}:
-    post:
+    patch:
       tags: [Assinaturas (v2)]
       summary: Atualizar item da assinatura
       description: >
@@ -4138,14 +4138,14 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
           $ref: '#/components/responses/V2ServerError'
 
   /v2/subscriptions/{id}/next-billing-date:
-    post:
+    put:
       tags: [Assinaturas (v2)]
       summary: Alterar data da próxima cobrança
       description: >
@@ -4209,7 +4209,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
@@ -4447,7 +4447,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
@@ -4527,7 +4527,7 @@ paths:
                     error:
                       type: idempotency_error
                       code: idempotency_key_conflict
-                      message: The Idempotency-Key has already been used with a different request body.
+                      message: Esta Idempotency-Key já foi usada com um corpo de requisição diferente.
         '429':
           $ref: '#/components/responses/V2ThrottleExceeded'
         '500':
@@ -4658,7 +4658,7 @@ components:
             error:
               type: authentication_error
               code: invalid_api_secret
-              message: Invalid API secret.
+              message: A chave de API informada é inválida.
     FraudProductDisabled:
       description: Produto de antifraude não habilitado para a conta
       content:
@@ -4748,7 +4748,7 @@ components:
             error:
               type: authentication_error
               code: invalid_api_secret
-              message: Invalid API secret.
+              message: A chave de API informada é inválida.
     V2AccountBlocked:
       description: As requisições da conta estão bloqueadas. A resposta traz `customer_message`
       content:
@@ -4891,7 +4891,7 @@ components:
             error:
               type: invalid_request_error
               code: idempotency_key_invalid
-              message: Idempotency-Key must be 128 characters or fewer.
+              message: A Idempotency-Key deve ter no máximo 128 caracteres.
     V2IdempotencyInUse:
       description: Uma requisição com a mesma `Idempotency-Key` ainda está em andamento. Tente novamente em instantes
       content:
@@ -4902,11 +4902,12 @@ components:
             error:
               type: idempotency_error
               code: idempotency_key_in_use
-              message: A request with this Idempotency-Key is still being processed. Retry shortly.
+              message: Uma requisição com esta Idempotency-Key ainda está em processamento. Tente novamente em instantes.
     V2ThrottleExceeded:
       description: >
-        Limite geral de requisições excedido (120 por minuto por chave de API e por conta). Esta resposta
-        não usa o envelope `error` da API v2.
+        Limite geral de requisições excedido (120 por minuto por chave de API e por conta). Usa o envelope
+        `error` da API v2, com `code` `api_rate_limited`. O `type` é `invalid_request_error`, como em outros
+        erros de requisição: identifique o estrangulamento pelo `code`, não pelo `type`.
       headers:
         X-RateLimit-Limit:
           description: Limite de requisições da janela
@@ -4923,14 +4924,18 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/V2ThrottleError'
+            $ref: '#/components/schemas/V2Error'
           example:
-            message: Too Many Attempts.
+            error:
+              type: invalid_request_error
+              code: api_rate_limited
+              message: Muitas requisições em pouco tempo. Tente novamente em alguns instantes.
     V2ResendThrottleExceeded:
       description: >
-        Limite de reenvio excedido (5 requisições por minuto, contadas por IP de origem) ou limite geral de
-        requisições. Uma plataforma que atende várias contas a partir do mesmo servidor divide o limite de
-        reenvio entre todas elas. Esta resposta não usa o envelope `error` da API v2.
+        Limite de reenvio excedido: 5 requisições por minuto, contadas por IP de origem. Uma plataforma que
+        atende várias contas a partir do mesmo servidor divide esse limite entre todas elas. Esta resposta não
+        usa o envelope `error` da API v2. Estas rotas também estão sujeitas ao limite geral por chave de API,
+        que responde `429` com o envelope e `code` `api_rate_limited`.
       headers:
         X-RateLimit-Limit:
           description: Limite de requisições da janela
@@ -4952,9 +4957,9 @@ components:
             message: Too Many Attempts.
     V2BuyerRateLimited:
       description: >
-        Muitas tentativas do mesmo comprador (e-mail ou documento) para os mesmos itens — resposta com o envelope
-        `error` e `customer_message` — ou limite geral de requisições excedido, com o corpo padrão
-        `{ "message": "Too Many Attempts." }`. As duas trazem o header `Retry-After`.
+        Muitas tentativas do mesmo comprador (e-mail ou documento) para os mesmos itens, ou limite geral de
+        requisições excedido. As duas respostas usam o envelope `error` e trazem o header `Retry-After`; o `code`
+        distingue os dois casos (`rate_limit_exceeded` ou `api_rate_limited`).
       headers:
         Retry-After:
           description: Segundos até a próxima tentativa
@@ -4963,9 +4968,7 @@ components:
       content:
         application/json:
           schema:
-            oneOf:
-              - $ref: '#/components/schemas/V2Error'
-              - $ref: '#/components/schemas/V2ThrottleError'
+            $ref: '#/components/schemas/V2Error'
           examples:
             rate_limit_exceeded:
               summary: Muitas tentativas do mesmo comprador
@@ -4975,15 +4978,18 @@ components:
                   code: rate_limit_exceeded
                   message: Muitas tentativas de pedido para este comprador. Tente novamente mais tarde.
                   customer_message: Não foi possível processar no momento devido a múltiplas tentativas. Tente novamente em instantes.
-            too_many_attempts:
+            api_rate_limited:
               summary: Limite geral de requisições
               value:
-                message: Too Many Attempts.
+                error:
+                  type: invalid_request_error
+                  code: api_rate_limited
+                  message: Muitas requisições em pouco tempo. Tente novamente em alguns instantes.
     V2CardRateLimited:
       description: >
-        Muitos cartões salvos pela conta em pouco tempo (10 por minuto por conta) — resposta com o envelope
-        `error` — ou limite geral de requisições excedido, com o corpo padrão `{ "message": "Too Many Attempts." }`.
-        As duas trazem o header `Retry-After`.
+        Muitos cartões salvos pela conta em pouco tempo (10 por minuto por conta), ou limite geral de requisições
+        excedido. As duas respostas usam o envelope `error` e trazem o header `Retry-After`; o `code` distingue os
+        dois casos (`card_tokenization_rate_limited` ou `api_rate_limited`).
       headers:
         Retry-After:
           description: Segundos até a próxima tentativa
@@ -4992,9 +4998,7 @@ components:
       content:
         application/json:
           schema:
-            oneOf:
-              - $ref: '#/components/schemas/V2Error'
-              - $ref: '#/components/schemas/V2ThrottleError'
+            $ref: '#/components/schemas/V2Error'
           examples:
             card_tokenization_rate_limited:
               summary: Muitos cartões salvos pela conta
@@ -5003,10 +5007,13 @@ components:
                   type: invalid_request_error
                   code: card_tokenization_rate_limited
                   message: Muitos cartões foram salvos para esta conta em pouco tempo. Tente novamente mais tarde.
-            too_many_attempts:
+            api_rate_limited:
               summary: Limite geral de requisições
               value:
-                message: Too Many Attempts.
+                error:
+                  type: invalid_request_error
+                  code: api_rate_limited
+                  message: Muitas requisições em pouco tempo. Tente novamente em alguns instantes.
     V2OrderPaymentFailed:
       description: >
         Pagamento recusado. Não é erro de requisição: o corpo traz o pedido completo com `status: failed` e o
@@ -5139,8 +5146,9 @@ components:
     V2ThrottleError:
       type: object
       description: >
-        Corpo padrão, fora do envelope `error`, do limite geral de requisições e do limite de reenvio do código
-        de verificação
+        Corpo padrão, fora do envelope `error`, do limite de reenvio do código de verificação (5 por minuto
+        por IP de origem). O limite geral por chave de API responde com o envelope `error` e `code`
+        `api_rate_limited`.
       properties:
         message:
           type: string
@@ -5186,6 +5194,43 @@ components:
             number:
               type: string
               example: "12345678909"
+        address:
+          type: object
+          description: >
+            Endereço do comprador. Todos os campos são opcionais e um endereço parcial é aceito: o pedido é criado
+            mesmo assim. Difere da assinatura, onde enviar o endereço obriga a preencher o conjunto completo.
+          properties:
+            zip_code:
+              type: string
+              maxLength: 20
+              example: "01310100"
+            street:
+              type: string
+              maxLength: 255
+              example: Avenida Paulista
+            number:
+              type: string
+              example: "1000"
+            neighborhood:
+              type: string
+              maxLength: 255
+              example: Bela Vista
+            complement:
+              type: string
+              maxLength: 255
+              example: Sala 12
+            city:
+              type: string
+              maxLength: 255
+              example: São Paulo
+            state:
+              type: string
+              maxLength: 2
+              example: SP
+            country:
+              type: string
+              maxLength: 255
+              example: BR
 
     V2CustomerWithDocument:
       type: object

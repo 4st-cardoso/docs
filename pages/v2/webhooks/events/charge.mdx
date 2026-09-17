@@ -4,7 +4,7 @@ description: "Eventos charge.* no formato v2 e o payload de cobrança."
 icon: "money-bill"
 ---
 
-Os eventos de cobrança são enviados para as cobranças de pedidos criados por `POST /v2/orders` e de assinaturas criadas por `POST /v2/subscriptions`.
+Os eventos de cobrança são enviados no formato v2 para as cobranças de pedidos criados por `POST /v2/orders` e das faturas de assinaturas criadas por `POST /v2/subscriptions`. A cobrança de um recurso criado pela v1 gera os mesmos eventos, mas no formato v1 — inclusive `charge.expired` e `charge.canceled`.
 
 | Evento                    | Quando acontece                                   |
 |---------------------------|---------------------------------------------------|
@@ -44,6 +44,7 @@ Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o ob
     "code": "cha_8Kq2Lm9XvB3nT7pZ",
     "status": "paid",
     "amount": 10000,
+    "amount_refunded": 0,
     "currency": "brl",
     "original_amount": 10000,
     "original_currency": "brl",
@@ -84,6 +85,7 @@ Diferente dos demais eventos, o `data` dos eventos de cobrança **não** é o ob
 | `code`                         | string         | Identificador da cobrança na API. Use em [`GET /v2/charges/{id}`](/pages/v2/cobrancas/get) |
 | `status`                       | string         | Status da cobrança no webhook (veja abaixo)                               |
 | `amount`                       | integer        | Valor cobrado, em centavos de real                                        |
+| `amount_refunded`              | integer        | Total já estornado, em centavos de real. `0` quando não houve estorno     |
 | `currency`                     | string         | Sempre `brl`                                                              |
 | `original_amount`              | integer        | Valor na moeda enviada, em centavos. Igual a `amount` em BRL              |
 | `original_currency`            | string         | Moeda enviada, em minúsculas (`brl`, `usd`)                               |

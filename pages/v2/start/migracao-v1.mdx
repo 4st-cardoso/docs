@@ -41,15 +41,15 @@ A v2 não é uma cópia da v1 com outro prefixo. Autenticação, formato de resp
 | `GET /v1/clients/{clientCode}/cards/{cardId}`                       | [`GET /v2/cards/{id}`](/pages/v2/cartoes/get)                           |
 | `POST /v1/subscriptions`                                            | [`POST /v2/subscriptions`](/pages/v2/assinaturas/create)                |
 | `PUT /v1/subscriptions/cancel/{subscription_code}`                  | [`POST /v2/subscriptions/{id}/cancel`](/pages/v2/assinaturas/cancel)    |
-| `PUT /v1/subscriptions/change-card/{subscription_code}` e `PUT /v1/subscriptions/change-payment-method/{subscription_code}` | [`POST /v2/subscriptions/{id}/payment-method`](/pages/v2/assinaturas/payment-method) |
-| `PUT /v1/subscriptions/{subscription_code}/items/{item_code}`       | [`POST /v2/subscriptions/{id}/items/{code}`](/pages/v2/assinaturas/update-item) |
+| `PUT /v1/subscriptions/change-card/{subscription_code}` e `PUT /v1/subscriptions/change-payment-method/{subscription_code}` | [`PUT /v2/subscriptions/{id}/payment-method`](/pages/v2/assinaturas/payment-method) |
+| `PUT /v1/subscriptions/{subscription_code}/items/{item_code}`       | [`PATCH /v2/subscriptions/{id}/items/{code}`](/pages/v2/assinaturas/update-item) |
 | `GET /v1/subscriptions/{subscription_code}/invoices`                | [`GET /v2/subscriptions/{id}/invoices`](/pages/v2/assinaturas/invoices) |
 | `POST /v1/invoices/{invoice_code}/pay-overdue`                      | [`POST /v2/invoices/{id}/pay`](/pages/v2/faturas/pay)                   |
 
 ### Novidades da v2
 
 - [`POST /v2/orders/{id}/capture`](/pages/v2/pedidos/capture) e [`POST /v2/orders/{id}/cancel`](/pages/v2/pedidos/cancel) — captura manual e cancelamento de pedidos autorizados.
-- [`POST /v2/subscriptions/{id}/next-billing-date`](/pages/v2/assinaturas/next-billing-date) — altera a data da próxima cobrança.
+- [`PUT /v2/subscriptions/{id}/next-billing-date`](/pages/v2/assinaturas/next-billing-date) — altera a data da próxima cobrança.
 - [`GET /v2/subscriptions/{id}`](/pages/v2/assinaturas/get) e [`GET /v2/invoices/{id}`](/pages/v2/faturas/get) — consulta direta de assinatura e fatura.
 
 ### Continua na v1

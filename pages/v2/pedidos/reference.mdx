@@ -57,6 +57,19 @@ A v2 não tem recurso de cliente. Envie o comprador em cada pedido.
 | `customer.phone.number`    | string | Sim  | Número do telefone                |
 | `customer.document.type`   | string | Não  | Tipo do documento (ex.: `cpf`)    |
 | `customer.document.number` | string | Não  | Número do documento               |
+| `customer.address`         | object | Não  | Endereço do comprador             |
+| `customer.address.zip_code` | string | Não | CEP (máx. 20)                     |
+| `customer.address.street`  | string | Não  | Logradouro (máx. 255)             |
+| `customer.address.number`  | string | Não  | Número                            |
+| `customer.address.neighborhood` | string | Não | Bairro (máx. 255)            |
+| `customer.address.complement` | string | Não | Complemento (máx. 255)          |
+| `customer.address.city`    | string | Não  | Cidade (máx. 255)                 |
+| `customer.address.state`   | string | Não  | UF, 2 letras (ex.: `SP`)          |
+| `customer.address.country` | string | Não  | País (máx. 255)                   |
+
+<Note>
+  Todos os campos de `customer.address` são opcionais: um **endereço parcial é aceito** e o pedido é criado normalmente. Isso é diferente da [assinatura](/pages/v2/assinaturas/reference), onde enviar `customer.address` obriga a preencher o endereço completo.
+</Note>
 
 ### Campos do pagamento (`payments[]`)
 
@@ -411,6 +424,10 @@ Cada item de `payments` é um objeto `payment_intent`. O `id` do pagamento é o 
 
 Quando o cliente precisa fazer algo, o pedido traz um `next_action`. Se nada for necessário, o campo vem `null`.
 
+<Warning>
+  Um pedido em `requires_action` **nem sempre** traz um `next_action`. Quando o código de verificação já foi confirmado ou expirou, o pedido continua em `requires_action` e o `next_action` vem `null`. Trate o nulo: gere um novo código com [`POST /v2/orders/{id}/confirm/resend`](/pages/v2/pedidos/resend-confirmation) em vez de assumir que o objeto existe.
+</Warning>
+
 ### QR Code PIX
 
 ```json
@@ -491,6 +508,7 @@ Veja todos os limites em [Idempotência e limites](/pages/v2/start/idempotencia-
 - O **PayPal** processa apenas cobranças em `BRL`. Um pedido com `currency` diferente de `BRL` processado pelo PayPal é recusado, mesmo com a conversão para real: a resposta é `402` com `failure_reason`, como qualquer recusa de pagamento, e não um erro de requisição.
 - O **PayPal** nunca é escolhido para pedidos com dois ou mais pagamentos, porque não tem as capacidades exigidas por esse tipo de pedido. Ele atende pedidos com um único pagamento com cartão. Se o PayPal for a única adquirente da conta, um pedido com dois ou mais pagamentos retorna `422` (`acquirer_feature_not_supported`). É uma limitação do PayPal, não uma falha.
 - Os pedidos da v2 não salvam cartão. O `id` de um cartão salvo vem de [`POST /v2/cards`](/pages/v2/cartoes/create), de uma [assinatura](/pages/v2/assinaturas/reference) ou de um cartão salvo no checkout da v1.
+- Quando o PIX de um pedido com vários pagamentos expira sem ser pago, o pedido é **encerrado**: ele fica `canceled` em `GET /v2/orders/{id}` e a autorização do cartão é desfeita. O webhook que chega é [`order.failed`](/pages/v2/webhooks/events/order), não um evento de cancelamento — a v2 não tem `order.canceled`. Status e evento diferem de propósito: em ambos os casos a venda não se concretizou.
 
 ---
 

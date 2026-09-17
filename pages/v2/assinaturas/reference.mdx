@@ -13,9 +13,9 @@ Uma **assinatura** cobra o cliente automaticamente a cada ciclo. Cada ciclo gera
 | `POST` | `/v2/subscriptions`                         | [Cria a assinatura](/pages/v2/assinaturas/create) |
 | `GET`  | `/v2/subscriptions/{id}`                    | [Consulta a assinatura](/pages/v2/assinaturas/get) |
 | `POST` | `/v2/subscriptions/{id}/cancel`             | [Cancela a assinatura](/pages/v2/assinaturas/cancel) |
-| `POST` | `/v2/subscriptions/{id}/payment-method`     | [Altera o meio de pagamento](/pages/v2/assinaturas/payment-method) |
-| `POST` | `/v2/subscriptions/{id}/items/{code}`       | [Atualiza um item](/pages/v2/assinaturas/update-item) |
-| `POST` | `/v2/subscriptions/{id}/next-billing-date`  | [Altera a data da próxima cobrança](/pages/v2/assinaturas/next-billing-date) |
+| `PUT` | `/v2/subscriptions/{id}/payment-method`     | [Altera o meio de pagamento](/pages/v2/assinaturas/payment-method) |
+| `PATCH` | `/v2/subscriptions/{id}/items/{code}`       | [Atualiza um item](/pages/v2/assinaturas/update-item) |
+| `PUT` | `/v2/subscriptions/{id}/next-billing-date`  | [Altera a data da próxima cobrança](/pages/v2/assinaturas/next-billing-date) |
 | `GET`  | `/v2/subscriptions/{id}/invoices`           | [Lista as faturas](/pages/v2/assinaturas/invoices) |
 
 Todos os valores são em **centavos** (R$ 100,00 = `10000`). O `id` da assinatura tem o formato `sub_...`.

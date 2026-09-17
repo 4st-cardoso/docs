@@ -182,8 +182,13 @@ Estes erros trazem o header `Retry-After` com os segundos até a próxima tentat
 
 | `code`                           | Quando acontece                                                   |
 |----------------------------------|-------------------------------------------------------------------|
+| `api_rate_limited`               | Limite geral da chave de API ou da conta (120 por minuto)         |
 | `rate_limit_exceeded`            | Muitas tentativas do mesmo comprador. Traz `customer_message`     |
 | `card_tokenization_rate_limited` | Muitos cartões salvos pela conta em pouco tempo                   |
+
+<Warning>
+  O `type` de um `429` é `invalid_request_error`, e não um tipo próprio de limite. **Identifique o estrangulamento pelo `code`** (`api_rate_limited`, `rate_limit_exceeded` ou `card_tokenization_rate_limited`), nunca pelo `type`.
+</Warning>
 
 ### `500` e `502` — Falha no processamento
 
@@ -200,7 +205,7 @@ Algumas respostas de infraestrutura **não** usam o envelope `error`:
 
 | Status | Quando acontece                                                                       | Corpo                                  |
 |--------|---------------------------------------------------------------------------------------|----------------------------------------|
-| `429`  | Limite geral de requisições da chave ou da conta, ou limite de reenvio do código de verificação | `{ "message": "Too Many Attempts." }` |
+| `429`  | Limite de reenvio do código de verificação (5 por minuto por IP)                       | `{ "message": "Too Many Attempts." }` |
 | `404`  | Rota inexistente                                                                      | `{ "message": "..." }`                 |
 | `405`  | Método HTTP não aceito na rota                                                        | `{ "message": "..." }`                 |
 

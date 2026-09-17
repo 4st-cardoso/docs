@@ -1,7 +1,11 @@
 ---
 title: "Alterar meio de pagamento"
-openapi: "POST /v2/subscriptions/{id}/payment-method"
+openapi: "PUT /v2/subscriptions/{id}/payment-method"
 ---
+
+<Warning>
+  Esta rota usa **`PUT`**. Chamadas com `POST` retornam `405`. Veja o [changelog](/pages/changelog/index).
+</Warning>
 
 <Info>
   Troque entre cartão e PIX, ou substitua o cartão da assinatura. Envie o objeto `payment` no mesmo formato da criação e, se quiser, um novo `statement_descriptor`.

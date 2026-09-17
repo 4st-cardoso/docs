@@ -1,7 +1,11 @@
 ---
 title: "Alterar data da próxima cobrança"
-openapi: "POST /v2/subscriptions/{id}/next-billing-date"
+openapi: "PUT /v2/subscriptions/{id}/next-billing-date"
 ---
+
+<Warning>
+  Esta rota usa **`PUT`**. Chamadas com `POST` retornam `405`. Veja o [changelog](/pages/changelog/index).
+</Warning>
 
 <Info>
   Envie `next_billing_at` com uma data **a partir de amanhã**. Só o dia é considerado. Uma data de hoje ou do passado retorna `422` (`validation_error`).

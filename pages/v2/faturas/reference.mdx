@@ -82,6 +82,8 @@ Para listar as faturas de uma assinatura, use [`GET /v2/subscriptions/{id}/invoi
 
 ### Ação pendente (`next_action`)
 
+Uma fatura em `requires_action` **nem sempre** traz um `next_action`: quando o código de verificação já foi confirmado ou expirou, o campo vem `null`. Trate o nulo em vez de assumir que o objeto existe.
+
 Quando a análise de fraude pede verificação, nada é cobrado até a confirmação do código:
 
 ```json

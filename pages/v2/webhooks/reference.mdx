@@ -28,7 +28,7 @@ O formato do webhook depende de **onde o recurso foi criado**, não de uma confi
 
 | Recurso criado por                                   | Formato do webhook |
 |------------------------------------------------------|--------------------|
-| `POST /v2/orders` e `POST /v2/subscriptions`         | v2                 |
+| `POST /v2/orders`, `POST /v2/subscriptions` e as faturas dessas assinaturas | v2 |
 | Rotas da API v1                                      | v1                 |
 
 O mesmo endpoint pode receber os dois formatos. Use o campo `webhook_version` para decidir como ler o payload.

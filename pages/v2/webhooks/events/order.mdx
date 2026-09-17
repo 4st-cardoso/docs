@@ -9,7 +9,7 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
 | Evento             | Quando acontece                                          |
 |--------------------|----------------------------------------------------------|
 | `order.paid`       | Todos os pagamentos do pedido foram confirmados          |
-| `order.failed`     | O pedido falhou. O motivo vem em `data.failure_reason`   |
+| `order.failed`     | O pedido falhou ou foi encerrado sem venda. O motivo vem em `data.failure_reason` |
 | `order.refunded`   | O pedido foi estornado                                   |
 | `order.chargeback` | O pedido recebeu chargeback                              |
 
@@ -118,6 +118,10 @@ Os eventos de pedido são enviados para pedidos criados por `POST /v2/orders`. O
 <Warning>
   Mostre ao pagador apenas o `customer_message`. O `message` é técnico. Veja [Pagamento recusado](/pages/v2/start/erros#pagamento-recusado-402).
 </Warning>
+
+<Note>
+  **PIX expirado encerra o pedido.** Em um pedido com vários pagamentos, se o PIX expira sem ser pago, o pedido é encerrado e a autorização do cartão é desfeita. O evento que chega é `order.failed`, e não um evento de cancelamento: a v2 não tem `order.canceled`. Em `GET /v2/orders/{id}` esse pedido aparece como `canceled`. A diferença entre o status e o evento é proposital — nos dois casos a venda não se concretizou.
+</Note>
 
 ---
 

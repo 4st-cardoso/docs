@@ -1,7 +1,11 @@
 ---
 title: "Atualizar item da assinatura"
-openapi: "POST /v2/subscriptions/{id}/items/{code}"
+openapi: "PATCH /v2/subscriptions/{id}/items/{code}"
 ---
+
+<Warning>
+  Esta rota usa **`PATCH`** (atualização parcial). Chamadas com `POST` retornam `405`. Veja o [changelog](/pages/changelog/index).
+</Warning>
 
 <Info>
   O `code` é o código do item enviado em `items[].code` na criação da assinatura. Envie **pelo menos um** dos campos `quantity`, `amount` ou `description`.

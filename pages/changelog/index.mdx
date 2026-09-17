@@ -9,6 +9,24 @@ Este changelog é atualizado continuamente com melhorias, novas funcionalidades 
 
 ## Atualizações Recentes
 
+<Update label="15 de Set, 2026">
+## API v2: três rotas de assinatura mudam de verbo
+
+<Warning>
+  **Mudança incompatível.** Três rotas de assinatura da API v2 deixaram de aceitar `POST`. Chamadas com `POST` nessas rotas passam a receber `405 Method Not Allowed`, fora do envelope de erro da v2. Atualize a sua integração para o verbo novo.
+</Warning>
+
+| Rota | Antes | Agora |
+|------|-------|-------|
+| `/v2/subscriptions/{id}/payment-method` | `POST` | `PUT` |
+| `/v2/subscriptions/{id}/next-billing-date` | `POST` | `PUT` |
+| `/v2/subscriptions/{id}/items/{code}` | `POST` | `PATCH` |
+
+O path, o corpo da requisição, as respostas, os códigos de erro e o header `Idempotency-Key` continuam iguais. Só o verbo HTTP mudou.
+
+Em `PATCH /v2/subscriptions/{id}/items/{code}`, a atualização é parcial: `quantity`, `amount` e `description` são opcionais, e é preciso enviar pelo menos um deles.
+</Update>
+
 <Update label="14 de Set, 2026">
 ## API v2
 
