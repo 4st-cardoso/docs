@@ -1,0 +1,148 @@
+---
+title: "Dados de teste"
+description: "Valores que fazem a Análise de Fraude devolver sempre o mesmo resultado, para você exercitar cada ramo da sua integração."
+icon: "flask"
+---
+
+## Visão geral
+
+O resultado de uma análise real depende do motor de risco, dos provedores externos e do histórico da conta — por isso você não consegue provocar uma recusa ou uma falha quando quer.
+
+Para resolver isso, a Análise de Fraude reconhece alguns **valores de teste**. Enviando um deles, a resposta é sempre a mesma, e você consegue testar como a sua integração trata cada cenário antes de ir para produção.
+
+<Warning>
+  **Estes valores só funcionam em Dev mode.**
+
+  Em produção eles são dados comuns: passam pela análise real, com motor de risco, provedores externos e cobrança normais. Nenhum valor desta página altera o resultado de uma análise em produção — nem por header, nem por campo do corpo, nem pelo tipo da chave enviada.
+</Warning>
+
+---
+
+## Como usar
+
+Qualquer um dos três campos abaixo dispara o cenário, então você pode testar com os dados que já envia:
+
+- `customer.email`
+- `card.bin`
+- `context.ip`
+
+Os IPs são do intervalo reservado para documentação (RFC 5737) e nunca aparecem em tráfego real.
+
+Quando um valor de teste é reconhecido, o motor de risco **não é executado** e nenhum provedor externo é consultado. O campo `reasons` deixa claro que o resultado foi forçado.
+
+---
+
+## Decisões
+
+Respondem `200` com `status: completed`. O `risk_score` é fixo em cada cenário, então você também consegue testar decisões que dependem da nota.
+
+| Cenário             | `customer.email`                     | `card.bin` | `context.ip`  | `decision`  | `risk_score` | `risk_level` | `recommendation`        | `reasons`                    |
+|---------------------|--------------------------------------|------------|---------------|-------------|--------------|--------------|-------------------------|------------------------------|
+| Aprovada            | `sandbox.aprovado@4selet.com.br`     | `000001`   | `203.0.113.1` | `ALLOW`     | `0`          | `low`        | `follow`                | `["SANDBOX_FORCED_ALLOW"]`     |
+| Validação adicional | `sandbox.check-fraude@4selet.com.br` | `000002`   | `203.0.113.2` | `CHALLENGE` | `50`         | `medium`     | `additional_validation` | `["SANDBOX_FORCED_CHALLENGE"]` |
+| Recusada            | `sandbox.block-fraude@4selet.com.br` | `000003`   | `203.0.113.3` | `DENY`      | `100`        | `high`       | `reject`                | `["SANDBOX_FORCED_DENY"]`      |
+
+```json Resposta de uma análise recusada
+{
+  "object": "risk_analysis",
+  "id": "fan_a1b2c3d4e5f6g7h8",
+  "external_reference": "order-1024",
+  "status": "completed",
+  "risk_score": 100,
+  "risk_level": "high",
+  "recommendation": "reject",
+  "decision": "DENY",
+  "reasons": ["SANDBOX_FORCED_DENY"],
+  "analyzed_at": "2026-09-30T12:00:00-03:00"
+}
+```
+
+<Info>
+  Os e-mails de **validação adicional** e de **recusada** são os mesmos que já forçam esses resultados no checkout, então você usa os mesmos valores nos dois produtos.
+</Info>
+
+---
+
+## Análise não concluída
+
+Respondem com o envelope de erro e **não geram cobrança**.
+
+| Cenário               | `customer.email`                     | `card.bin` | `context.ip`  | Status | `error.type`          | `error.code`           |
+|-----------------------|--------------------------------------|------------|---------------|--------|-----------------------|------------------------|
+| Provedor indisponível | `sandbox.indisponivel@4selet.com.br` | `000004`   | `203.0.113.4` | `503`  | `service_unavailable` | `analysis_unavailable` |
+| Falha interna         | `sandbox.erro@4selet.com.br`         | `000005`   | `203.0.113.5` | `500`  | `api_error`           | `internal_error`       |
+
+```json Resposta de um provedor indisponível (HTTP 503)
+{
+  "error": {
+    "type": "service_unavailable",
+    "code": "analysis_unavailable",
+    "message": "The analysis could not be completed. Retry with the same Idempotency-Key."
+  }
+}
+```
+
+Use o cenário de `503` para testar o **retry**: repita a requisição com a mesma `Idempotency-Key` e confirme que a sua integração trata a nova tentativa. Como a análise não foi concluída, ela não é cobrada e a chave continua livre para a tentativa seguinte.
+
+---
+
+## Quando você envia mais de um valor de teste
+
+Se a requisição trouxer valores de cenários diferentes — por exemplo o e-mail de "aprovada" com o IP de "recusada" — **vence o mais severo**, nesta ordem:
+
+1. Falha interna (`500`)
+2. Provedor indisponível (`503`)
+3. Recusada (`DENY`)
+4. Validação adicional (`CHALLENGE`)
+5. Aprovada (`ALLOW`)
+
+No exemplo acima, a resposta é `DENY`.
+
+---
+
+## Cobrança e idempotência
+
+- Uma análise **concluída** com valor de teste é cobrada em Dev mode, exatamente como uma análise real. Assim a idempotência se comporta igual à de produção: a mesma `Idempotency-Key` com o mesmo corpo devolve a análise original, sem criar uma nova.
+- Uma análise **não concluída** (`503` ou `500`) nunca é cobrada.
+- A mesma `Idempotency-Key` com um corpo diferente continua retornando `422` (`idempotency_conflict`), inclusive nos cenários de teste.
+
+---
+
+## Erros que você provoca pela própria requisição
+
+Estes não precisam de valor de teste — dependem só do que você envia.
+
+| Status | `error.code`           | Como reproduzir                                                                                                                             |
+|--------|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `422`  | `validation_failed`    | Omita `amount`, ou envie `amount` negativo, `currency` com tamanho diferente de 3, `customer.email` inválido, `card.bin` sem 6 dígitos ou `context.ip` inválido |
+| `422`  | `forbidden_card_field` | Envie `card.number`, `card.cvv`, `card.cvc`, `card.security_code`, `card.expiration_month` ou `card.expiration_year`                          |
+| `422`  | `idempotency_conflict` | Repita uma `Idempotency-Key` já usada, mudando qualquer campo do corpo                                                                       |
+| `401`  | `invalid_api_secret`   | Omita o header `Authorization`, envie uma chave inválida ou use uma chave revogada                                                           |
+| `429`  | —                      | Ultrapasse o limite de requisições por IP (60 por minuto, por padrão)                                                                       |
+
+<Note>
+  O `429` é o único destes que **não** usa o envelope de erro plano: ele responde `{"message": "Too Many Attempts."}` com o header `Retry-After`. Trate esse status pelo código HTTP, não pelo campo `error.code`.
+</Note>
+
+<Tip>
+  Uma chave de produção (`sk_live_`) enviada para o ambiente de Dev mode — e o contrário — também retorna `401`. É um jeito rápido de testar o tratamento desse erro.
+</Tip>
+
+---
+
+## Erros que dependem da sua conta
+
+Os dois erros abaixo não têm valor de teste porque não dependem da requisição, e sim do estado da sua conta:
+
+| Status | `error.code`          | Quando acontece                                      |
+|--------|-----------------------|------------------------------------------------------|
+| `402`  | `payment_required`    | Acesso suspenso por faturas de antifraude em aberto  |
+| `403`  | `product_not_enabled` | Produto de antifraude não habilitado para a conta    |
+
+Se você precisa exercitar esses dois ramos, fale com o suporte em `suporte@4selet.com.br` para ajustar a sua conta de Dev mode.
+
+---
+
+<Card title="Referência da Análise de Fraude" icon="shield-check" href="/pages/analise-de-fraude/reference">
+  Campos, decisões, motivos e formato de erro da rota.
+</Card>

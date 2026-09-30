@@ -153,7 +153,18 @@ As rotas de Análise de Fraude usam um envelope de erro **plano** (diferente do 
 | `422`  | `forbidden_card_field`| Você enviou número completo, CVV ou validade do cartão     |
 | `422`  | `idempotency_conflict`| Mesma `Idempotency-Key` com corpo diferente                |
 | `503`  | `analysis_unavailable`| Provedor de risco indisponível — repita com a mesma chave  |
+| `500`  | `internal_error`      | A análise não pôde ser concluída                           |
 
 <Warning>
   **Nunca** envie o número completo do cartão, o CVV ou a validade. Só o **BIN** (6 primeiros dígitos) e os **últimos 4 dígitos** são aceitos — qualquer outro campo de cartão retorna `422`.
 </Warning>
+
+---
+
+## Dados de teste
+
+Em Dev mode existem valores de e-mail, BIN e IP que fazem a rota devolver sempre o mesmo resultado, para você exercitar cada ramo da sua integração.
+
+<Card title="Dados de teste" icon="flask" href="/pages/analise-de-fraude/dados-de-teste">
+  Valores que forçam aprovação, validação adicional, recusa, `503` e `500` — e como reproduzir cada erro.
+</Card>

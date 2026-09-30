@@ -113,7 +113,8 @@
                 "group": "Análise de Fraude",
                 "pages": [
                   "pages/analise-de-fraude/reference",
-                  "pages/analise-de-fraude/create"
+                  "pages/analise-de-fraude/create",
+                  "pages/analise-de-fraude/dados-de-teste"
                 ]
               },
               {
