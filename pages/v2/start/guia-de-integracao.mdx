@@ -43,7 +43,7 @@ Este guia mostra a ordem das chamadas e o que fazer com cada resposta. Os detalh
     "type": "card",
     "amount": 69700,
     "capture_method": "automatic",
-    "card": { "number": "...", "holder_name": "MARIA SILVA", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 6 }
+    "card": { "number": "...", "holder_name": "MARIA SILVA", "exp_month": "12", "exp_year": "2030", "cvc": "123", "installments": 6 }
   }],
   "metadata": { "order_id": "seu-id-interno" }
 }
@@ -59,7 +59,7 @@ Este guia mostra a ordem das chamadas e o que fazer com cada resposta. Os detalh
 | `paid` | Pago. Confirme pelo `order.paid`. |
 | `processing` | Em análise. Aguarde o webhook. |
 | `requires_action` + `next_action.type = "otp_confirmation"` | Peça o código ao comprador e envie em [`POST /v2/orders/{id}/confirm`](/pages/v2/pedidos/confirm). |
-| `requires_action` + `next_action: null` | O código foi confirmado ou expirou. Consulte o pedido de novo. |
+| `requires_action` + `next_action: null` | O código expirou: peça outro com [`/confirm/resend`](/pages/v2/pedidos/resend-confirmation). Se já foi confirmado, consulte o pedido. |
 | `requires_capture` | Faltou `capture_method: "automatic"`. Capture ou cancele. |
 | `failed` (HTTP `402`) | Recusado. Mostre só `failure_reason.customer_message`. |
 
@@ -95,7 +95,7 @@ Este guia mostra a ordem das chamadas e o que fazer com cada resposta. Os detalh
     "document": { "type": "cpf", "number": "12345678909" }
   },
   "items": [{ "code": "plano-mensal", "description": "Plano mensal", "quantity": 1, "amount": 3900 }],
-  "payment": { "type": "card", "card": { "number": "...", "holder_name": "...", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 1 } },
+  "payment": { "type": "card", "card": { "number": "...", "holder_name": "...", "exp_month": "12", "exp_year": "2030", "cvc": "123", "installments": 1 } },
   "metadata": { "user_id": "seu-id-interno" }
 }
 ```
