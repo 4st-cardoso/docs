@@ -16,7 +16,7 @@ Uma entrega falha quando o seu endpoint responde fora de `2xx` ou não responde 
 | 5ª | 2 horas |
 | 6ª em diante | 12 horas |
 
-O reenvio usa **o mesmo corpo e o mesmo `id`** da primeira entrega. Esgotadas as tentativas, a entrega fica registrada como falha e pode ser reenviada pela rota abaixo.
+O reenvio usa **o mesmo corpo e o mesmo `id`** da primeira entrega. O `id` é da entrega para aquele endpoint: se você tem dois endpoints assinando o mesmo evento, cada um recebe um `id` diferente. Esgotadas as tentativas, a entrega fica registrada como falha e pode ser reenviada pela rota abaixo.
 
 <Note>
   Um endpoint criado por `POST /v1/webhook-endpoints` começa com 1 tentativa, sem reenvio. Ajuste em [Configurar endpoints](/pages/v2/webhooks/endpoints).

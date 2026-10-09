@@ -5194,6 +5194,11 @@ components:
             number:
               type: string
               example: "12345678909"
+        ip:
+          type: string
+          description: >
+            IP do comprador (IPv4 ou IPv6), não o do seu servidor. Usado nos bloqueios de cliente.
+          example: 189.10.20.30
         address:
           type: object
           description: >

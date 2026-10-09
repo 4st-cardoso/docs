@@ -4,7 +4,7 @@ openapi: "POST /v2/orders/{id}/confirm/resend"
 ---
 
 <Info>
-  Gera e envia um novo código de verificação ao cliente. Só é aceito quando o pedido está aguardando código (`next_action.type` igual a `otp_confirmation`). Caso contrário, a resposta é `422` (`order_not_confirmable`).
+  Gera e envia um novo código de verificação ao cliente. Só é aceito enquanto o pedido aguarda verificação: em `requires_action` com `next_action.type` igual a `otp_confirmation`, ou com `next_action` nulo porque o código expirou. Fora disso (por exemplo, depois que o código foi confirmado), a resposta é `422` (`order_not_confirmable`).
 </Info>
 
 <Warning>

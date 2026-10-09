@@ -45,6 +45,10 @@ Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que dese
   Os payloads detalhados nesta documentação são os do formato **`v1`**, cujo envelope é `{ type, id, webhook_version, data }`. Os eventos marcados como `v2` são entregues com um envelope diferente — `{ id, type, webhook_version, created_at, data }` — e o campo `webhook_version` do próprio payload informa qual formato você recebeu. Use-o para rotear o processamento no seu endpoint.
 </Note>
 
+<Info>
+  Quando um evento está marcado como `v1` e `v2`, o formato depende de **onde o recurso foi criado**: recursos da API v2 notificam em `v2` e recursos da v1 continuam em `v1`. Para integrar pela v2, assine também `invoice.paid`: é ele que confirma o primeiro pagamento e cada renovação de uma assinatura.
+</Info>
+
 ### Pedidos
 
 | Evento               | Descrição                                                        | Payload    |
@@ -68,23 +72,26 @@ Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que dese
 | `charge.refunded`           | Cobrança estornada por completo                  | `v2`    |
 | `charge.partial_refunded`   | Parte do valor da cobrança foi estornada         | `v2`    |
 | `charge.chargeback`         | Cobrança sofreu chargeback                       | `v2`    |
-| `charge.expired`            | Cobrança expirou sem pagamento                   | `v1`    |
-| `charge.canceled`           | Cobrança cancelada                               | `v1`    |
+| `charge.expired`            | Cobrança expirou sem pagamento                   | `v1` e `v2` |
+| `charge.canceled`           | Cobrança cancelada                               | `v1` e `v2` |
 
 ### Assinaturas
 
 | Evento                        | Descrição                              | Payload |
 |-------------------------------|----------------------------------------|---------|
-| `subscription.canceled`       | Assinatura cancelada                   | `v1`    |
-| `subscription.delayed`        | Assinatura em atraso                   | `v1`    |
-| `subscription.regularized`    | Assinatura em atraso regularizada      | `v1`    |
+| `subscription.canceled`       | Assinatura cancelada                   | `v1` e `v2` |
+| `subscription.delayed`        | Assinatura em atraso                   | `v1` e `v2` |
+| `subscription.regularized`    | Assinatura em atraso regularizada      | `v1` e `v2` |
+| `subscription.suspended`      | Assinatura suspensa depois de esgotar as tentativas de cobrança | `v1` e `v2` |
+| `subscription.completed`      | Todas as faturas previstas (`max_invoices`) foram pagas | `v2`    |
 
 ### Faturas
 
 | Evento            | Descrição                                       | Payload |
 |-------------------|-------------------------------------------------|---------|
-| `invoice.created` | Fatura da assinatura criada                     | `v1`    |
-| `invoice.failed`  | Cobrança da fatura falhou                       | `v1`    |
+| `invoice.created` | Fatura de renovação da assinatura criada        | `v1` e `v2` |
+| `invoice.paid`    | Fatura paga (inclusive a primeira, que ativa a assinatura) | `v2`    |
+| `invoice.failed`  | Cobrança da fatura falhou                       | `v1` e `v2` |
 
 ### Cartões
 
@@ -112,6 +119,8 @@ Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que dese
 | `receiver.bank_data_failed`           | Cadastro dos dados bancários falhou                      | `v1`    |
 | `receiver.kyc_pending`                | KYC do recebedor ficou pendente                          | `v1`    |
 | `receiver.kyc_verified`               | KYC do recebedor verificado                              | `v1`    |
+| `receiver.kyc_partially_verified`     | Recebedor aprovado no nível básico, ainda sem saque de criptomoedas | `v1`    |
+| `receiver.kyc_under_review`           | Recebedor aprovado no KYC, mas em análise de monitoramento, com saque desabilitado | `v1`    |
 | `receiver.kyc_failed`                 | KYC do recebedor falhou                                  | `v1`    |
 | `receiver.kyc_link_generated`         | Link de validação de identidade gerado                   | `v1`    |
 | `receiver.kyc_validation_approved`    | Validação de identidade aprovada                         | `v1`    |
@@ -123,6 +132,7 @@ Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que dese
 |-------------------------|----------------------------------|---------|
 | `account.kyc_pending`   | KYC da conta ficou pendente      | `v1`    |
 | `account.kyc_verified`  | KYC da conta verificado          | `v1`    |
+| `account.kyc_under_review` | Conta aprovada no KYC, mas em análise de monitoramento, com saque desabilitado | `v1`    |
 | `account.kyc_failed`    | KYC da conta falhou              | `v1`    |
 
 ### Saques
@@ -132,6 +142,13 @@ Ao criar ou atualizar um endpoint, informe no campo `events` os eventos que dese
 | `withdrawal.approved`                      | Saque aprovado                           | `v1`    |
 | `withdrawal.reproved`                      | Saque reprovado                          | `v1`    |
 | `withdrawal.awaiting_acquisition_balance`  | Saque aguardando saldo na adquirência    | `v1`    |
+
+### Antifraude
+
+| Evento                  | Descrição                                | Payload |
+|-------------------------|------------------------------------------|---------|
+| `item_sales_blocked`    | As vendas de um produto foram bloqueadas | `v1`    |
+| `item_sales_unblocked`  | As vendas de um produto foram liberadas  | `v1`    |
 
 <Warning>
   Apenas os eventos listados acima são entregues aos endpoints da conta. Outros valores podem ser aceitos no cadastro, mas nunca resultarão em uma notificação — não construa sua integração em cima deles.

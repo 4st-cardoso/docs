@@ -73,7 +73,7 @@ A v2 não tem rotas para estas operações. Use a v1, que exige `POST /v1/login`
     "type": "card",
     "amount": 69700,
     "capture_method": "automatic",
-    "card": { "number": "...", "holder_name": "MARIA SILVA", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 6 }
+    "card": { "number": "...", "holder_name": "MARIA SILVA", "exp_month": "12", "exp_year": "2030", "cvc": "123", "installments": 6 }
   }],
   "metadata": { "order_id": "seu-id-interno" }
 }
@@ -93,7 +93,7 @@ Trate a resposta pelo `status` do pedido:
 | `paid` | Pagamento confirmado. Aguarde `order.paid` para liberar acesso (ou libere já e trate o webhook de forma idempotente). |
 | `processing` | Ainda em análise. Mostre "processando" e aguarde o webhook. |
 | `requires_action` com `next_action.type = "otp_confirmation"` | O comprador precisa digitar um código de verificação. Veja abaixo. |
-| `requires_action` com `next_action: null` | O código já foi confirmado ou expirou. Consulte o pedido de novo com `GET /v2/orders/{id}`. |
+| `requires_action` com `next_action: null` | O código expirou: peça outro com `POST /v2/orders/{id}/confirm/resend`. Se o código já foi confirmado, consulte o pedido com `GET /v2/orders/{id}`. |
 | `requires_capture` | Você esqueceu `capture_method: "automatic"`. Capture ou cancele. |
 | `failed` (HTTP `402`) | Recusado. Mostre `failure_reason.customer_message`. |
 
@@ -140,7 +140,7 @@ Trate a resposta pelo `status` do pedido:
     "document": { "type": "cpf", "number": "12345678909" }
   },
   "items": [{ "code": "plano-mensal", "description": "Plano mensal", "quantity": 1, "amount": 3900 }],
-  "payment": { "type": "card", "card": { "number": "...", "holder_name": "...", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 1 } },
+  "payment": { "type": "card", "card": { "number": "...", "holder_name": "...", "exp_month": "12", "exp_year": "2030", "cvc": "123", "installments": 1 } },
   "metadata": { "user_id": "seu-id-interno" }
 }
 ```
@@ -188,7 +188,7 @@ Eventos da assinatura, na ordem em que acontecem:
 ## Webhooks
 
 - **Envelope v2:** `{ "id": "hook_...", "type": "order.paid", "webhook_version": "v2", "created_at": "...Z", "data": { ... } }`. O formato segue a origem do recurso: o que foi criado pela v2 notifica em `v2`; o que foi criado pela v1 continua em `v1`. Leia `webhook_version` antes de interpretar `data`.
-- **Deduplicação:** o `id` (`hook_...`) é o mesmo em todos os reenvios de uma entrega. Guarde os `id` processados e ignore repetidos.
+- **Deduplicação:** o `id` (`hook_...`) identifica uma entrega para um endpoint e é o mesmo em todos os reenvios dela. Cada endpoint recebe um `id` próprio para o mesmo evento. Guarde os `id` processados e ignore repetidos.
 - **Reenvio:** qualquer resposta fora de `2xx` (ou mais de 30 s sem resposta) é reenviada, até o número de tentativas configurado no endpoint, com intervalos de 1 min, 5 min, 30 min, 2 h e 12 h. Recurso que você não conhece: responda `2xx` e registre, senão a 4SeletPay continua tentando.
 - **Ordem não é garantida.** Nunca volte um status (ex.: de pago para pendente) por causa de um evento atrasado.
 - **Autenticidade:** as entregas não são assinadas. Configure um header de autenticação no endpoint (ver Guia, passo 1) e confira em cada requisição. Para decisões críticas, consulte o recurso pela API antes de agir.
