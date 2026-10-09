@@ -1,0 +1,197 @@
+---
+title: "Bem-vindo à API da 4SeletPay"
+sidebarTitle: "Bem-vindo"
+description: "Integre pedidos no cartão e no PIX, assinaturas recorrentes, cartões salvos e webhooks em tempo real com a API v2."
+mode: "custom"
+---
+
+<div style={{
+    position: "relative",
+    textAlign: "center",
+    padding: "80px 20px",
+    backgroundImage: "url('/images/hero-banner.png')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    borderBottom: "1px solid rgba(255,255,255,0.08)"
+}}>
+  <h1 style={{ fontSize: "40px", fontWeight: "600", marginBottom: "16px", color: "#fff" }}>
+    Bem-vindo à API da 4SeletPay
+  </h1>
+  <p style={{
+    maxWidth: "800px",
+    margin: "0 auto",
+    opacity: 0.8,
+    fontSize: "18px",
+    fontWeight: "300",
+    color: "#fff"
+  }}>
+    Aqui você encontra tudo o que precisa para integrar a API v2 da 4SeletPay:
+    <br />
+    pedidos no cartão e no PIX, assinaturas recorrentes, cartões salvos e muito mais.
+  </p>
+</div>
+
+<div style={{
+  padding: "60px 20px",
+  maxWidth: "1100px",
+  margin: "0 auto",
+  borderBottom: "1px solid rgba(127,127,127,0.12)"
+}}>
+  <h2 className="text-gray-900 dark:text-white" style={{ fontSize: "22px", fontWeight: "600", marginBottom: "12px" }}>
+    O que é a 4SeletPay?
+  </h2>
+  <p style={{ opacity: 0.7, marginBottom: "24px", lineHeight: "1.7" }}>
+    A 4SeletPay é uma plataforma de processamento de pagamentos construída para simplificar a integração de cobranças na sua aplicação. A API v2 cobra no Cartão de Crédito (à vista ou parcelado) e no PIX, com valores em centavos, respostas sem envelope e webhooks em tempo real para cada mudança de status.
+  </p>
+
+  ```http
+  POST /api/v2/orders
+  Authorization: Bearer sk_live_...
+  Idempotency-Key: ord-123
+  ```
+
+  <div style={{ marginTop: "32px" }}>
+    <h3 className="text-gray-900 dark:text-white" style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px" }}>
+      Princípios da API
+    </h3>
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+      gap: "16px"
+    }}>
+      <Card title="Simples" icon="check-double" horizontal>
+        Uma chave de API, valores em centavos e objetos planos. Erros sempre em `{ "error": { ... } }`.
+      </Card>
+      <Card title="Orientada a eventos" icon="bell" horizontal>
+        Webhooks notificam seu sistema em tempo real quando algo importante acontece — sem polling.
+      </Card>
+      <Card title="Reenvio seguro" icon="rotate" horizontal>
+        Repita uma requisição com a mesma `Idempotency-Key` e ela não é processada duas vezes.
+      </Card>
+    </div>
+  </div>
+</div>
+
+<div style={{
+  padding: "60px 20px",
+  maxWidth: "1100px",
+  margin: "0 auto"
+}}>
+  <h2 className="text-gray-900 dark:text-white" style={{ fontSize: "22px", fontWeight: "600", marginBottom: "24px" }}>
+    O que você pode fazer
+  </h2>
+
+  <div style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "24px",
+    marginBottom: "48px"
+  }}>
+    <Card icon="credit-card" title="Vender no cartão" href="/pages/v2/pedidos/reference">
+      Cobre à vista ou parcelado com um pedido, com código de verificação quando o banco pedir.
+    </Card>
+
+    <Card icon="qrcode" title="Receber no PIX" href="/pages/v2/pedidos/create">
+      Gere o QR code e o copia e cola para mostrar no seu próprio checkout.
+    </Card>
+
+    <Card icon="arrows-rotate" title="Configurar assinaturas" href="/pages/v2/assinaturas/reference">
+      Crie cobranças recorrentes com faturas por ciclo, descontos e troca de meio de pagamento.
+    </Card>
+
+    <Card icon="wallet" title="Salvar cartões" href="/pages/v2/cartoes/reference">
+      Guarde o cartão do cliente e cobre de novo com um token, sem pedir os dados outra vez.
+    </Card>
+
+    <Card icon="rotate-left" title="Estornar cobranças" href="/pages/v2/cobrancas/refund">
+      Devolva o valor total ou parcial de uma cobrança paga.
+    </Card>
+
+    <Card icon="bell" title="Receber webhooks" href="/pages/v2/webhooks/reference">
+      Seja notificado a cada pagamento, renovação, falha ou estorno.
+    </Card>
+  </div>
+
+  <h2 className="text-gray-900 dark:text-white" style={{ fontSize: "22px", fontWeight: "600", marginBottom: "24px" }}>
+    Primeiros passos
+  </h2>
+
+  <div style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "24px",
+    marginBottom: "48px"
+  }}>
+    <Card icon="route" title="Guia de integração" href="/pages/v2/start/guia-de-integracao">
+      O caminho completo: cartão, PIX, assinatura, cupons e estorno, com o checklist de produção.
+    </Card>
+
+    <Card icon="key" title="Autenticação" href="/pages/v2/start/autenticacao">
+      Gere a chave de API e autentique todas as requisições.
+    </Card>
+
+    <Card icon="flask" title="Ambiente de Sandbox" href="/pages/v2/start/ambiente-de-sandbox">
+      Teste a integração sem movimentar dinheiro, em endereços separados da produção.
+    </Card>
+
+    <Card icon="webhook" title="Configurar webhooks" href="/pages/v2/webhooks/endpoints">
+      Cadastre o endpoint com autenticação e reenvio antes da primeira venda.
+    </Card>
+  </div>
+
+  <h2 className="text-gray-900 dark:text-white" style={{ fontSize: "22px", fontWeight: "600", marginBottom: "24px" }}>
+    Em breve
+  </h2>
+
+  <div style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "24px",
+    marginBottom: "48px"
+  }}>
+    <Card icon="link" title="Links de pagamento" href="/pages/links-de-pagamento/reference">
+      Um checkout hospedado com URL única para compartilhar com seus clientes.
+    </Card>
+
+    <Card icon="shield-halved" title="Contestações" href="/pages/v2/contestacoes/reference">
+      Acompanhe os chargebacks e envie a defesa pela API.
+    </Card>
+
+    <Card icon="code" title="Checkout.js e 3D Secure" href="/pages/checkout-js/reference">
+      Identificação do dispositivo e desafio 3D Secure no seu checkout.
+    </Card>
+  </div>
+</div>
+
+<div style={{
+  padding: "60px 20px",
+  maxWidth: "1100px",
+  margin: "0 auto"
+}}>
+  <h2 className="text-gray-900 dark:text-white" style={{
+    fontSize: "28px",
+    fontWeight: "600",
+    marginBottom: "32px"
+  }}>
+    Precisa de ajuda?
+  </h2>
+
+  <div style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "24px"
+  }}>
+    <Card icon="headset" title="Suporte" href="mailto:suporte@4selet.com.br">
+      Entre em contato com nossa equipe para ajuda com sua integração.
+    </Card>
+
+    <Card icon="globe" title="Dashboard" href="https://app.4seletpay.com.br">
+      Acesse o painel de produção para gerenciar sua conta, chaves e webhooks.
+    </Card>
+
+    <Card icon="flask" title="Dashboard do Ambiente de Sandbox" href="https://sandbox.4seletpay.com.br">
+      O painel separado onde você cria as chaves `sk_test_` e testa a integração.
+    </Card>
+  </div>
+</div>
