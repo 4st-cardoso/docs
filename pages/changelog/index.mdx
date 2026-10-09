@@ -9,6 +9,41 @@ Este changelog é atualizado continuamente com melhorias, novas funcionalidades 
 
 ## Atualizações Recentes
 
+<Update label="8 de Out, 2026">
+## Documentação: v2 como padrão, guia de integração e recursos em breve
+
+A API não mudou nesta atualização. Mudou a documentação, para que você integre a v2 de ponta a ponta sem depender de outras fontes.
+
+**v2 como versão padrão.** A documentação abre na **v2**, com uma home própria. A v1 continua disponível no seletor de versão, marcada como **Legado**.
+
+**Novas páginas da v2:**
+
+| Página | O que traz |
+|--------|------------|
+| [Guia de integração](/pages/v2/start/guia-de-integracao) | O passo a passo de cartão, PIX, assinatura, cupons e estorno, e o checklist de produção |
+| [Ambiente de Sandbox](/pages/v2/start/ambiente-de-sandbox) | Endereços, chave `sk_test_` e o que dá para testar sem movimentar dinheiro |
+| [Configurar endpoints](/pages/v2/webhooks/endpoints) | Como cadastrar o webhook com autenticação e reenvio |
+| [Entregas e reenvio](/pages/v2/webhooks/entregas) | Intervalos de reenvio, `GET /v1/webhook-events` e `POST /v1/webhook-events/{code}/resend` |
+
+**Ambiente de Sandbox.** O ambiente de testes passa a se chamar **Ambiente de Sandbox** em toda a documentação. Ele tem endereços próprios, separados da produção, e não há um botão para trocar de ambiente:
+
+| | Produção | Ambiente de Sandbox |
+|---|---|---|
+| API v2 | `https://app.4seletpay.com.br/api/v2` | `https://sandbox.4seletpay.com.br/api/v2` |
+| API v1 | `https://app.4seletpay.com.br/api/v1` | `https://sandbox.4seletpay.com.br/api/v1` |
+| Dashboard | `https://app.4seletpay.com.br` | `https://sandbox.4seletpay.com.br` |
+
+**Correção.** O `llms.txt` indicava `https://api.4seletpay.com.br/api/v1` como base da v1. O endereço correto é `https://app.4seletpay.com.br/api/v1`.
+
+**Em breve.** Estes recursos já podem ser testados no Ambiente de Sandbox e ainda não estão em produção, onde as rotas respondem `404`. As páginas estão marcadas com **Em breve**:
+
+- [Links de pagamento](/pages/links-de-pagamento/reference)
+- [Contestações](/pages/v2/contestacoes/reference) (`/v2/chargebacks`)
+- [Checkout.js e 3D Secure](/pages/checkout-js/reference)
+- [Alterar próxima cobrança](/pages/assinaturas/next-charge-date) na v1 (na v2, `next-billing-date` já está em produção)
+- [Dados de teste da análise de fraude](/pages/analise-de-fraude/dados-de-teste)
+</Update>
+
 <Update label="15 de Set, 2026">
 ## API v2: três rotas de assinatura mudam de verbo
 
