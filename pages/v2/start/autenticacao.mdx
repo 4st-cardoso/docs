@@ -27,12 +27,14 @@ curl https://app.4seletpay.com.br/api/v2/orders/ord_7Hk2Pq9Xm4Ln8Rt3 \
 
 ---
 
-## Dev mode e produção
+## Ambiente de Sandbox e produção
 
 | Prefixo    | Ambiente | Onde funciona                         |
 |------------|----------|---------------------------------------|
-| `sk_test_` | Dev mode | Somente no ambiente de Dev mode       |
+| `sk_test_` | Ambiente de Sandbox | Somente no Ambiente de Sandbox       |
 | `sk_live_` | Produção | Somente no ambiente de produção       |
+
+Produção (`https://app.4seletpay.com.br`) e Ambiente de Sandbox (`https://sandbox.4seletpay.com.br`) são endereços separados, cada um com o seu dashboard e as suas chaves. Não há um botão para alternar entre eles.
 
 Uma chave só é aceita no ambiente em que foi criada. Uma chave `sk_test_` enviada para produção retorna `401`, e o contrário também.
 

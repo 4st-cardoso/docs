@@ -4585,7 +4585,7 @@ components:
       type: http
       scheme: bearer
       description: >
-        Chave de API (secret key) da conta, no formato `sk_live_...` (produção) ou `sk_test_...` (Dev mode).
+        Chave de API (secret key) da conta, no formato `sk_live_...` (produção) ou `sk_test_...` (Ambiente de Sandbox).
         Envie no header `Authorization: Bearer <chave>`. Autentica todas as rotas da API v2 e as rotas de
         Análise de Fraude. A chave identifica a conta, então a API v2 não usa o header `account`. Uma chave só
         é aceita no ambiente em que foi criada. Gere a sua no dashboard em Configurações → Chaves de API.

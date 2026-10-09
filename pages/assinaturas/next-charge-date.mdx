@@ -1,0 +1,21 @@
+---
+title: "Alterar Próxima Cobrança"
+description: "Muda a data da próxima cobrança de uma assinatura da v1."
+tag: "Em breve"
+---
+
+<Info>
+  **Em breve.** Esta rota já está disponível no Ambiente de Sandbox e ainda não chegou à produção. Na v2, use [`PUT /v2/subscriptions/{id}/next-billing-date`](/pages/v2/assinaturas/next-billing-date), que já está em produção.
+</Info>
+
+`PUT /v1/subscriptions/{subscription_code}/next-charge-date`
+
+Requer o login da v1 e o header `account`.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `next_charge_date` | string (`AAAA-MM-DD`) | Nova data da próxima cobrança. Deve ser posterior a hoje. |
+
+- Só para assinaturas em `Recurring` ou `RecurringOverdue`. Em outro status, responde `422`.
+- Assinatura de outra conta: `404`.
+- A alteração não gera webhook.

@@ -2,7 +2,12 @@
 title: "Dados de teste"
 description: "Valores que fazem a Análise de Fraude devolver sempre o mesmo resultado, para você exercitar cada ramo da sua integração."
 icon: "flask"
+tag: "Em breve"
 ---
+
+<Info>
+  **Em breve.** Os cenários simulados desta página ainda não estão ativos no Ambiente de Sandbox nem em produção. Até lá, as análises usam o motor de risco real.
+</Info>
 
 ## Visão geral
 
@@ -11,7 +16,7 @@ O resultado de uma análise real depende do motor de risco, dos provedores exter
 Para resolver isso, a Análise de Fraude reconhece alguns **valores de teste**. Enviando um deles, a resposta é sempre a mesma, e você consegue testar como a sua integração trata cada cenário antes de ir para produção.
 
 <Warning>
-  **Estes valores só funcionam em Dev mode.**
+  **Estes valores só funcionam no Ambiente de Sandbox.**
 
   Em produção eles são dados comuns: passam pela análise real, com motor de risco, provedores externos e cobrança normais. Nenhum valor desta página altera o resultado de uma análise em produção — nem por header, nem por campo do corpo, nem pelo tipo da chave enviada.
 </Warning>
@@ -102,7 +107,7 @@ No exemplo acima, a resposta é `DENY`.
 
 ## Cobrança e idempotência
 
-- Uma análise **concluída** com valor de teste é cobrada em Dev mode, exatamente como uma análise real. Assim a idempotência se comporta igual à de produção: a mesma `Idempotency-Key` com o mesmo corpo devolve a análise original, sem criar uma nova.
+- Uma análise **concluída** com valor de teste é cobrada no Ambiente de Sandbox, exatamente como uma análise real. Assim a idempotência se comporta igual à de produção: a mesma `Idempotency-Key` com o mesmo corpo devolve a análise original, sem criar uma nova.
 - Uma análise **não concluída** (`503` ou `500`) nunca é cobrada.
 - A mesma `Idempotency-Key` com um corpo diferente continua retornando `422` (`idempotency_conflict`), inclusive nos cenários de teste.
 
@@ -125,7 +130,7 @@ Estes não precisam de valor de teste — dependem só do que você envia.
 </Note>
 
 <Tip>
-  Uma chave de produção (`sk_live_`) enviada para o ambiente de Dev mode — e o contrário — também retorna `401`. É um jeito rápido de testar o tratamento desse erro.
+  Uma chave de produção (`sk_live_`) enviada para o Ambiente de Sandbox — e o contrário — também retorna `401`. É um jeito rápido de testar o tratamento desse erro.
 </Tip>
 
 ---
@@ -139,7 +144,7 @@ Os dois erros abaixo não têm valor de teste porque não dependem da requisiç�
 | `402`  | `payment_required`    | Acesso suspenso por faturas de antifraude em aberto  |
 | `403`  | `product_not_enabled` | Produto de antifraude não habilitado para a conta    |
 
-Se você precisa exercitar esses dois ramos, fale com o suporte em `suporte@4selet.com.br` para ajustar a sua conta de Dev mode.
+Se você precisa exercitar esses dois ramos, fale com o suporte em `suporte@4selet.com.br` para ajustar a sua conta do Ambiente de Sandbox.
 
 ---
 
