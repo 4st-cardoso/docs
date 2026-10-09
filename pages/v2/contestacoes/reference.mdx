@@ -1,0 +1,55 @@
+---
+title: "Contestações"
+description: "Acompanhe os chargebacks abertos contra as suas vendas e envie a defesa pela API."
+icon: "shield-halved"
+tag: "Em breve"
+---
+
+<Info>
+  **Em breve.** As contestações estão em teste no Ambiente de Sandbox e ainda não chegaram à produção. Em produção, as rotas desta página respondem `404`. Os campos podem mudar até o lançamento.
+</Info>
+
+Uma contestação (chargeback) é aberta quando o titular do cartão não reconhece uma compra junto ao banco. Pela API você lista as contestações, consulta o prazo e envia os documentos da defesa.
+
+## Rotas
+
+| Rota | O que faz |
+|---|---|
+| `GET /v2/chargebacks` | Lista as contestações. Filtros `status` e `limit` (1 a 100, padrão 10). |
+| `GET /v2/chargebacks/{id}` | Consulta uma contestação. |
+| `POST /v2/chargebacks/{id}/evidences` | Envia a defesa (`multipart/form-data`). Aceita `Idempotency-Key`. |
+
+## Status
+
+| `status` | Significado |
+|---|---|
+| `open` | Aberta, aguardando a sua defesa até `respond_by`. |
+| `evidence_received` | A defesa foi recebida e está em revisão pela 4SeletPay. |
+| `evidence_submitted` | A defesa foi enviada à adquirente. |
+| `won` | Decidida a seu favor. |
+| `lost` | Decidida a favor do titular. |
+| `expired` | O prazo terminou sem defesa. |
+
+## O objeto
+
+Os campos principais: `id`, `object`, `status`, `amount`, `net_amount`, `currency`, `reason` (`category`, `code`, `description`), `opened_at`, `respond_by`, `days_remaining`, `accepts_evidence`, `customer`, `sale`, `evidence` (`file_count`, `total_bytes`, `received_at`, `submitted_at`, `files`), `review`, `review_history` e `timeline`.
+
+A listagem devolve `{ "object": "list", "data": [...], "has_more": false, "summary": { ... } }`. O `summary` traz as contagens por status, o valor em disputa e o menor prazo restante.
+
+## Enviar a defesa
+
+- Campo `files[]`: só PDF, até 20 arquivos, 2 MB por arquivo e 11 MB no total.
+- Só é aceito enquanto `accepts_evidence` for `true`.
+
+| Erro (`422`) | Quando |
+|---|---|
+| `chargeback_not_disputable` | A contestação não aceita defesa no status atual. |
+| `chargeback_evidence_already_submitted` | A defesa desta rodada já foi enviada. |
+| `evidence_type_not_allowed` | Um arquivo não é PDF. |
+| `evidence_file_too_large` / `evidence_total_too_large` | Passou do limite de tamanho. |
+| `chargeback_evidence_rejected` | A defesa foi recusada na revisão. |
+| `chargeback_acquirer_unavailable` | A adquirente não respondeu; tente de novo. |
+
+## Webhooks
+
+`chargeback.created` (contestação aberta) e `chargeback.updated` (mudança de status ou de defesa), no formato v2. O `data` é o objeto da contestação.

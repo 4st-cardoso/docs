@@ -1,0 +1,54 @@
+---
+title: "Checkout.js e 3D Secure"
+description: "Um script no seu checkout que adiciona a identificação do dispositivo e o desafio 3D Secure às cobranças, sem você integrar cada adquirente."
+icon: "code"
+tag: "Em breve"
+---
+
+<Info>
+  **Em breve.** O `checkout.js` e o 3D Secure estão em teste no Ambiente de Sandbox e ainda não chegaram à produção. Os nomes e campos podem mudar até o lançamento. Hoje eles funcionam com a cobrança da v1 (`POST /v1/charge`).
+</Info>
+
+O `checkout.js` roda na página de pagamento da sua loja. Ele descobre o que a adquirente da sua conta exige (a identificação do dispositivo, o desafio 3D Secure) e injeta isso no seu formulário. Você não precisa saber qual adquirente vai processar a venda.
+
+<Warning>
+  O `checkout.js` **não** recebe os dados do cartão: o número e o CVC continuam indo do seu servidor para a API.
+</Warning>
+
+## Chave publicável
+
+O script usa uma chave publicável (`pk_...`), diferente da chave de API. Crie-a no dashboard, em **Configurações → Chaves**, na seção de chaves de checkout, e cadastre as origens (domínios) do seu checkout, até 20.
+
+<Note>
+  Uma chave sem origens cadastradas é aceita em qualquer domínio. Cadastre sempre as suas.
+</Note>
+
+## Instalar
+
+```html
+<script src="https://sandbox.4seletpay.com.br/v1/checkout.js?k=pk_..." async></script>
+
+<form data-4selet-checkout>
+  <!-- seus campos -->
+</form>
+```
+
+O script injeta no formulário marcado os campos que a adquirente pede. Envie-os junto com a cobrança: em `POST /v1/charge`, o campo `dfp_id` (identificação do dispositivo) vai no corpo.
+
+## 3D Secure
+
+Quando o banco pede o desafio, `POST /v1/charge` responde `202` com o status `Challenged` e:
+
+- `requires_3ds: true`;
+- `completion_token` (uso único);
+- `tds_config` com o que o script precisa para abrir o desafio.
+
+Passe a resposta para o script, que abre o desafio e conclui a cobrança:
+
+```js
+window.SeletPay.handleResponse(response);
+```
+
+Callbacks disponíveis em `window.SeletPay`: `onSuccess`, `onError`, `onChallengeStart` e `onChallengeEnd`. Um desafio abandonado é encerrado automaticamente após alguns minutos.
+
+O modo de 3D Secure é definido por conta: sempre, só quando o banco pedir, ou desligado.

@@ -1,0 +1,145 @@
+---
+title: "Guia de integração"
+description: "O caminho completo para cobrar no cartão, no PIX e por assinatura com a API v2, do primeiro webhook ao estorno."
+icon: "route"
+---
+
+Este guia mostra a ordem das chamadas e o que fazer com cada resposta. Os detalhes de cada campo estão na referência de cada rota.
+
+<Steps>
+  <Step title="Configure o webhook">
+    Cadastre o endpoint no dashboard com autenticação e mais de uma tentativa. Veja [Configurar endpoints](/pages/v2/webhooks/endpoints).
+  </Step>
+  <Step title="Crie a cobrança no seu servidor">
+    Pedido avulso (`POST /v2/orders`) ou assinatura (`POST /v2/subscriptions`), sempre com `Idempotency-Key`.
+  </Step>
+  <Step title="Trate a resposta">
+    Leia o `status` e o `next_action`. `201` não significa pago; `402` é um pagamento recusado com o recurso completo.
+  </Step>
+  <Step title="Libere o acesso no webhook">
+    `order.paid` para pedidos e `invoice.paid` para assinaturas. Processe cada `id` de entrega uma vez só.
+  </Step>
+</Steps>
+
+<Warning>
+  A API recebe os dados do cartão do **seu servidor**: não há tokenização no navegador. Trafegue só por HTTPS, nunca registre em log nem guarde número e CVC, e descarte-os depois da chamada. Para reutilizar um cartão, salve-o com [`POST /v2/cards`](/pages/v2/cartoes/create).
+</Warning>
+
+---
+
+## Venda avulsa no cartão
+
+```json POST /v2/orders
+{
+  "customer": {
+    "name": "Maria Silva",
+    "email": "maria@exemplo.com",
+    "phone": { "ddi": "55", "ddd": "11", "number": "999998888" },
+    "document": { "type": "cpf", "number": "12345678909" },
+    "ip": "203.0.113.10"
+  },
+  "items": [{ "code": "curso-vitalicio", "description": "Curso vitalício", "quantity": 1, "amount": 69700 }],
+  "payments": [{
+    "type": "card",
+    "amount": 69700,
+    "capture_method": "automatic",
+    "card": { "number": "...", "holder_name": "MARIA SILVA", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 6 }
+  }],
+  "metadata": { "order_id": "seu-id-interno" }
+}
+```
+
+- **Envie `capture_method: "automatic"`.** O padrão é `manual`: o pedido fica em `requires_capture` e a autorização é cancelada em cerca de 26 h se você não chamar [`POST /v2/orders/{id}/capture`](/pages/v2/pedidos/capture).
+- **Parcelas não mudam o valor.** Se você cobra juros, some-os ao `amount` dos itens e do pagamento.
+- `customer.ip` é o IP do comprador, usado nos bloqueios de cliente.
+- Grave o `id` do pedido (`ord_...`) e o `payments[].id` (`cha_...`). São eles que chegam nos webhooks; o pedido não devolve o seu `metadata`.
+
+| `status` | O que fazer |
+|---|---|
+| `paid` | Pago. Confirme pelo `order.paid`. |
+| `processing` | Em análise. Aguarde o webhook. |
+| `requires_action` + `next_action.type = "otp_confirmation"` | Peça o código ao comprador e envie em [`POST /v2/orders/{id}/confirm`](/pages/v2/pedidos/confirm). |
+| `requires_action` + `next_action: null` | O código foi confirmado ou expirou. Consulte o pedido de novo. |
+| `requires_capture` | Faltou `capture_method: "automatic"`. Capture ou cancele. |
+| `failed` (HTTP `402`) | Recusado. Mostre só `failure_reason.customer_message`. |
+
+---
+
+## PIX no seu checkout
+
+```json POST /v2/orders
+{
+  "customer": { "name": "...", "email": "...", "phone": { "ddi": "55", "ddd": "11", "number": "999998888" } },
+  "items": [{ "code": "plano-anual", "description": "Plano anual", "quantity": 1, "amount": 29700 }],
+  "payments": [{ "type": "pix", "amount": 29700, "pix_expiration": 1800 }]
+}
+```
+
+- A resposta vem em `requires_action` com `next_action.type: "pix_display_qr_code"`. Mostre `next_action.pix.qr_code_url` (imagem) e `next_action.pix.qr_code` (copia e cola).
+- `pix_expiration` é em segundos. `next_action.pix.expires_at` vem como `AAAA-MM-DD HH:MM:SS`, **no horário de Brasília e sem fuso**: converta antes de mostrar a contagem regressiva.
+- Atualize o seu banco no webhook `order.paid` e faça a página consultar o **seu** servidor. O limite de 120 requisições por minuto vale para a conta inteira, então evite consultar a API em loop.
+- Sem pagamento, chega `charge.expired`. Ofereça um novo PIX.
+
+---
+
+## Assinatura
+
+```json POST /v2/subscriptions
+{
+  "code": "assinatura-123",
+  "interval": "day",
+  "interval_count": 30,
+  "customer": {
+    "name": "...", "email": "...",
+    "phone": { "ddi": 55, "ddd": 11, "number": "999998888" },
+    "document": { "type": "cpf", "number": "12345678909" }
+  },
+  "items": [{ "code": "plano-mensal", "description": "Plano mensal", "quantity": 1, "amount": 3900 }],
+  "payment": { "type": "card", "card": { "number": "...", "holder_name": "...", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 1 } },
+  "metadata": { "user_id": "seu-id-interno" }
+}
+```
+
+- Não existe mês de calendário: "mensal" é `day` × 30 e "anual" é `day` × 365. Para fixar o dia, ajuste com [`next-billing-date`](/pages/v2/assinaturas/next-billing-date).
+- Na assinatura, `customer.document` e `items[].code` são obrigatórios.
+- A primeira fatura vem em `latest_invoice`. Trate o `status` dela como o de um pedido; o código de verificação da fatura vai em [`POST /v2/invoices/{id}/confirm`](/pages/v2/faturas/confirm).
+- No PIX, cada ciclo gera uma fatura com um QR code novo, entregue no `invoice.created`. Envie esse QR code ao seu cliente.
+
+| Momento | Evento |
+|---|---|
+| Primeiro pagamento | `invoice.paid` da fatura nº 1 (não existe `subscription.created`) |
+| Renovação gerada | `invoice.created` |
+| Renovação paga | `invoice.paid` |
+| Renovação recusada | `invoice.failed` + `subscription.delayed` |
+| Quitada depois do atraso | `subscription.regularized` |
+| Tentativas esgotadas | `subscription.canceled`, ou `subscription.suspended` com `max_invoices` |
+| Todas as faturas pagas | `subscription.completed` |
+
+- Uma renovação recusada é cobrada de novo uma vez por dia, até 3 tentativas. Para o cliente quitar antes, use [`POST /v2/invoices/{id}/pay`](/pages/v2/faturas/pay).
+- O cancelamento ([`POST /v2/subscriptions/{id}/cancel`](/pages/v2/assinaturas/cancel)) é imediato. Se o seu produto mantém o acesso até o fim do período pago, guarde essa data antes.
+
+---
+
+## Cupons e descontos
+
+- Não há objeto de cupom: o seu sistema valida o código, os usos e a validade.
+- **Pedido:** envie o preço já com desconto.
+- **Assinatura:** `discounts: [{ "type": "percentage", "value": 50, "invoice_number": 1 }]`. Sem `invoice_number`, vale para todas as faturas. Não combina com `split`.
+
+---
+
+## Estorno
+
+[`POST /v2/charges/{id}/refund`](/pages/v2/cobrancas/refund) com o `cha_...`. É assíncrono: o resultado chega em `charge.refunded` ou `charge.partial_refunded`.
+
+---
+
+## Antes de ir para produção
+
+<Check>Sempre `capture_method: "automatic"` no cartão.</Check>
+<Check>Valores em centavos.</Check>
+<Check>`Idempotency-Key` estável por operação (ex.: `ord-<id>`), reaproveitada no retry.</Check>
+<Check>Timeout, `5xx` ou `409 idempotency_key_in_use`: repita com a mesma chave ou aguarde o webhook, sem marcar como falho.</Check>
+<Check>No máximo 2 tentativas por minuto por comprador para os mesmos itens (retries contam). Respeite o `Retry-After`.</Check>
+<Check>Webhook com autenticação, mais de uma tentativa, deduplicado pelo `id` e sem regressão de status.</Check>
+<Check>Dados do cartão fora de logs e do banco.</Check>

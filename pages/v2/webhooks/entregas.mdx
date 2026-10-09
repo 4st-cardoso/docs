@@ -1,0 +1,49 @@
+---
+title: "Entregas e reenvio"
+description: "Como a 4SeletPay reenvia webhooks que falharam, e como listar e reenviar entregas pela API."
+icon: "rotate"
+---
+
+## Reenvio automático
+
+Uma entrega falha quando o seu endpoint responde fora de `2xx` ou não responde em 30 s. Se o endpoint tiver mais de uma tentativa configurada, a 4SeletPay tenta de novo nestes intervalos:
+
+| Tentativa | Depois de |
+|---|---|
+| 2ª | 1 minuto |
+| 3ª | 5 minutos |
+| 4ª | 30 minutos |
+| 5ª | 2 horas |
+| 6ª em diante | 12 horas |
+
+O reenvio usa **o mesmo corpo e o mesmo `id`** da primeira entrega. Esgotadas as tentativas, a entrega fica registrada como falha e pode ser reenviada pela rota abaixo.
+
+<Note>
+  Um endpoint criado por `POST /v1/webhook-endpoints` começa com 1 tentativa, sem reenvio. Ajuste em [Configurar endpoints](/pages/v2/webhooks/endpoints).
+</Note>
+
+## Listar entregas
+
+`GET /v1/webhook-events` lista as entregas da conta, da mais antiga para a mais nova. Usa o login da v1 e o header `account`.
+
+| Parâmetro | Descrição |
+|---|---|
+| `updated_since`, `updated_until` | Intervalo de datas da entrega |
+| `success` | `true` ou `false` |
+| `event` | Um ou até 10 eventos. Termine em `.` para filtrar por prefixo (ex.: `charge.`) |
+| `url` | Só as entregas para esta URL |
+| `per_page`, `page` | Paginação (padrão 10, máximo 200 por página) |
+
+Cada item traz `code` (o `id` da entrega, `hook_...`), `event`, `url`, `order_code`, `charge_code`, `status_code` (a resposta do seu endpoint), `sucess` (assim mesmo, com esta grafia) e `created_at`.
+
+## Reenviar uma entrega
+
+`POST /v1/webhook-events/{code}/resend` envia a entrega de novo, com o mesmo corpo.
+
+- `200`: o seu endpoint confirmou o recebimento.
+- `400`: o reenvio foi feito, mas o endpoint não respondeu `2xx`.
+- `404`: a entrega não existe ou não é desta conta.
+
+<Tip>
+  Para não perder eventos, rode periodicamente uma rotina que liste as entregas com `success=false` das últimas horas e peça o reenvio.
+</Tip>

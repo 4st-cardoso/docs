@@ -1,0 +1,36 @@
+---
+title: "Ambiente de Sandbox"
+description: "Onde testar a integração sem movimentar dinheiro: endereços, chave e o que dá para simular."
+icon: "flask"
+---
+
+O Ambiente de Sandbox é separado da produção: tem endereço, conta, chaves e endpoints de webhook próprios. Nada do que acontece nele movimenta dinheiro.
+
+Não existe um botão para trocar de ambiente. Para testar, use os endereços do Ambiente de Sandbox; para ir para produção, troque a base URL e a chave.
+
+| | Produção | Ambiente de Sandbox |
+|---|---|---|
+| Base da API v2 | `https://app.4seletpay.com.br/api/v2` | `https://sandbox.4seletpay.com.br/api/v2` |
+| Base da API v1 | `https://app.4seletpay.com.br/api/v1` | `https://sandbox.4seletpay.com.br/api/v1` |
+| Chave de API | `sk_live_...` | `sk_test_...` |
+| Dashboard | `https://app.4seletpay.com.br` | `https://sandbox.4seletpay.com.br` |
+
+<Warning>
+  As chaves não são intercambiáveis: `sk_test_` só funciona no Ambiente de Sandbox e `sk_live_` só em produção. A chave do ambiente errado responde `401 invalid_api_secret`.
+</Warning>
+
+## O que acontece no Ambiente de Sandbox
+
+- Os webhooks são entregues normalmente para os endpoints cadastrados na conta do Ambiente de Sandbox.
+- As renovações de assinatura rodam uma vez por dia, à 00:00. [`next-billing-date`](/pages/v2/assinaturas/next-billing-date) aceita datas a partir de amanhã.
+- Os [dados de teste da análise de fraude](/pages/analise-de-fraude/dados-de-teste) ainda não estão ativos: em breve.
+
+## Em breve no Ambiente de Sandbox
+
+Alguns recursos já podem ser testados aqui antes de chegar à produção: [links de pagamento](/pages/links-de-pagamento/reference), [contestações](/pages/v2/contestacoes/reference) e o [checkout.js com 3D Secure](/pages/checkout-js/reference). Não dependa deles em produção até o lançamento.
+
+## Antes de virar a chave
+
+1. Deixe a base URL e a chave em variáveis de ambiente, para trocar de ambiente sem mudar código.
+2. Crie a chave `sk_live_` e cadastre o endpoint de webhook também no dashboard de produção: nada é copiado do Ambiente de Sandbox.
+3. Faça uma compra real de valor baixo e confirme o webhook.

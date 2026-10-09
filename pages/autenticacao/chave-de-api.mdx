@@ -46,15 +46,15 @@ O formato é `sk_<ambiente>_<identificador>_<segredo>`. O **identificador** ajud
 
 ## Ambientes: teste e produção
 
-O prefixo da chave indica o ambiente em que ela foi criada:
+Produção (`https://app.4seletpay.com.br`) e Ambiente de Sandbox (`https://sandbox.4seletpay.com.br`) são endereços separados, cada um com o seu dashboard. Crie a chave no dashboard do ambiente que vai usar. O prefixo indica onde ela foi criada:
 
 | Prefixo     | Ambiente    | Para quê                                  |
 |-------------|-------------|-------------------------------------------|
-| `sk_test_`  | Dev mode    | Testar a integração sem valer de verdade  |
+| `sk_test_`  | Ambiente de Sandbox    | Testar a integração sem valer de verdade  |
 | `sk_live_`  | Produção    | Uso real, com cobrança por análise        |
 
 <Warning>
-  Uma chave de **Dev mode** (`sk_test_`) **não funciona** em produção, e uma chave de produção (`sk_live_`) não funciona em Dev mode. Use a chave do ambiente onde você está integrando.
+  Uma chave do **Ambiente de Sandbox** (`sk_test_`) **não funciona** em produção, e uma chave de produção (`sk_live_`) não funciona no Ambiente de Sandbox. Use a chave do ambiente onde você está integrando.
 </Warning>
 
 ---

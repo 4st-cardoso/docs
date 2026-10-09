@@ -1,0 +1,43 @@
+---
+title: "Configurar endpoints"
+description: "Cadastre a URL que recebe os webhooks, com autenticação e reenvio."
+icon: "plug"
+---
+
+A API v2 não tem rota para gerenciar endpoints. Cadastre-os no dashboard (recomendado) ou pela [API v1](/pages/webhook-endpoints/reference).
+
+## No dashboard (recomendado)
+
+Em **Configurações → Webhooks**, crie o endpoint e, na mesma tela:
+
+- **Autenticação.** Escolha um header customizado com um segredo seu, Bearer, Basic ou Digest. A 4SeletPay envia essa credencial em toda entrega. Sua rota deve recusar qualquer requisição sem ela.
+- **Tentativas.** Defina de 1 a 10. Com mais de uma, as entregas que falharem são reenviadas (veja [Entregas e reenvio](/pages/v2/webhooks/entregas)).
+- **Eventos.** Marque os que a sua integração trata.
+
+<Warning>
+  As entregas não têm assinatura (HMAC). A credencial configurada aqui é a forma de saber que a requisição veio da 4SeletPay. Para decisões críticas, consulte o recurso pela API antes de agir.
+</Warning>
+
+## Pela API v1
+
+`POST /v1/webhook-endpoints` aceita `url` e `events`. A rota exige o login da v1 (`POST /v1/login` com e-mail e senha) e o header `account`; a chave de API não serve aqui.
+
+<Note>
+  Um endpoint criado pela API nasce **com 1 tentativa (sem reenvio) e sem autenticação**. Depois de criar, ajuste os dois no dashboard.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="Criar endpoint" icon="plus" href="/pages/webhook-endpoints/create">
+    `POST /v1/webhook-endpoints`
+  </Card>
+  <Card title="Listar, alterar e remover" icon="list" href="/pages/webhook-endpoints/reference">
+    `GET`, `PUT` e `DELETE /v1/webhook-endpoints`
+  </Card>
+</CardGroup>
+
+## Sua rota
+
+- Responda `2xx` rápido e processe em seguida. Mais de 30 s sem resposta conta como falha.
+- Guarde o `id` (`hook_...`) de cada entrega e ignore repetidos: o reenvio usa o mesmo `id`.
+- A ordem das entregas não é garantida. Nunca volte um status por causa de um evento atrasado.
+- Evento de um recurso que você não conhece: responda `2xx` e registre. Qualquer outra resposta faz a 4SeletPay tentar de novo.

@@ -1,170 +1,328 @@
-# 4Selet Pay
+# 4SeletPay
 
-> 4Selet Pay é uma plataforma brasileira de processamento de pagamentos via API. Permite criar cobranças únicas via Cartão de Crédito e PIX, configurar assinaturas recorrentes com controle de ciclos e faturas, salvar cartões tokenizados do cliente para reutilização, gerar links de pagamento com checkout pré-configurado e gerenciar webhooks de notificação em tempo real. Toda a API usa REST + JSON, autenticação Bearer Token, opera em BRL e exige o header `account` em todas as rotas protegidas. Base URL: `https://api.4seletpay.com.br/api/v1`.
+> 4SeletPay é um gateway de pagamentos brasileiro. Pela API você cobra no cartão de crédito (à vista ou parcelado) e no PIX, cria assinaturas recorrentes com faturas por ciclo, salva cartões para reutilizar, estorna cobranças e recebe webhooks a cada mudança de status. **Para integrações novas, use a API v2**: base `https://app.4seletpay.com.br/api/v2`, autenticação só pela chave de API (`Authorization: Bearer sk_live_...`), valores em **centavos** inteiros. A v1 (base `https://app.4seletpay.com.br/api/v1`, login com e-mail e senha, valores em reais) continua no ar e ainda é a única forma de gerenciar endpoints de webhook pela API.
 
-Notas importantes:
+Este arquivo é o ponto de partida para integrar a 4SeletPay de ponta a ponta. Leia na ordem: **Antes de começar**, depois o **Guia de integração** do seu caso, depois **Webhooks** e **Checklist**. Os links no fim levam à referência completa de cada rota.
 
-- Autenticação: todas as rotas protegidas precisam do header `Authorization: Bearer <token>` obtido via `POST /v1/login` e do header `account: <codigo_da_conta>`.
-- Valores monetários são sempre em **reais** com decimais (ex.: `97.99` = R$ 97,99). Nunca em centavos.
-- Respostas seguem o envelope `{ "mensagem": "...", "erro": false, "mensagenserro": [], "codigoretorno": 200, "id": "uuid", "data": {...} }`.
-- Listagens paginadas retornam o formato padrão do Laravel Paginator — diferente do envelope acima.
-- Cobranças passam por verificação de fraude e rate limiting por cliente antes de chegar ao gateway.
-- Links de pagamento geram uma URL única com token de segurança; compartilhe o campo `url` da resposta diretamente com o cliente.
-- Assinaturas gerenciam faturas automaticamente a cada ciclo — use webhooks para reagir a falhas e regularizações.
-- Webhooks enviam `POST` para sua URL com o envelope `{ "type": "entidade.ação", "id": "hook_...", "webhook_version": "v1", "data": {...} }`.
-- Cartões salvos são tokenizados de forma assíncrona: o cadastro responde `202` com `tokenization_status: "pending"` e o resultado chega por webhook (`card.token_created` / `card.token_failed`).
+## Antes de começar
 
-## Autenticação
+### Ambientes e chaves
 
-- [Referência de Autenticação](https://docs.4seletpay.com.br/pages/autenticacao/reference): Visão geral do fluxo de autenticação OAuth2 via Laravel Passport. O token retornado deve ser enviado no header `Authorization: Bearer <token>` em todas as requisições protegidas.
-- [POST /v1/login](https://docs.4seletpay.com.br/pages/autenticacao/login): Obtém um Bearer Token. Campos obrigatórios: `email`, `password`. Retorna `access_token`, `token_type` e `expires_in`.
-- [Chave de API (secret key)](https://docs.4seletpay.com.br/pages/autenticacao/chave-de-api): Autentica **todas as rotas da API v2** e as rotas de **Análise de Fraude** da v1 (as demais rotas da v1 continuam usando o token de login). Gera-se no dashboard em Configurações → Chaves de API. O valor `sk_<ambiente>_<identificador>_<segredo>` aparece uma única vez. `sk_test_` (Dev mode) e `sk_live_` (produção) não são intercambiáveis. Revogação imediata.
+| | Produção | Ambiente de Sandbox |
+|---|---|---|
+| Base da v2 | `https://app.4seletpay.com.br/api/v2` | `https://sandbox.4seletpay.com.br/api/v2` |
+| Base da v1 | `https://app.4seletpay.com.br/api/v1` | `https://sandbox.4seletpay.com.br/api/v1` |
+| Chave de API | `sk_live_...` | `sk_test_...` |
+| Dashboard | `https://app.4seletpay.com.br` | `https://sandbox.4seletpay.com.br` |
 
-## Cobranças
+- Produção e Ambiente de Sandbox são **endereços separados**, com contas, chaves e endpoints de webhook próprios. Não existe um botão para trocar de ambiente: você troca a base URL e a chave.
+- Gere a chave em **Configurações → Chaves de API**, no dashboard do ambiente que vai usar. Ela aparece uma única vez. Formato: `sk_<ambiente>_<identificador>_<segredo>`.
+- `sk_live_` só funciona em produção e `sk_test_` só no Ambiente de Sandbox. A chave errada no ambiente errado responde `401 invalid_api_secret`.
+- A chave dá acesso total à conta (não há escopos). Guarde-a só no servidor, em variável de ambiente. Nunca a envie ao navegador.
+- A v2 **não usa** o header `account` nem o token de login.
 
-- [Referência de Cobranças](https://docs.4seletpay.com.br/pages/cobrancas/reference): Transações de pagamento únicas via Cartão de Crédito (`CreditCard`) ou PIX. Passam por verificações de fraude, bloqueio de IP/e-mail/CPF/BIN e rate limiting. Respostas: `201 Approved`, `202 Challenged` (OTP necessário), `400 Declined`.
-- [POST /v1/charge](https://docs.4seletpay.com.br/pages/cobrancas/create): Cria uma cobrança. Obrigatórios: `client.name`, `client.email`, `client.phone`, `payment.type`, `items`. Para `CreditCard`: `payment.card.number`, `payment.card.name`, `payment.card.month`, `payment.card.year`, `payment.card.security_code`, `payment.card.installments` — ou, com cartão salvo, apenas `payment.card.card_token` + `payment.card.installments` (nesse caso envie também `client.address`, pois o billing address não é tokenizado). Para `PIX`: opcional `payment.pix_expiration` (segundos).
-- [GET /v1/charge](https://docs.4seletpay.com.br/pages/cobrancas/list): Lista cobranças da conta (paginado).
-- [GET /v1/charge/{code}](https://docs.4seletpay.com.br/pages/cobrancas/get): Busca cobrança pelo código.
-- [POST /v1/charge/cancel/{code}](https://docs.4seletpay.com.br/pages/cobrancas/cancel): Cancela uma cobrança ativa. Irreversível.
-- [POST /v1/charge/refund/{code}](https://docs.4seletpay.com.br/pages/cobrancas/refund): Estorna uma cobrança. Campo opcional `value` (inteiro, em centavos) para estorno parcial; se omitido, estorno total.
+### Convenções da v2
 
-## Pedidos
+- **Valores em centavos inteiros**: R$ 97,90 = `9790`. Isso vale para `amount` de itens, pagamentos, estornos e descontos `fixed`.
+- **Respostas** são objetos planos com o campo `object` (`order`, `charge`, `subscription`, `invoice`, `card`).
+- **Erros** usam `{ "error": { "type", "code", "message", "param"?, "customer_message"? } }`. Identifique o erro pelo `code`.
+- **`402` não é erro de requisição**: é um pagamento recusado. O corpo traz o recurso completo com `status: "failed"` e `failure_reason` (`code`, `message`, `customer_message`, `merchant_message`). Grave o `id` do recurso mesmo no `402`. Mostre ao comprador só o `customer_message`.
+- **`201` não significa pago**. Leia o `status` do recurso e, para liberar acesso, confie no webhook (ver Webhooks).
+- **`Idempotency-Key`** (opcional, recomendado): até 128 caracteres, vale 24 h, por conta + método + rota + corpo. Só respostas `2xx` são reaproveitadas; `402` e `422` liberam a chave. Mesma chave com corpo diferente: `422 idempotency_key_conflict`. Chave ainda em processamento: `409 idempotency_key_in_use`.
+- **Datas não têm um formato único**: `created_at` dos webhooks é UTC (`...Z`); assinaturas e faturas usam ISO 8601 com `-03:00`; `next_action.pix.expires_at` vem como `AAAA-MM-DD HH:MM:SS` **sem fuso, no horário de Brasília** (`America/Sao_Paulo`); `next_action.otp.expires_at` é UTC. Converta cada um com o fuso certo antes de mostrar uma contagem regressiva.
+- **`metadata`** é aceito em pedidos e assinaturas. Assinaturas o devolvem; pedidos **não** devolvem `metadata` nem `customer`. Quando vazio, pode vir como `[]` em vez de `{}`.
 
-- [Referência de Pedidos](https://docs.4seletpay.com.br/pages/pedidos/reference): Pedidos agrupam cobranças. Um pedido com status `Challenged` exige confirmação OTP pelo pagador antes de ser aprovado.
-- [GET /v1/orders/{order_code}/confirmations](https://docs.4seletpay.com.br/pages/pedidos/confirmations): Lista as confirmações pendentes de um pedido.
-- [POST /v1/orders/{order_code}/confirmations/{confirmation_id}/verify](https://docs.4seletpay.com.br/pages/pedidos/verify): Verifica o código OTP informado pelo pagador e aprova ou rejeita o pedido.
-- [POST /v1/orders/{order_code}/confirmations/{confirmation_id}/resend](https://docs.4seletpay.com.br/pages/pedidos/resend): Reenvia o OTP para o e-mail ou telefone do pagador.
+### Dados do cartão (leia antes de montar o checkout)
 
-## Cartões
+- A API recebe os dados do cartão (`number`, `holder_name`, `exp_month`, `exp_year`, `cvc`) **do seu servidor**. Não há tokenização no navegador nem chave pública.
+- Isso coloca o seu servidor no escopo do PCI DSS. Trafegue só por HTTPS, nunca registre em log nem guarde número e CVC, e descarte-os depois da chamada.
+- Para cobrar de novo o mesmo cliente sem pedir o cartão, salve-o com `POST /v2/cards` e use o `id` devolvido como `card.token` (ver Cartões).
 
-- [Referência de Cartões](https://docs.4seletpay.com.br/pages/cartoes/reference): Cartões salvos de um cliente, reutilizáveis em cobranças e assinaturas. Tokenização assíncrona: o cadastro responde `202` com `tokenization_status: "pending"` e o resultado chega por webhook. PAN e CVV nunca são retornados — apenas `first_six_digits` e `last_four_digits`. O campo `card_token` é o identificador enviado em `payment.card.card_token` ao cobrar.
-- [POST /v1/clients/{clientCode}/cards/tokens](https://docs.4seletpay.com.br/pages/cartoes/create-token): Endpoint único para salvar um cartão e iniciar a tokenização. Obrigatórios: `name`, `number`, `month`, `year`, `security_code`. Opcionais: `type` (`credit`/`debit`), `flag`. Aceita o header `Idempotency-Key`. Retorna `202 Accepted`.
-- [GET /v1/clients/{clientCode}/cards](https://docs.4seletpay.com.br/pages/cartoes/list): Lista os cartões salvos do cliente em `data.cards`, do mais recente para o mais antigo.
-- [GET /v1/clients/{clientCode}/cards/{cardId}](https://docs.4seletpay.com.br/pages/cartoes/get): Consulta um cartão pelo `id` (UUID).
-- [PUT /v1/clients/{clientCode}/cards/{cardId}](https://docs.4seletpay.com.br/pages/cartoes/update): Atualiza `name`, `type`, `flag` e a validade (`month` + `year`, enviados juntos). Número e CVV são imutáveis. Alterar a validade reinicia a tokenização.
-- [DELETE /v1/clients/{clientCode}/cards/{cardId}](https://docs.4seletpay.com.br/pages/cartoes/delete): Exclui o cartão (soft delete). Retorna `409` se o cartão estiver vinculado a uma assinatura ativa.
+### O que ainda só existe na v1
 
-## Assinaturas
+A v2 não tem rotas para estas operações. Use a v1, que exige `POST /v1/login` (e-mail e senha da conta) e os headers `Authorization: Bearer <access_token>` e `account: <codigo_da_conta>`:
 
-- [Referência de Assinaturas](https://docs.4seletpay.com.br/pages/assinaturas/reference): Cobranças recorrentes automáticas. Suporta `CreditCard` e `PIX`. Campos principais: `subscription.interval` (dias, 1–365), `subscription.installments` (obrigatório para cartão), `subscription.max_invoices`, `subscription.start_date`, `subscription.discounts`, `subscription.increments`. Status: `Recurring`, `RecurringCanceled`, `RecurringOverdue`.
-- [POST /v1/subscriptions](https://docs.4seletpay.com.br/pages/assinaturas/create): Cria uma assinatura. Mesmos campos de cliente e itens que cobranças, mais o objeto `subscription`.
-- [PUT /v1/subscriptions/cancel/{subscription_code}](https://docs.4seletpay.com.br/pages/assinaturas/cancel): Cancela uma assinatura ativa. Irreversível.
-- [PUT /v1/subscriptions/change-card/{subscription_code}](https://docs.4seletpay.com.br/pages/assinaturas/change-card): Troca o cartão de uma assinatura ativa. Requer dados completos do novo cartão.
-- [PUT /v1/subscriptions/change-payment-method/{subscription_code}](https://docs.4seletpay.com.br/pages/assinaturas/change-payment-method): Altera o método de pagamento da assinatura (ex: cartão para PIX).
-- [GET /v1/subscriptions/{subscription_code}/invoices](https://docs.4seletpay.com.br/pages/assinaturas/invoices): Lista faturas geradas por uma assinatura.
-- [GET /v1/subscriptions/{subscription_code}/items](https://docs.4seletpay.com.br/pages/assinaturas/items): Lista os itens de uma assinatura.
-- [PUT /v1/subscriptions/{subscription_code}/items/{item_code}](https://docs.4seletpay.com.br/pages/assinaturas/update-item): Atualiza um item da assinatura (ex: valor ou descrição).
+- Cadastrar, listar, alterar e remover endpoints de webhook: `/v1/webhook-endpoints`. Você também pode fazer isso no dashboard.
+- Listar entregas de webhook e pedir reenvio: `GET /v1/webhook-events` e `POST /v1/webhook-events/{code}/resend`.
 
-## Faturas
+## Guia de integração
 
-- [Referência de Faturas](https://docs.4seletpay.com.br/pages/faturas/reference): Faturas geradas automaticamente por assinaturas. Use para permitir que o cliente regularize uma fatura em atraso manualmente.
-- [POST /v1/invoices/{invoice_code}/pay-overdue](https://docs.4seletpay.com.br/pages/faturas/pay-overdue): Processa o pagamento de uma fatura em atraso de assinatura. Aceita os mesmos campos de `payment` que uma cobrança avulsa.
+### 1. Configurar o webhook (faça primeiro)
 
-## Links de Pagamento
+1. Crie uma rota HTTPS pública no seu servidor (ex.: `POST /webhooks/4seletpay`). Ela deve responder `2xx` rápido e processar em seguida.
+2. Cadastre o endpoint **pelo dashboard** e, na mesma tela:
+   - configure uma **autenticação** (header customizado com um segredo seu, Bearer ou Basic). A 4SeletPay envia esse header em toda entrega; sua rota rejeita o que não o tiver. As entregas não têm assinatura HMAC, então esse header é a forma de saber que a requisição veio da 4SeletPay.
+   - defina o **número de tentativas** (até 10). Um endpoint criado por `POST /v1/webhook-endpoints` nasce com **1 tentativa, sem reenvio**, e sem autenticação.
+3. Assine os eventos do seu caso (lista em Webhooks).
 
-- [Referência de Links de Pagamento](https://docs.4seletpay.com.br/pages/links-de-pagamento/reference): Checkouts pré-configurados com URL única e token de segurança. Suporta `CreditCard`, `PIX` e `Boleto`. Configura parcelamento por milestones, desconto exclusivo PIX, imagem no checkout (URL ou base64, fail-soft), split entre recebedores, expiração automática e limite de usos.
-- [POST /v1/payment-links](https://docs.4seletpay.com.br/pages/links-de-pagamento/create): Cria um link de pagamento. Obrigatórios: `client.name`, `client.email`, `client.phone`, `items`. Config opcional: `payment_types`, `installments` (milestones), `expires_at`, `max_uses`, `freight`, `pix_discount_value`, `pix_discount_type`, `image` (URL ou base64), `image_url`, `soft_descriptor`, `obfuscate_client`, `obfuscate_items`, `split`, `back_url`, `redirect_url`, `link_name`, `order_title`. Retorna `code`, `url`, `token`, `status`, `value`.
-- [GET /v1/payment-links](https://docs.4seletpay.com.br/pages/links-de-pagamento/list): Lista links de pagamento da conta (paginado).
-- [GET /v1/payment-links/{code}](https://docs.4seletpay.com.br/pages/links-de-pagamento/get): Consulta um link pelo código. Retorna `uses_count`, `expires_at`, `status` e todas as configurações.
-- [POST /v1/payment-links/{code}/cancel](https://docs.4seletpay.com.br/pages/links-de-pagamento/cancel): Cancela um link ativo. Irreversível.
-- [DELETE /v1/payment-links/{code}](https://docs.4seletpay.com.br/pages/links-de-pagamento/delete): Remove um link permanentemente. Links ativos são cancelados antes da exclusão.
+### 2. Venda avulsa no cartão (à vista ou parcelado)
 
-## Análise de Fraude
+`POST /v2/orders` com `Idempotency-Key` (ex.: `ord-<id do pedido no seu sistema>`):
 
-- [Referência de Análise de Fraude](https://docs.4seletpay.com.br/pages/analise-de-fraude/reference): API de Risco (Modelo A) — consulta o risco de fraude de uma transação sem processar o pagamento. Autenticação **por chave de API (secret key)** (`Authorization: Bearer sk_live_...` ou `sk_test_...`), **não** usa o token de login (JWT) nem o header `account`. Não envie número completo, CVV ou validade do cartão — só `card.bin` (6 dígitos) e `card.last4` (4 dígitos). `amount` é em **centavos**. Erros usam envelope plano `{ "error": { "type", "code", "message" } }`. Cada análise concluída é cobrada. Header opcional `Idempotency-Key` evita análise/cobrança duplicada.
-- [POST /v1/fraud/risk-analyses](https://docs.4seletpay.com.br/pages/analise-de-fraude/create): Analisa o risco. Obrigatórios: `amount` (centavos), `currency` (ISO 3 letras). Opcionais: `external_reference`, `payment_method`, `customer.{name,document,email,phone}`, `card.{bin,last4,brand}`, `context.{ip,user_agent}`. Retorna `id`, `status`, `risk_score` (0–100), `risk_level` (`low`/`medium`/`high`), `recommendation` (`follow`/`additional_validation`/`reject`), `decision` (`ALLOW`/`CHALLENGE`/`DENY`) e `reasons` (códigos).
-- [Dados de teste da Análise de Fraude](https://docs.4seletpay.com.br/pages/analise-de-fraude/dados-de-teste): Valores que forçam o resultado, válidos só em Dev mode — em produção são dados comuns e passam pela análise real. Qualquer um dos três campos dispara o cenário: `customer.email` (`sandbox.aprovado@`, `sandbox.check-fraude@`, `sandbox.block-fraude@`, `sandbox.indisponivel@` ou `sandbox.erro@4selet.com.br`), `card.bin` (`000001` a `000005`) ou `context.ip` (`203.0.113.1` a `203.0.113.5`). Resultados: `ALLOW`/`risk_score` 0/`low`, `CHALLENGE`/50/`medium` e `DENY`/100/`high` respondem `200` com `status: completed` e SÃO cobrados; `503 analysis_unavailable` e `500 internal_error` não são cobrados e deixam a `Idempotency-Key` livre para o retry. Com gatilhos de cenários diferentes na mesma requisição, vence o mais severo: 500 > 503 > DENY > CHALLENGE > ALLOW. O motor de risco e os provedores externos não são executados, e `reasons` traz o código `SANDBOX_FORCED_*`. `402 payment_required` e `403 product_not_enabled` não são simuláveis (dependem do estado da conta).
+```json
+{
+  "customer": {
+    "name": "Maria Silva",
+    "email": "maria@exemplo.com",
+    "phone": { "ddi": "55", "ddd": "11", "number": "999998888" },
+    "document": { "type": "cpf", "number": "12345678909" },
+    "ip": "203.0.113.10"
+  },
+  "items": [{ "code": "curso-vitalicio", "description": "Curso vitalício", "quantity": 1, "amount": 69700 }],
+  "payments": [{
+    "type": "card",
+    "amount": 69700,
+    "capture_method": "automatic",
+    "card": { "number": "...", "holder_name": "MARIA SILVA", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 6 }
+  }],
+  "metadata": { "order_id": "seu-id-interno" }
+}
+```
+
+- **Sempre envie `capture_method: "automatic"`.** O padrão é `manual`: sem ele, o pedido fica em `requires_capture`, o dinheiro não é capturado e a autorização é cancelada em cerca de 26 h (a menos que você chame `POST /v2/orders/{id}/capture`).
+- A soma de `items[].amount × quantity` deve ser igual à soma de `payments[].amount`.
+- **Parcelas não mudam o valor.** `installments` só divide a cobrança. Se você cobra juros do comprador, calcule e some ao `amount` (e aos itens) antes de enviar.
+- `customer.ip` é o IP do comprador (não o do seu servidor). Ele é usado nos bloqueios de cliente.
+- `customer.document` é opcional no pedido, mas obrigatório em assinatura e cartão salvo.
+- Grave o `id` do pedido (`ord_...`) e o `payments[].id` (`cha_...`): são eles que chegam nos webhooks.
+
+Trate a resposta pelo `status` do pedido:
+
+| `status` | O que fazer |
+|---|---|
+| `paid` | Pagamento confirmado. Aguarde `order.paid` para liberar acesso (ou libere já e trate o webhook de forma idempotente). |
+| `processing` | Ainda em análise. Mostre "processando" e aguarde o webhook. |
+| `requires_action` com `next_action.type = "otp_confirmation"` | O comprador precisa digitar um código de verificação. Veja abaixo. |
+| `requires_action` com `next_action: null` | O código já foi confirmado ou expirou. Consulte o pedido de novo com `GET /v2/orders/{id}`. |
+| `requires_capture` | Você esqueceu `capture_method: "automatic"`. Capture ou cancele. |
+| `failed` (HTTP `402`) | Recusado. Mostre `failure_reason.customer_message`. |
+
+**Código de verificação (OTP).** Nada é cobrado antes da confirmação.
+
+1. Mostre um campo para o código. A validade está em `next_action.otp.expires_at` (UTC).
+2. Envie o código: `POST /v2/orders/{id}/confirm` com `{ "code": "123456" }`. A resposta traz o novo `status` (ou `402`).
+3. Para reenviar: `POST /v2/orders/{id}/confirm/resend` (limite de 5 por minuto por IP; mostre um contador antes de liberar o botão).
+
+### 3. PIX no seu próprio checkout
+
+`POST /v2/orders` com um pagamento PIX:
+
+```json
+{
+  "customer": { "name": "...", "email": "...", "phone": { "ddi": "55", "ddd": "11", "number": "999998888" } },
+  "items": [{ "code": "plano-anual", "description": "Plano anual", "quantity": 1, "amount": 29700 }],
+  "payments": [{ "type": "pix", "amount": 29700, "pix_expiration": 1800 }]
+}
+```
+
+- `pix_expiration` é em **segundos**. Sem ele, vale o padrão da conta. Em pedido com cartão e PIX juntos, o máximo é 86400 (24 h).
+- A resposta vem com `status: "requires_action"` e `next_action.type: "pix_display_qr_code"`. Em `next_action.pix`:
+  - `qr_code`: o código copia e cola;
+  - `qr_code_url`: URL da imagem do QR code;
+  - `expires_at`: horário de Brasília, sem fuso (`AAAA-MM-DD HH:MM:SS`).
+- **Confirmação:** o pagamento chega pelo webhook `order.paid` (e `charge.paid`). Atualize o seu banco no webhook e faça a página do checkout consultar o **seu** servidor (ex.: a cada 3 s).
+- Se precisar consultar a 4SeletPay, use `GET /v2/orders/{id}` com moderação: o limite é de 120 requisições por minuto **para a conta inteira**, compartilhado com a criação de pedidos.
+- **Expirou sem pagamento:** chega `charge.expired` (e, em pedido com vários pagamentos, `order.failed`; o pedido fica `canceled`). Ofereça gerar um novo PIX.
+- Para desistir de um PIX ainda aberto: `POST /v2/orders/{id}/cancel`.
+
+### 4. Assinatura (mensal, anual ou outro ciclo)
+
+`POST /v2/subscriptions` com `Idempotency-Key` (ex.: `sub-<id>`):
+
+```json
+{
+  "code": "assinatura-123",
+  "interval": "day",
+  "interval_count": 30,
+  "customer": {
+    "name": "...", "email": "...",
+    "phone": { "ddi": 55, "ddd": 11, "number": "999998888" },
+    "document": { "type": "cpf", "number": "12345678909" }
+  },
+  "items": [{ "code": "plano-mensal", "description": "Plano mensal", "quantity": 1, "amount": 3900 }],
+  "payment": { "type": "card", "card": { "number": "...", "holder_name": "...", "exp_month": 12, "exp_year": 2030, "cvc": "123", "installments": 1 } },
+  "metadata": { "user_id": "seu-id-interno" }
+}
+```
+
+- **Ciclo:** `interval` é `day` ou `week`, vezes `interval_count`, até 365 dias. Não existe mês de calendário: "mensal" é `day` × 30 e "anual" é `day` × 365. A data de cobrança desliza em relação ao dia do mês. Se precisar de dia fixo, ajuste com `PUT /v2/subscriptions/{id}/next-billing-date` depois de cada `invoice.paid` (aceita a partir de amanhã).
+- **Obrigatórios só na assinatura:** `customer.document`, `items[].code`, e `phone.ddi`/`phone.ddd` como inteiros. Se enviar `address`, ele precisa estar completo.
+- A primeira cobrança é imediata (ou em `start_at`, a partir de amanhã). A primeira fatura vem em `latest_invoice`: trate o `status` dela como o de um pedido (`processing`, `requires_action`, `failed`). Para OTP da fatura, use `POST /v2/invoices/{id}/confirm` e `.../confirm/resend`.
+- **Recusa na criação:** `402`, assinatura em `incomplete_expired` e o motivo em `latest_invoice.failure_reason`.
+- **PIX na assinatura:** `payment: { "type": "pix", "pix_expiration": 3600 }`. Cada ciclo gera uma fatura nova com um QR code novo (em `next_action` da fatura e no webhook `invoice.created`). Entregue esse QR code ao seu cliente. Não há PIX Automático.
+
+Eventos da assinatura, na ordem em que acontecem:
+
+| Momento | Evento | Ação no seu sistema |
+|---|---|---|
+| 1º pagamento confirmado | `invoice.paid` (fatura nº 1) | Ativar. Não existe `subscription.created` nem `subscription.activated`. |
+| Fatura de renovação gerada | `invoice.created` | Em PIX, envie o novo QR code ao cliente. Pode se repetir: trate pelo `id` da fatura. |
+| Renovação paga | `invoice.paid` | Estender o acesso até o próximo ciclo. |
+| Renovação recusada | `invoice.failed` + `subscription.delayed` | Avisar o cliente; a assinatura fica `past_due`. |
+| Quitada depois de atrasar | `subscription.regularized` | Normalizar. |
+| Tentativas esgotadas | `subscription.canceled` (ou `subscription.suspended`, se a assinatura tiver `max_invoices`) | Encerrar o acesso. |
+| Cancelada por você | `subscription.canceled` | — |
+| Todas as faturas pagas (`max_invoices`) | `subscription.completed` | Encerrar o ciclo. |
+
+- **Novas tentativas:** uma fatura recusada é cobrada de novo automaticamente, uma vez por dia, até 3 tentativas. Depois disso, a assinatura é cancelada (ou suspensa, com `max_invoices`). Para o cliente quitar antes, use `POST /v2/invoices/{id}/pay` com um novo `payment` (cartão novo, `card.token` ou PIX).
+- **Trocar cartão ou meio de pagamento:** `PUT /v2/subscriptions/{id}/payment-method` com `payment` (só em `active` ou `past_due`).
+- **Cancelar:** `POST /v2/subscriptions/{id}/cancel`. É imediato e irreversível; não existe "cancelar no fim do período". Se o seu produto mantém o acesso até o fim do período pago, guarde essa data antes de cancelar.
+- **Parcelado como assinatura:** para cobrar uma venda em N vezes mensais sem usar o parcelamento do cartão, crie uma assinatura com `max_invoices: N`, item no valor total ÷ N e `installments: 1`. Ela termina com `subscription.completed`.
+
+### 5. Cupons e descontos
+
+- A 4SeletPay não tem objeto de cupom. Validar o código, o limite de usos e a validade é responsabilidade do seu sistema.
+- **Pedido:** não há campo de desconto. Envie o preço já com desconto em `items[].amount` e `payments[].amount`.
+- **Assinatura:** use `discounts` (ou `increments` para acréscimos): `[{ "type": "percentage" | "fixed", "value": 50, "invoice_number": 1 }]`. Sem `invoice_number`, vale para todas as faturas. Para "N primeiros ciclos", envie uma entrada por fatura. `fixed` é em centavos. Não combina com `split`.
+
+### 6. Estorno
+
+- `POST /v2/charges/{id}/refund` com o `id` da cobrança (`cha_...`, o `payments[].id` do pedido). Sem `amount`, estorna o saldo; parcial a partir de `100` centavos.
+- É assíncrono: a cobrança fica `refund_processing` e o resultado chega em `charge.refunded` ou `charge.partial_refunded` (e `order.refunded` quando o pedido inteiro foi estornado). Um estorno por vez.
+
+### 7. Cartão salvo
+
+- `POST /v2/cards` com `customer` (`name`, `email`, `phone`, `document`) e `card`. Responde sempre `202` com `tokenization_status` (`pending` ou `failed`). O `id` devolvido é o `card.token` usado em pedidos, assinaturas e faturas.
+- A resposta nunca traz o número completo nem o CVC. Limite de 10 cartões por minuto por conta.
 
 ## Webhooks
 
-- [Referência de Webhooks](https://docs.4seletpay.com.br/pages/webhook-endpoints/reference): Endpoints de notificação automática. Eventos disponíveis: `charge.canceled`, `charge.expired`, `card.created`, `card.updated`, `card.deleted`, `card.expired`, `card.token_pending`, `card.token_created`, `card.token_failed`, `order.failed`, `order.unprocessed`, `order.challenged`, `invoice.created`, `invoice.failed`, `subscription.canceled`, `subscription.delayed`, `subscription.regularized`, `tax_invoice.issued`. Payload: `{ "type": "entidade.ação", "id": "hook_...", "webhook_version": "v1", "data": {...} }`. URL de destino deve ser HTTPS pública e responder `200 OK`.
-- [POST /v1/webhook-endpoints](https://docs.4seletpay.com.br/pages/webhook-endpoints/create): Cadastra um endpoint. Obrigatórios: `url` (HTTPS), `events` (array com ao menos um evento válido). Opcional: `status` (ativo por padrão).
-- [GET /v1/webhook-endpoints](https://docs.4seletpay.com.br/pages/webhook-endpoints/list): Lista todos os endpoints da conta.
-- [PUT /v1/webhook-endpoints/{id}](https://docs.4seletpay.com.br/pages/webhook-endpoints/update): Atualiza um endpoint. Todos os campos opcionais — envie apenas o que deseja alterar. Para pausar sem excluir, envie `"status": "Inativo"`.
-- [DELETE /v1/webhook-endpoints/{id}](https://docs.4seletpay.com.br/pages/webhook-endpoints/delete): Remove um endpoint permanentemente.
+- **Envelope v2:** `{ "id": "hook_...", "type": "order.paid", "webhook_version": "v2", "created_at": "...Z", "data": { ... } }`. O formato segue a origem do recurso: o que foi criado pela v2 notifica em `v2`; o que foi criado pela v1 continua em `v1`. Leia `webhook_version` antes de interpretar `data`.
+- **Deduplicação:** o `id` (`hook_...`) é o mesmo em todos os reenvios de uma entrega. Guarde os `id` processados e ignore repetidos.
+- **Reenvio:** qualquer resposta fora de `2xx` (ou mais de 30 s sem resposta) é reenviada, até o número de tentativas configurado no endpoint, com intervalos de 1 min, 5 min, 30 min, 2 h e 12 h. Recurso que você não conhece: responda `2xx` e registre, senão a 4SeletPay continua tentando.
+- **Ordem não é garantida.** Nunca volte um status (ex.: de pago para pendente) por causa de um evento atrasado.
+- **Autenticidade:** as entregas não são assinadas. Configure um header de autenticação no endpoint (ver Guia, passo 1) e confira em cada requisição. Para decisões críticas, consulte o recurso pela API antes de agir.
 
-## Eventos de Webhook
+Onde está o identificador em cada evento:
 
-- [Eventos de Cobrança](https://docs.4seletpay.com.br/pages/webhooks/events/charge): `charge.canceled` (cobrança cancelada) e `charge.expired` (PIX expirado sem pagamento). Payload inclui `code`, `status`, `value`, `payment_type`, `order_code` e timestamp do evento.
-- [Eventos de Pedido](https://docs.4seletpay.com.br/pages/webhooks/events/order): `order.failed` (falha no gateway), `order.unprocessed` (sem adquirente disponível), `order.challenged` (aguardando OTP). Payload inclui `code`, `status`, `value`, `payment_type` e, para challenged, `challenge_expires_at`.
-- [Eventos de Fatura](https://docs.4seletpay.com.br/pages/webhooks/events/invoice): `invoice.created` (nova fatura gerada no ciclo) e `invoice.failed` (cobrança da fatura recusada). Payload inclui `code`, `status`, `subscription_code`, `value` e `due_date`.
-- [Eventos de Cartão](https://docs.4seletpay.com.br/pages/webhooks/events/card): `card.created`, `card.updated`, `card.deleted`, `card.expired`, `card.token_pending`, `card.token_created` e `card.token_failed`. Todos entregam a mesma representação segura do cartão, incluindo `card_token`, `tokenization_status`, `first_six_digits` e `last_four_digits`.
-- [Eventos de Assinatura](https://docs.4seletpay.com.br/pages/webhooks/events/subscription): `subscription.canceled`, `subscription.delayed` (fatura em atraso) e `subscription.regularized` (atraso quitado). Payload inclui `code`, `status`, `value`, `payment_type` e timestamps relevantes.
-- [Eventos de Nota Fiscal](https://docs.4seletpay.com.br/pages/webhooks/events/tax-invoice): `tax_invoice.issued`, disparado quando todas as notas fiscais de um pedido são autorizadas. Payload inclui `order_code`, `email`, `customer_name`, `corporate_name`, `total_amount`, `products`, `payment_method` e `invoices[]` com `model`, `code` e `pdf_url` público.
+| Evento | `data` é | Use para encontrar |
+|---|---|---|
+| `order.*` | o pedido | `data.id` = `ord_...` (o `id` devolvido em `POST /v2/orders`) |
+| `charge.*` | payload próprio da cobrança | `data.code` = `cha_...` (o `payments[].id`). `data.id` é um UUID interno: não use. |
+| `invoice.*` | a fatura | `data.id` = id da fatura; `data.subscription` = id da assinatura |
+| `subscription.*` | a assinatura | `data.id` = id da assinatura; `data.metadata` traz o que você enviou |
 
-# API v2
+Eventos da v2: `order.paid`, `order.failed`, `order.refunded`, `order.chargeback`; `charge.created`, `charge.pending`, `charge.paid`, `charge.failed`, `charge.reproved`, `charge.refunded`, `charge.partial_refunded`, `charge.chargeback`, `charge.expired`, `charge.canceled`; `invoice.created`, `invoice.paid`, `invoice.failed`; `subscription.canceled`, `subscription.delayed`, `subscription.regularized`, `subscription.suspended`, `subscription.completed`.
 
-> A API v2 é a nova API REST da 4SeletPay. Base URL: `https://app.4seletpay.com.br/api/v2`. Autenticação **somente** por chave de API (`Authorization: Bearer sk_live_...` ou `sk_test_...`), **sem** header `account` e sem token de login. Valores sempre em **centavos** inteiros. Respostas são objetos planos com o campo `object`; erros usam o envelope `{ "error": { "type", "code", "message", "param"?, "customer_message"? } }`.
+- Em assinatura v2, o pagamento da fatura chega como `invoice.paid` (não `charge.paid`).
+- O pedido aguardando código de verificação só notifica no formato v1 (`order.challenged`). Na v2, use a resposta da criação.
+- O vocabulário do `charge.*` difere do da API: `payment_method` vem como `credit_card` (não `card`), `amount` e `amount_refunded` em centavos, e `card` vem `null` quando não há cartão.
 
-Notas importantes da v2:
+## Checklist (os erros mais comuns)
 
-- Um pedido (`order`) pode ter **vários pagamentos** (`payments[]`: cartão, PIX ou os dois). A regra é tudo-ou-nada: se um pagamento falha, os autorizados são desfeitos.
-- `201` **não significa pago**: o pedido volta `requires_capture`, `requires_action`, `processing` ou `failed`. A confirmação chega por webhook (`order.paid`, `charge.paid`).
-- `402` não é erro de requisição: traz o recurso completo com `status: "failed"` e `failure_reason` (`code`, `message`, `customer_message`, `merchant_message`). Mostre ao pagador só o `customer_message`.
-- Captura: cartão sem `capture_method` é `manual` (pedido fica `requires_capture` e exige `POST /v2/orders/{id}/capture`). `automatic` só captura direto em pedido com um único pagamento. Em cartão + PIX, o cartão é capturado automaticamente quando o PIX é pago.
-- `Idempotency-Key` é **opcional** (recomendado), até 128 caracteres, válido por 24h; só respostas `2xx` são reaproveitadas.
-- Limites: 120 req/min por chave e por conta (resposta `429` no envelope, `code` `api_rate_limited`, `type` `invalid_request_error` — identifique pelo `code`); 2 tentativas/min por comprador e itens em pedidos e assinaturas (`429 rate_limit_exceeded`); 10 cartões/min por conta (`429 card_tokenization_rate_limited`); reenvio do código de verificação 5/min por IP de origem (compartilhado entre contas no mesmo servidor, `429` fora do envelope, `{ "message": "Too Many Attempts." }`); nas rotas de reenvio o `429` pode vir dos dois limites, com corpos diferentes.
-- `GET /v2/orders/{id}` só encontra pedidos criados pela v2.
-- PIX expirado em pedido com vários pagamentos encerra o pedido: ele fica `canceled` no `GET` e o webhook que chega é `order.failed` (não existe `order.canceled` na v2).
-- `requires_action` pode vir com `next_action: null` quando o código de verificação já foi confirmado ou expirou; trate o nulo.
-- Moeda: `currency` na requisição indica a moeda dos valores enviados. A conversão para real acontece uma vez e a adquirente sempre recebe BRL. Pedido, pagamento, cobrança, fatura e o webhook `charge.*` respondem `amount` e `currency` em BRL, com `original_amount` e `original_currency`; `exchange_rate` (1 unidade da moeda enviada = X reais, `null` em BRL) vem em pagamento, cobrança, fatura e no webhook, mas não no pedido. Na fatura, `items` e os descontos e acréscimos `fixed` também saem em BRL, convertidos pela `exchange_rate` da fatura (`percentage` não é convertido). Soma garantida ao centavo: Σ `items[].amount_total` − Σ `discounts[].amount_applied` + Σ `increments[].amount_applied` = `amount`; somar `items[].amount × quantity` não tem essa garantia. O total de descontos aplicados é limitado ao valor dos itens, repartido na proporção do valor declarado; acréscimos não têm limite. A assinatura continua na moeda em que o preço foi acordado.
-- PayPal: processa apenas cobranças em `BRL` (pedido, assinatura ou fatura); uma cobrança com `currency` diferente de `BRL` é recusada com `402`, mesmo com a conversão para real, e `failure_reason`, não com erro de requisição. O PayPal nunca é escolhido para pedidos com dois ou mais pagamentos; se for a única adquirente da conta, esses pedidos retornam `422 acquirer_feature_not_supported`.
-- Webhooks: o formato depende de onde o recurso foi criado. Recursos da v2 geram envelope `{ "id": "hook_...", "type", "webhook_version": "v2", "created_at", "data" }`; os da v1 continuam no formato v1. Eventos `card.*`, `order.challenged` e `charge.challenged` só existem no formato v1.
+- [ ] `capture_method: "automatic"` em todo pagamento com cartão.
+- [ ] Valores em centavos na v2 (e em reais na v1).
+- [ ] `Idempotency-Key` estável por operação (ex.: `ord-<id>`), reutilizada no retry.
+- [ ] **Resultado desconhecido** (timeout, `5xx` ou `409 idempotency_key_in_use`): não marque como falho. Repita a mesma requisição com a mesma `Idempotency-Key`, ou aguarde o webhook.
+- [ ] Limite de **2 tentativas por minuto por comprador** (mesmo e-mail ou documento) **para os mesmos itens** (`items[].code`), em `POST /v2/orders` e `/v2/subscriptions`. Retries com a mesma `Idempotency-Key` também contam. Respeite o `Retry-After` do `429 rate_limit_exceeded` e mostre ao comprador uma mensagem para aguardar.
+- [ ] Limite de 120 requisições por minuto por chave e por conta (`429 api_rate_limited`). Não faça polling agressivo na API.
+- [ ] Juros de parcelamento somados ao `amount`, se você os cobra.
+- [ ] `customer.document` e `items[].code` em assinaturas.
+- [ ] Endpoint de webhook com autenticação e mais de 1 tentativa, configurados no dashboard.
+- [ ] Webhook idempotente pelo `id`, sem regressão de status, respondendo `2xx` rápido.
+- [ ] Datas convertidas com o fuso certo (o `expires_at` do PIX é horário de Brasília sem fuso).
+- [ ] Dados do cartão nunca registrados em log nem guardados.
+
+## Testes no Ambiente de Sandbox
+
+- Use a base `https://sandbox.4seletpay.com.br/api/v2` com uma chave `sk_test_`. Webhooks são entregues normalmente.
+- Os cenários simulados da análise de fraude ([dados de teste](https://docs.4seletpay.com.br/pages/analise-de-fraude/dados-de-teste)) ainda não estão ativos: **em breve**.
+- As renovações rodam uma vez por dia (00:00). `next-billing-date` aceita a partir de amanhã.
 
 ## Comece aqui (v2)
 
-- [Visão geral da API v2](https://docs.4seletpay.com.br/pages/v2/start/welcome): Conceitos (pedido, pagamento, cobrança, cartão, assinatura, fatura), convenções e lista de rotas.
-- [Autenticação](https://docs.4seletpay.com.br/pages/v2/start/autenticacao): `Authorization: Bearer sk_...`. Chave `sk_test_` só funciona em Dev mode e `sk_live_` só em produção. Falha: `401 invalid_api_secret`.
-- [Erros](https://docs.4seletpay.com.br/pages/v2/start/erros): Envelope de erro, tipos (`invalid_request_error`, `authentication_error`, `idempotency_error`, `api_error`), pagamento recusado (`402` + `failure_reason`) e catálogo de códigos por status.
-- [Idempotência e limites](https://docs.4seletpay.com.br/pages/v2/start/idempotencia-e-limites): Uso do `Idempotency-Key` e limites de requisições.
-- [Migrando da v1](https://docs.4seletpay.com.br/pages/v2/start/migracao-v1): Diferenças (auth, envelope, centavos, `customer`, `card`/`pix`, `card.token`, split por pagamento, `fraud_analysis`) e equivalência de rotas.
+- [Visão geral da API v2](https://docs.4seletpay.com.br/pages/v2/start/welcome): conceitos (pedido, pagamento, cobrança, cartão, assinatura, fatura), convenções e lista de rotas.
+- [Guia de integração](https://docs.4seletpay.com.br/pages/v2/start/guia-de-integracao): o passo a passo de cartão, PIX, assinatura, cupons e estorno, com o checklist de produção.
+- [Autenticação](https://docs.4seletpay.com.br/pages/v2/start/autenticacao): `Authorization: Bearer sk_...`; `401 invalid_api_secret`.
+- [Erros](https://docs.4seletpay.com.br/pages/v2/start/erros): envelope, tipos, `402` com `failure_reason` e catálogo de códigos.
+- [Idempotência e limites](https://docs.4seletpay.com.br/pages/v2/start/idempotencia-e-limites): `Idempotency-Key` e todos os limites de requisição.
+- [Migrando da v1](https://docs.4seletpay.com.br/pages/v2/start/migracao-v1): diferenças e equivalência de rotas.
+- [Ambiente de Sandbox](https://docs.4seletpay.com.br/pages/v2/start/ambiente-de-sandbox): endereços separados da produção, chave `sk_test_` e o que dá para simular.
 
 ## Pedidos (v2)
 
-- [Referência de Pedidos](https://docs.4seletpay.com.br/pages/v2/pedidos/reference): Pedido com N pagamentos (`payment_intent`), status, `next_action` (`pix_display_qr_code`, `otp_confirmation`), captura e split por pagamento.
-- [POST /v2/orders](https://docs.4seletpay.com.br/pages/v2/pedidos/create): Cria um pedido. Obrigatórios: `customer.name`, `customer.email`, `customer.phone.{ddi,ddd,number}`, `payments[].amount` (centavos), `items[].{description,quantity,amount}`. Cartão: `card.token` ou `card.{number,holder_name,exp_month,exp_year,cvc}`. Opcional `customer.address` (zip_code, street, number, neighborhood, complement, city, state, country), todos os campos opcionais — endereço parcial é aceito, diferente da assinatura. A soma dos itens deve ser igual à soma dos pagamentos. Opcional `international` (boolean): restringe a escolha às adquirentes habilitadas para compra internacional; não tem relação com `currency`. Responde `201` ou `402`.
-- [GET /v2/orders/{id}](https://docs.4seletpay.com.br/pages/v2/pedidos/get): Consulta um pedido criado pela v2.
-- [POST /v2/orders/{id}/capture](https://docs.4seletpay.com.br/pages/v2/pedidos/capture): Captura um pedido `requires_capture`. Responde `200` ou `402`.
-- [POST /v2/orders/{id}/cancel](https://docs.4seletpay.com.br/pages/v2/pedidos/cancel): Cancela um pedido `requires_capture` ou `requires_action`.
-- [POST /v2/orders/{id}/confirm](https://docs.4seletpay.com.br/pages/v2/pedidos/confirm): Confirma o código de verificação (`code`) de um pedido aguardando verificação.
-- [POST /v2/orders/{id}/confirm/resend](https://docs.4seletpay.com.br/pages/v2/pedidos/resend-confirmation): Reenvia o código de verificação. Limite de 5/min por IP.
+- [Referência de pedidos](https://docs.4seletpay.com.br/pages/v2/pedidos/reference): pedido com N pagamentos (cartão, PIX ou os dois, tudo ou nada), status, `next_action`, captura e split por pagamento.
+- [POST /v2/orders](https://docs.4seletpay.com.br/pages/v2/pedidos/create): cria um pedido. Responde `201` ou `402`.
+- [GET /v2/orders/{id}](https://docs.4seletpay.com.br/pages/v2/pedidos/get): consulta um pedido criado pela v2.
+- [POST /v2/orders/{id}/capture](https://docs.4seletpay.com.br/pages/v2/pedidos/capture): captura um pedido `requires_capture`.
+- [POST /v2/orders/{id}/cancel](https://docs.4seletpay.com.br/pages/v2/pedidos/cancel): cancela um pedido `requires_capture` ou `requires_action`.
+- [POST /v2/orders/{id}/confirm](https://docs.4seletpay.com.br/pages/v2/pedidos/confirm): confirma o código de verificação.
+- [POST /v2/orders/{id}/confirm/resend](https://docs.4seletpay.com.br/pages/v2/pedidos/resend-confirmation): reenvia o código (5 por minuto por IP).
 
 ## Cobranças (v2)
 
-- [Referência de Cobranças](https://docs.4seletpay.com.br/pages/v2/cobrancas/reference): Visão financeira de cada pagamento: `amount`, `amount_refunded`, `amount_refundable`, `status`. `payment_method_details.card` (`brand`, `first_six`, `last_four`, `holder_name`, `exp_month`, `exp_year`) só aparece quando há cartão vinculado; sem cartão, a chave não é enviada. O `id` do cartão não é devolvido em pedidos nem em cobranças.
-- [GET /v2/charges/{id}](https://docs.4seletpay.com.br/pages/v2/cobrancas/get): Consulta uma cobrança.
-- [POST /v2/charges/{id}/refund](https://docs.4seletpay.com.br/pages/v2/cobrancas/refund): Estorna uma cobrança paga. `amount` opcional (centavos, mínimo 100 no parcial); sem `amount`, estorna o saldo restante. Assíncrono (`refund_processing`); um estorno por vez; a disponibilidade depende da adquirente da cobrança (`422 refund_not_supported`).
+- [Referência de cobranças](https://docs.4seletpay.com.br/pages/v2/cobrancas/reference): visão financeira de cada pagamento (`amount_refunded`, `amount_refundable`, `status`).
+- [GET /v2/charges/{id}](https://docs.4seletpay.com.br/pages/v2/cobrancas/get): consulta uma cobrança.
+- [POST /v2/charges/{id}/refund](https://docs.4seletpay.com.br/pages/v2/cobrancas/refund): estorna total ou parcialmente (assíncrono).
 
 ## Cartões (v2)
 
-- [Referência de Cartões](https://docs.4seletpay.com.br/pages/v2/cartoes/reference): Cartões salvos. O `id` é usado como `card.token` em pedidos, assinaturas e faturas.
-- [POST /v2/cards](https://docs.4seletpay.com.br/pages/v2/cartoes/create): Salva um cartão. Obrigatórios: `customer.{name,email,phone,document}` e `card.{number,holder_name,exp_month,exp_year,cvc}`. Sempre `202`, com `tokenization_status` `pending` ou `failed`.
-- [GET /v2/cards/{id}](https://docs.4seletpay.com.br/pages/v2/cartoes/get): Consulta um cartão salvo. Nunca devolve número completo nem CVC.
+- [Referência de cartões](https://docs.4seletpay.com.br/pages/v2/cartoes/reference): cartões salvos; o `id` é o `card.token`.
+- [POST /v2/cards](https://docs.4seletpay.com.br/pages/v2/cartoes/create): salva um cartão (sempre `202`).
+- [GET /v2/cards/{id}](https://docs.4seletpay.com.br/pages/v2/cartoes/get): consulta um cartão salvo.
 
 ## Assinaturas (v2)
 
-- [Referência de Assinaturas](https://docs.4seletpay.com.br/pages/v2/assinaturas/reference): Cobrança recorrente. `interval` (`day` ou `week`) × `interval_count`, até 365 dias; não existe mês de calendário. Status: `incomplete`, `incomplete_expired`, `scheduled`, `active`, `past_due`, `suspended`, `canceled`, `completed`.
-- [POST /v2/subscriptions](https://docs.4seletpay.com.br/pages/v2/assinaturas/create): Cria uma assinatura. A primeira fatura vem em `latest_invoice`. Responde `201` ou `402`.
-- [GET /v2/subscriptions/{id}](https://docs.4seletpay.com.br/pages/v2/assinaturas/get): Consulta uma assinatura.
-- [POST /v2/subscriptions/{id}/cancel](https://docs.4seletpay.com.br/pages/v2/assinaturas/cancel): Cancela uma assinatura.
-- [PUT /v2/subscriptions/{id}/payment-method](https://docs.4seletpay.com.br/pages/v2/assinaturas/payment-method): Altera o meio de pagamento (`payment`).
-- [PATCH /v2/subscriptions/{id}/items/{code}](https://docs.4seletpay.com.br/pages/v2/assinaturas/update-item): Atualiza `quantity`, `amount` ou `description` de um item.
-- [PUT /v2/subscriptions/{id}/next-billing-date](https://docs.4seletpay.com.br/pages/v2/assinaturas/next-billing-date): Altera a data da próxima cobrança (`next_billing_at`, a partir de amanhã).
-- [GET /v2/subscriptions/{id}/invoices](https://docs.4seletpay.com.br/pages/v2/assinaturas/invoices): Lista as faturas. Filtros `status` e `limit` (padrão 10, máximo 100); retorna `has_more`, sem cursor.
+- [Referência de assinaturas](https://docs.4seletpay.com.br/pages/v2/assinaturas/reference): ciclo `day`/`week`, status (`incomplete`, `incomplete_expired`, `scheduled`, `active`, `past_due`, `suspended`, `canceled`, `completed`), descontos e acréscimos.
+- [POST /v2/subscriptions](https://docs.4seletpay.com.br/pages/v2/assinaturas/create): cria uma assinatura; a 1ª fatura vem em `latest_invoice`.
+- [GET /v2/subscriptions/{id}](https://docs.4seletpay.com.br/pages/v2/assinaturas/get): consulta uma assinatura.
+- [POST /v2/subscriptions/{id}/cancel](https://docs.4seletpay.com.br/pages/v2/assinaturas/cancel): cancela de imediato.
+- [PUT /v2/subscriptions/{id}/payment-method](https://docs.4seletpay.com.br/pages/v2/assinaturas/payment-method): troca o meio de pagamento.
+- [PATCH /v2/subscriptions/{id}/items/{code}](https://docs.4seletpay.com.br/pages/v2/assinaturas/update-item): altera `quantity`, `amount` ou `description` de um item.
+- [PUT /v2/subscriptions/{id}/next-billing-date](https://docs.4seletpay.com.br/pages/v2/assinaturas/next-billing-date): muda a próxima cobrança (a partir de amanhã).
+- [GET /v2/subscriptions/{id}/invoices](https://docs.4seletpay.com.br/pages/v2/assinaturas/invoices): lista faturas (`status`, `limit` até 100, `has_more`).
 
 ## Faturas (v2)
 
-- [Referência de Faturas](https://docs.4seletpay.com.br/pages/v2/faturas/reference): Fatura de cada ciclo da assinatura, com pagamentos, `attempts` e `failure_reason`.
-- [GET /v2/invoices/{id}](https://docs.4seletpay.com.br/pages/v2/faturas/get): Consulta uma fatura.
-- [POST /v2/invoices/{id}/pay](https://docs.4seletpay.com.br/pages/v2/faturas/pay): Paga uma fatura com um novo `payment`. Responde `200` ou `402`.
-- [POST /v2/invoices/{id}/confirm](https://docs.4seletpay.com.br/pages/v2/faturas/confirm): Confirma o código de verificação da fatura.
-- [POST /v2/invoices/{id}/confirm/resend](https://docs.4seletpay.com.br/pages/v2/faturas/resend-confirmation): Reenvia o código de verificação. Limite de 5/min por IP.
+- [Referência de faturas](https://docs.4seletpay.com.br/pages/v2/faturas/reference): a fatura de cada ciclo, com pagamentos, `attempts` e `failure_reason`.
+- [GET /v2/invoices/{id}](https://docs.4seletpay.com.br/pages/v2/faturas/get): consulta uma fatura.
+- [POST /v2/invoices/{id}/pay](https://docs.4seletpay.com.br/pages/v2/faturas/pay): paga uma fatura com um novo `payment`.
+- [POST /v2/invoices/{id}/confirm](https://docs.4seletpay.com.br/pages/v2/faturas/confirm): confirma o código de verificação da fatura.
+- [POST /v2/invoices/{id}/confirm/resend](https://docs.4seletpay.com.br/pages/v2/faturas/resend-confirmation): reenvia o código (5 por minuto por IP).
 
 ## Webhooks (v2)
 
-- [Webhooks da v2](https://docs.4seletpay.com.br/pages/v2/webhooks/reference): Envelope v2, regra de versão por origem do recurso e lista de eventos. Endpoints são cadastrados no dashboard ou pela API v1.
-- [Eventos de pedido](https://docs.4seletpay.com.br/pages/v2/webhooks/events/order): `order.paid`, `order.failed`, `order.refunded`, `order.chargeback`. `data` = objeto de pedido.
-- [Eventos de cobrança](https://docs.4seletpay.com.br/pages/v2/webhooks/events/charge): `charge.*`. `data` = payload próprio de cobrança (`code`, `status`, `amount`, `amount_refunded`, `payment_method`, `order`, `customer`, `card`, `transaction`). Sem cartão vinculado, `card` vem `null`. `charge.expired` e `charge.canceled` também saem em v2 quando a cobrança é de pedido v2 ou de fatura de assinatura v2; nos recursos da v1 continuam em v1.
-- [Eventos de assinatura](https://docs.4seletpay.com.br/pages/v2/webhooks/events/subscription): `subscription.canceled`, `delayed`, `regularized`, `suspended`, `completed`. Não existe `subscription.created`.
+- [Webhooks da v2](https://docs.4seletpay.com.br/pages/v2/webhooks/reference): envelope, regra de versão e lista de eventos.
+- [Eventos de pedido](https://docs.4seletpay.com.br/pages/v2/webhooks/events/order): `order.paid`, `order.failed`, `order.refunded`, `order.chargeback`.
+- [Eventos de cobrança](https://docs.4seletpay.com.br/pages/v2/webhooks/events/charge): `charge.*`, com payload próprio.
+- [Eventos de assinatura](https://docs.4seletpay.com.br/pages/v2/webhooks/events/subscription): `subscription.canceled`, `delayed`, `regularized`, `suspended`, `completed`.
 - [Eventos de fatura](https://docs.4seletpay.com.br/pages/v2/webhooks/events/invoice): `invoice.created` (só renovações), `invoice.paid`, `invoice.failed`.
+- [Configurar endpoints](https://docs.4seletpay.com.br/pages/v2/webhooks/endpoints): dashboard (autenticação, tentativas, eventos) ou API v1; o que a sua rota deve fazer.
+- [Entregas e reenvio](https://docs.4seletpay.com.br/pages/v2/webhooks/entregas): intervalos de reenvio, `GET /v1/webhook-events` e `POST /v1/webhook-events/{code}/resend`.
+- [Cadastrar endpoint (v1)](https://docs.4seletpay.com.br/pages/webhook-endpoints/create): `POST /v1/webhook-endpoints` com `url` e `events`. Prefira o dashboard para configurar autenticação e tentativas.
+- [Gerenciar endpoints (v1)](https://docs.4seletpay.com.br/pages/webhook-endpoints/reference): listar, alterar (`PUT`) e remover (`DELETE`).
+
+## Análise de fraude
+
+- [Referência](https://docs.4seletpay.com.br/pages/analise-de-fraude/reference): consulta o risco de uma transação sem processar pagamento. Autentica pela chave de API, `amount` em centavos, erros no envelope `{ "error": { ... } }`. Cada análise concluída é cobrada.
+- [POST /v1/fraud/risk-analyses](https://docs.4seletpay.com.br/pages/analise-de-fraude/create): obrigatórios `amount` e `currency`; devolve `risk_score`, `risk_level`, `recommendation` e `decision` (`ALLOW`/`CHALLENGE`/`DENY`).
+- [Dados de teste](https://docs.4seletpay.com.br/pages/analise-de-fraude/dados-de-teste) (**em breve**): valores que vão forçar cada resultado.
+
+## API v1 (legado)
+
+> Use só para o que a v2 ainda não cobre (webhooks) ou em integrações existentes. Base `https://app.4seletpay.com.br/api/v1`. Autenticação: `POST /v1/login` com `email` e `password`, depois `Authorization: Bearer <access_token>` e `account: <codigo_da_conta>` em toda rota. Valores de cobrança em **reais** com decimais (`97.99`); o `value` do estorno parcial é em centavos. Respostas no envelope `{ "mensagem", "erro", "mensagenserro", "codigoretorno", "id", "data" }`; listagens no formato do paginador.
+
+- [Autenticação v1](https://docs.4seletpay.com.br/pages/autenticacao/reference) e [POST /v1/login](https://docs.4seletpay.com.br/pages/autenticacao/login).
+- [Chave de API](https://docs.4seletpay.com.br/pages/autenticacao/chave-de-api): autentica a v2 e a análise de fraude.
+- [Cobranças v1](https://docs.4seletpay.com.br/pages/cobrancas/reference): `POST /v1/charge` com `client`, `payment` e `items`; consulta, cancelamento e estorno.
+- [Pedidos v1](https://docs.4seletpay.com.br/pages/pedidos/reference): confirmações OTP por `confirmation_id`.
+- [Cartões v1](https://docs.4seletpay.com.br/pages/cartoes/reference): `POST /v1/clients/{clientCode}/cards/tokens`, tokenização assíncrona com eventos `card.*`.
+- [Assinaturas v1](https://docs.4seletpay.com.br/pages/assinaturas/reference): `subscription.interval` em dias; cancelamento, troca de cartão e de meio de pagamento.
+- [Faturas v1](https://docs.4seletpay.com.br/pages/faturas/reference): `POST /v1/invoices/{invoice_code}/pay-overdue`.
+- [Alterar próxima cobrança](https://docs.4seletpay.com.br/pages/assinaturas/next-charge-date) (**em breve**): `PUT /v1/subscriptions/{subscription_code}/next-charge-date`.
+- [Webhooks v1](https://docs.4seletpay.com.br/pages/webhooks/reference): envelope `{ "type", "id", "webhook_version": "v1", "data" }` e [eventos v1](https://docs.4seletpay.com.br/pages/webhooks/events/charge).
+
+## Em breve
+
+> Já disponíveis no Ambiente de Sandbox e ainda não em produção, onde as rotas respondem `404`. Os campos podem mudar até o lançamento. Não dependa deles em produção.
+
+- [Links de pagamento](https://docs.4seletpay.com.br/pages/links-de-pagamento/reference) (v1): checkout hospedado com URL única, `redirect_url`/`back_url`, limite de usos, expiração e desconto no PIX.
+- [Contestações](https://docs.4seletpay.com.br/pages/v2/contestacoes/reference) (v2): `GET /v2/chargebacks`, `GET /v2/chargebacks/{id}`, `POST /v2/chargebacks/{id}/evidences` (defesa em PDF) e os webhooks `chargeback.created` e `chargeback.updated`.
+- [Checkout.js e 3D Secure](https://docs.4seletpay.com.br/pages/checkout-js/reference) (v1): script com chave publicável `pk_` que adiciona a identificação do dispositivo (`dfp_id`) e o desafio 3D Secure à cobrança. Não tokeniza o cartão.
+- [Alterar próxima cobrança](https://docs.4seletpay.com.br/pages/assinaturas/next-charge-date) (v1): na v2, `next-billing-date` já está em produção.
+- [Dados de teste da análise de fraude](https://docs.4seletpay.com.br/pages/analise-de-fraude/dados-de-teste).
+
+## Opcional
+
+- [Changelog](https://docs.4seletpay.com.br/pages/changelog): mudanças por data, com as incompatíveis marcadas.
+- [Especificação OpenAPI](https://docs.4seletpay.com.br/openapi.yaml): todas as rotas v1 e v2.

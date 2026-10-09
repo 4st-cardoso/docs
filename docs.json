@@ -22,8 +22,140 @@
   "navigation": {
     "versions": [
       {
-        "version": "v1",
+        "version": "v2",
         "tag": "Atual",
+        "tabs": [
+          {
+            "tab": "Comece aqui",
+            "groups": [
+              {
+                "group": "Comece aqui",
+                "pages": [
+                  "pages/v2/start/welcome",
+                  "pages/v2/start/guia-de-integracao",
+                  "pages/v2/start/autenticacao",
+                  "pages/v2/start/erros",
+                  "pages/v2/start/idempotencia-e-limites",
+                  "pages/v2/start/migracao-v1",
+                  "pages/v2/start/ambiente-de-sandbox"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Referência",
+            "groups": [
+              {
+                "group": "Pedidos",
+                "pages": [
+                  "pages/v2/pedidos/reference",
+                  "pages/v2/pedidos/create",
+                  "pages/v2/pedidos/get",
+                  "pages/v2/pedidos/capture",
+                  "pages/v2/pedidos/cancel",
+                  "pages/v2/pedidos/confirm",
+                  "pages/v2/pedidos/resend-confirmation"
+                ]
+              },
+              {
+                "group": "Cobranças",
+                "pages": [
+                  "pages/v2/cobrancas/reference",
+                  "pages/v2/cobrancas/get",
+                  "pages/v2/cobrancas/refund"
+                ]
+              },
+              {
+                "group": "Cartões",
+                "pages": [
+                  "pages/v2/cartoes/reference",
+                  "pages/v2/cartoes/create",
+                  "pages/v2/cartoes/get"
+                ]
+              },
+              {
+                "group": "Assinaturas",
+                "pages": [
+                  "pages/v2/assinaturas/reference",
+                  "pages/v2/assinaturas/create",
+                  "pages/v2/assinaturas/get",
+                  "pages/v2/assinaturas/cancel",
+                  "pages/v2/assinaturas/payment-method",
+                  "pages/v2/assinaturas/update-item",
+                  "pages/v2/assinaturas/next-billing-date",
+                  "pages/v2/assinaturas/invoices"
+                ]
+              },
+              {
+                "group": "Faturas",
+                "pages": [
+                  "pages/v2/faturas/reference",
+                  "pages/v2/faturas/get",
+                  "pages/v2/faturas/pay",
+                  "pages/v2/faturas/confirm",
+                  "pages/v2/faturas/resend-confirmation"
+                ]
+              },
+              {
+                "group": "Contestações",
+                "pages": [
+                  "pages/v2/contestacoes/reference"
+                ]
+              },
+              {
+                "group": "Links de pagamento",
+                "pages": [
+                  "pages/links-de-pagamento/reference",
+                  "pages/links-de-pagamento/create",
+                  "pages/links-de-pagamento/list",
+                  "pages/links-de-pagamento/get",
+                  "pages/links-de-pagamento/cancel",
+                  "pages/links-de-pagamento/delete"
+                ]
+              },
+              {
+                "group": "Análise de fraude",
+                "pages": [
+                  "pages/analise-de-fraude/reference",
+                  "pages/analise-de-fraude/create",
+                  "pages/analise-de-fraude/dados-de-teste"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Webhooks",
+            "groups": [
+              {
+                "group": "Visão geral",
+                "pages": [
+                  "pages/v2/webhooks/reference",
+                  "pages/v2/webhooks/endpoints",
+                  "pages/v2/webhooks/entregas"
+                ]
+              },
+              {
+                "group": "Eventos",
+                "pages": [
+                  "pages/v2/webhooks/events/order",
+                  "pages/v2/webhooks/events/charge",
+                  "pages/v2/webhooks/events/subscription",
+                  "pages/v2/webhooks/events/invoice"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Changelog",
+            "pages": [
+              "pages/changelog/index"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1",
+        "tag": "Legado",
         "tabs": [
           {
             "tab": "Comece aqui",
@@ -59,6 +191,12 @@
                 ]
               },
               {
+                "group": "Checkout.js",
+                "pages": [
+                  "pages/checkout-js/reference"
+                ]
+              },
+              {
                 "group": "Pedidos",
                 "pages": [
                   "pages/pedidos/reference",
@@ -88,7 +226,8 @@
                   "pages/assinaturas/change-payment-method",
                   "pages/assinaturas/invoices",
                   "pages/assinaturas/items",
-                  "pages/assinaturas/update-item"
+                  "pages/assinaturas/update-item",
+                  "pages/assinaturas/next-charge-date"
                 ]
               },
               {
@@ -155,103 +294,6 @@
             "tab": "Changelog",
             "pages": [
               "pages/changelog/index"
-            ]
-          }
-        ]
-      },
-      {
-        "version": "v2",
-        "tag": "Nova",
-        "tabs": [
-          {
-            "tab": "Comece aqui",
-            "groups": [
-              {
-                "group": "Comece aqui",
-                "pages": [
-                  "pages/v2/start/welcome",
-                  "pages/v2/start/autenticacao",
-                  "pages/v2/start/erros",
-                  "pages/v2/start/idempotencia-e-limites",
-                  "pages/v2/start/migracao-v1"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "Referência",
-            "groups": [
-              {
-                "group": "Pedidos",
-                "pages": [
-                  "pages/v2/pedidos/reference",
-                  "pages/v2/pedidos/create",
-                  "pages/v2/pedidos/get",
-                  "pages/v2/pedidos/capture",
-                  "pages/v2/pedidos/cancel",
-                  "pages/v2/pedidos/confirm",
-                  "pages/v2/pedidos/resend-confirmation"
-                ]
-              },
-              {
-                "group": "Cobranças",
-                "pages": [
-                  "pages/v2/cobrancas/reference",
-                  "pages/v2/cobrancas/get",
-                  "pages/v2/cobrancas/refund"
-                ]
-              },
-              {
-                "group": "Cartões",
-                "pages": [
-                  "pages/v2/cartoes/reference",
-                  "pages/v2/cartoes/create",
-                  "pages/v2/cartoes/get"
-                ]
-              },
-              {
-                "group": "Assinaturas",
-                "pages": [
-                  "pages/v2/assinaturas/reference",
-                  "pages/v2/assinaturas/create",
-                  "pages/v2/assinaturas/get",
-                  "pages/v2/assinaturas/cancel",
-                  "pages/v2/assinaturas/payment-method",
-                  "pages/v2/assinaturas/update-item",
-                  "pages/v2/assinaturas/next-billing-date",
-                  "pages/v2/assinaturas/invoices"
-                ]
-              },
-              {
-                "group": "Faturas",
-                "pages": [
-                  "pages/v2/faturas/reference",
-                  "pages/v2/faturas/get",
-                  "pages/v2/faturas/pay",
-                  "pages/v2/faturas/confirm",
-                  "pages/v2/faturas/resend-confirmation"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "Webhooks",
-            "groups": [
-              {
-                "group": "Visão geral",
-                "pages": [
-                  "pages/v2/webhooks/reference"
-                ]
-              },
-              {
-                "group": "Eventos",
-                "pages": [
-                  "pages/v2/webhooks/events/order",
-                  "pages/v2/webhooks/events/charge",
-                  "pages/v2/webhooks/events/subscription",
-                  "pages/v2/webhooks/events/invoice"
-                ]
-              }
             ]
           }
         ]
